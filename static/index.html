@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arsenal Ship Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #111820;
+            --bg-tertiary: #1a222d;
+            --border-color: #2a3544;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-critical: #f85149;
+            --accent-high: #ff7b00;
+            --accent-medium: #d29922;
+            --accent-low: #3fb950;
+            --accent-info: #58a6ff;
+            --accent-blue: #1f6feb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-critical);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .logo-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 24px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-critical { color: var(--accent-critical); }
+        .stat-high { color: var(--accent-high); }
+        .stat-medium { color: var(--accent-medium); }
+        .stat-info { color: var(--accent-info); }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 320px 1fr 380px;
+            height: calc(100vh - 60px);
+        }
+
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .vessel-list {
+            list-style: none;
+        }
+
+        .vessel-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .vessel-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .vessel-item.active {
+            background: var(--bg-tertiary);
+            border-left: 3px solid var(--accent-critical);
+        }
+
+        .vessel-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .vessel-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            gap: 12px;
+        }
+
+        .threat-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .threat-critical { background: rgba(248, 81, 73, 0.2); color: var(--accent-critical); }
+        .threat-high { background: rgba(255, 123, 0, 0.2); color: var(--accent-high); }
+        .threat-medium { background: rgba(210, 153, 34, 0.2); color: var(--accent-medium); }
+        .threat-low { background: rgba(63, 185, 80, 0.2); color: var(--accent-low); }
+
+        .map-container {
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            background: var(--bg-primary);
+        }
+
+        .detail-panel {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            overflow-y: auto;
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .panel-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .panel-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .info-item {
+            background: var(--bg-tertiary);
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .info-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .intel-notes {
+            background: var(--bg-tertiary);
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .weapons-list {
+            list-style: none;
+        }
+
+        .weapons-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .weapons-list li:last-child {
+            border-bottom: none;
+        }
+
+        .event-timeline {
+            list-style: none;
+        }
+
+        .event-item {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .event-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 16px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-info);
+        }
+
+        .event-item.severity-critical::before { background: var(--accent-critical); }
+        .event-item.severity-high::before { background: var(--accent-high); }
+        .event-item.severity-medium::before { background: var(--accent-medium); }
+
+        .event-date {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .event-title {
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .event-description {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .osint-card {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .osint-source {
+            font-size: 10px;
+            color: var(--accent-info);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .osint-title {
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .osint-title a {
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        .osint-title a:hover {
+            color: var(--accent-info);
+        }
+
+        .osint-summary {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .osint-date {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100px;
+            color: var(--text-muted);
+        }
+
+        .empty-state {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        /* Custom Leaflet styles */
+        .leaflet-container {
+            background: var(--bg-primary);
+        }
+
+        .leaflet-tile-pane {
+            filter: invert(1) hue-rotate(180deg) brightness(0.8) contrast(1.2);
+        }
+
+        .vessel-marker {
+            background: var(--accent-critical);
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 12px;
+            height: 12px;
+        }
+
+        .shipyard-marker {
+            background: var(--accent-medium);
+            border: 2px solid white;
+            border-radius: 4px;
+            width: 10px;
+            height: 10px;
+        }
+
+        .track-line {
+            stroke: var(--accent-info);
+            stroke-width: 2;
+            stroke-dasharray: 5, 5;
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 280px 1fr;
+            }
+            .detail-panel {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">A</div>
+            <div>
+                <div class="logo-text">ARSENAL TRACKER</div>
+                <div class="logo-sub">Maritime Gray Zone Monitor</div>
+            </div>
+        </div>
+        <div class="stats-bar" id="stats-bar">
+            <div class="stat">
+                <div class="stat-value stat-critical" id="stat-critical">-</div>
+                <div class="stat-label">Critical</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value stat-high" id="stat-alerts">-</div>
+                <div class="stat-label">Active Alerts</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value stat-info" id="stat-vessels">-</div>
+                <div class="stat-label">Tracked</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value stat-medium" id="stat-osint">-</div>
+                <div class="stat-label">OSINT Reports</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Vessel Watchlist</span>
+            </div>
+            <ul class="vessel-list" id="vessel-list">
+                <li class="loading">Loading vessels...</li>
+            </ul>
+        </aside>
+
+        <main class="map-container">
+            <div id="map"></div>
+        </main>
+
+        <aside class="detail-panel" id="detail-panel">
+            <div class="empty-state">
+                <p>Select a vessel to view details</p>
+            </div>
+        </aside>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const API_BASE = '/api';
+        let map;
+        let vesselMarkers = {};
+        let shipyardMarkers = {};
+        let trackLine = null;
+        let selectedVessel = null;
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map', {
+                center: [30, 120],
+                zoom: 5,
+                zoomControl: true
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: ''
+            }).addTo(map);
+        }
+
+        // API calls
+        async function fetchAPI(endpoint) {
+            try {
+                const response = await fetch(API_BASE + endpoint);
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                return null;
+            }
+        }
+
+        // Load stats
+        async function loadStats() {
+            const stats = await fetchAPI('/stats');
+            if (stats) {
+                document.getElementById('stat-critical').textContent = stats.critical_threats || 0;
+                document.getElementById('stat-alerts').textContent = stats.active_alerts || 0;
+                document.getElementById('stat-vessels').textContent = stats.total_vessels || 0;
+                document.getElementById('stat-osint').textContent = stats.osint_reports || 0;
+            }
+        }
+
+        // Load vessels
+        async function loadVessels() {
+            const vessels = await fetchAPI('/vessels');
+            const list = document.getElementById('vessel-list');
+
+            if (!vessels || vessels.length === 0) {
+                list.innerHTML = '<li class="empty-state">No vessels found</li>';
+                return;
+            }
+
+            list.innerHTML = vessels.map(v => `
+                <li class="vessel-item" data-id="${v.id}" onclick="selectVessel(${v.id})">
+                    <div class="vessel-name">${v.name}</div>
+                    <div class="vessel-meta">
+                        <span>${v.flag_state || 'Unknown'}</span>
+                        <span class="threat-badge threat-${v.threat_level}">${v.threat_level}</span>
+                    </div>
+                </li>
+            `).join('');
+
+            // Add markers to map
+            vessels.forEach(v => {
+                if (v.last_lat && v.last_lon) {
+                    const marker = L.circleMarker([v.last_lat, v.last_lon], {
+                        radius: 8,
+                        fillColor: getThreatColor(v.threat_level),
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(map);
+
+                    marker.bindPopup(`<b>${v.name}</b><br>${v.classification}`);
+                    marker.on('click', () => selectVessel(v.id));
+                    vesselMarkers[v.id] = marker;
+                }
+            });
+        }
+
+        // Load shipyards
+        async function loadShipyards() {
+            const shipyards = await fetchAPI('/shipyards');
+            if (!shipyards) return;
+
+            shipyards.forEach(s => {
+                const marker = L.circleMarker([s.latitude, s.longitude], {
+                    radius: 6,
+                    fillColor: '#d29922',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.6
+                }).addTo(map);
+
+                marker.bindPopup(`<b>${s.name}</b><br>${s.location}`);
+                shipyardMarkers[s.id] = marker;
+
+                // Add geofence circle
+                L.circle([s.latitude, s.longitude], {
+                    radius: s.geofence_radius_km * 1000,
+                    color: '#d29922',
+                    fillColor: '#d29922',
+                    fillOpacity: 0.1,
+                    weight: 1,
+                    dashArray: '5, 5'
+                }).addTo(map);
+            });
+        }
+
+        // Select vessel
+        async function selectVessel(id) {
+            selectedVessel = id;
+
+            // Update sidebar selection
+            document.querySelectorAll('.vessel-item').forEach(el => {
+                el.classList.toggle('active', parseInt(el.dataset.id) === id);
+            });
+
+            // Load vessel details
+            const [vessel, events, track, osint] = await Promise.all([
+                fetchAPI(`/vessels/${id}`),
+                fetchAPI(`/vessels/${id}/events`),
+                fetchAPI(`/vessels/${id}/track?days=365`),
+                fetchAPI(`/osint?vessel_id=${id}`)
+            ]);
+
+            if (vessel) {
+                renderVesselDetails(vessel, events, osint);
+
+                // Center map on vessel
+                if (vessel.last_lat && vessel.last_lon) {
+                    map.setView([vessel.last_lat, vessel.last_lon], 8);
+                }
+
+                // Draw track line
+                if (trackLine) {
+                    map.removeLayer(trackLine);
+                }
+                if (track && track.length > 1) {
+                    const coords = track.map(p => [p.latitude, p.longitude]);
+                    trackLine = L.polyline(coords, {
+                        color: '#58a6ff',
+                        weight: 2,
+                        dashArray: '5, 5',
+                        opacity: 0.7
+                    }).addTo(map);
+                }
+            }
+        }
+
+        // Render vessel details
+        function renderVesselDetails(vessel, events, osint) {
+            const panel = document.getElementById('detail-panel');
+            let weapons = {};
+            try {
+                weapons = JSON.parse(vessel.weapons_config || '{}');
+            } catch (e) {}
+
+            panel.innerHTML = `
+                <div class="panel-header">
+                    <div class="panel-title">${vessel.name}</div>
+                    <div class="panel-subtitle">
+                        ${vessel.vessel_type || 'Unknown Type'} | ${vessel.flag_state || 'Unknown Flag'}
+                        <span class="threat-badge threat-${vessel.threat_level}">${vessel.threat_level}</span>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="section-title">Vessel Details</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Classification</div>
+                            <div class="info-value">${vessel.classification || '-'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Length</div>
+                            <div class="info-value">${vessel.length_m ? vessel.length_m + 'm' : '-'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">MMSI</div>
+                            <div class="info-value">${vessel.mmsi || '-'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Last Position</div>
+                            <div class="info-value">${vessel.last_lat?.toFixed(4) || '-'}, ${vessel.last_lon?.toFixed(4) || '-'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                ${vessel.intel_notes ? `
+                <div class="panel-section">
+                    <div class="section-title">Intelligence Notes</div>
+                    <div class="intel-notes">${vessel.intel_notes}</div>
+                </div>
+                ` : ''}
+
+                ${Object.keys(weapons).length > 0 ? `
+                <div class="panel-section">
+                    <div class="section-title">Weapons Configuration</div>
+                    <ul class="weapons-list">
+                        ${weapons.vls_cells ? `<li><span>VLS Cells</span><span>${weapons.vls_cells}</span></li>` : ''}
+                        ${weapons.vls_type ? `<li><span>VLS Type</span><span>${weapons.vls_type}</span></li>` : ''}
+                        ${weapons.ciws ? `<li><span>CIWS</span><span>${weapons.ciws}</span></li>` : ''}
+                        ${weapons.decoys ? `<li><span>Decoys</span><span>${weapons.decoys}</span></li>` : ''}
+                        ${weapons.possible_missiles ? `<li><span>Possible Missiles</span><span>${weapons.possible_missiles.join(', ')}</span></li>` : ''}
+                    </ul>
+                </div>
+                ` : ''}
+
+                ${osint && osint.length > 0 ? `
+                <div class="panel-section">
+                    <div class="section-title">OSINT Reports</div>
+                    ${osint.map(r => `
+                        <div class="osint-card">
+                            <div class="osint-source">${r.source_name}</div>
+                            <div class="osint-title">
+                                ${r.source_url ? `<a href="${r.source_url}" target="_blank">${r.title}</a>` : r.title}
+                            </div>
+                            <div class="osint-summary">${r.summary || ''}</div>
+                            <div class="osint-date">${r.publish_date || ''}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                ` : ''}
+
+                ${events && events.length > 0 ? `
+                <div class="panel-section">
+                    <div class="section-title">Event Timeline</div>
+                    <ul class="event-timeline">
+                        ${events.slice(0, 10).map(e => `
+                            <li class="event-item severity-${e.severity}">
+                                <div class="event-date">${formatDate(e.event_date)}</div>
+                                <div class="event-title">${e.title}</div>
+                                ${e.description ? `<div class="event-description">${e.description}</div>` : ''}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        // Helpers
+        function getThreatColor(level) {
+            const colors = {
+                critical: '#f85149',
+                high: '#ff7b00',
+                medium: '#d29922',
+                low: '#3fb950',
+                unknown: '#8b949e'
+            };
+            return colors[level] || colors.unknown;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            initMap();
+            await Promise.all([
+                loadStats(),
+                loadVessels(),
+                loadShipyards()
+            ]);
+
+            // Auto-select first vessel
+            const firstVessel = document.querySelector('.vessel-item');
+            if (firstVessel) {
+                selectVessel(parseInt(firstVessel.dataset.id));
+            }
+        });
+    </script>
+</body>
+</html>
