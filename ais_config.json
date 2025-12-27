@@ -2,7 +2,7 @@
   "sources": {
     "aisstream": {
       "enabled": true,
-      "api_key": "${AISSTREAM_API_KEY}",
+      "api_key": "b378a3f39593fd2ac18c43f350dca09a269b20eb",
       "description": "Real-time WebSocket AIS data from aisstream.io (requires free API key)"
     },
     "marinesia": {
