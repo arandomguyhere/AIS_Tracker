@@ -1,0 +1,62 @@
+{
+  "generated_at": "2025-12-27T22:21:29.989943Z",
+  "event_count": 4,
+  "events": [
+    {
+      "id": "osint-5ed5a2020343",
+      "vessel_id": 1,
+      "vessel_name": "ZHONG DA 79",
+      "event_type": "weapons_observed",
+      "severity": "critical",
+      "title": "OSINT: ZHONG DA 79 mentioned in United24 Media",
+      "description": "Article from United24 Media correlates with ZHONG DA 79. Weapon systems mentioned: VLS, CIWS, cruise missile. Locations: Shanghai. Key terms: missile, weapon, converted, military, CIWS.",
+      "event_date": "2025-12-26T00:00:00",
+      "confidence_score": 0.98,
+      "confidence_level": "high",
+      "source_url": "https://united24media.com/latest-news/cargo-ship-or-warship-china-arms-civilian-vessel-with-60-missiles-in-plain-sight-14585",
+      "source_name": "United24 Media"
+    },
+    {
+      "id": "osint-3ea704deacc3",
+      "vessel_id": 1,
+      "vessel_name": "ZHONG DA 79",
+      "event_type": "weapons_observed",
+      "severity": "critical",
+      "title": "OSINT: ZHONG DA 79 mentioned in Naval News",
+      "description": "Article from Naval News correlates with ZHONG DA 79. Weapon systems mentioned: VLS, CIWS, containerized missile. Locations: Fujian. Key terms: arsenal ship, missile, converted, CIWS, VLS.",
+      "event_date": "2025-12-26T00:00:00",
+      "confidence_score": 0.98,
+      "confidence_level": "high",
+      "source_url": "https://www.navalnews.com/naval-news/2025/12/container-ship-turned-missile-battery-spotted-in-china/",
+      "source_name": "Naval News"
+    },
+    {
+      "id": "osint-719770fd5b7c",
+      "vessel_id": 1,
+      "vessel_name": "ZHONG DA 79",
+      "event_type": "weapons_observed",
+      "severity": "critical",
+      "title": "OSINT: ZHONG DA 79 mentioned in Newsweek",
+      "description": "Article from Newsweek correlates with ZHONG DA 79. Locations: Shanghai. Key terms: missile, weapon, military, launcher, armed.",
+      "event_date": "2025-12-26T00:00:00",
+      "confidence_score": 0.98,
+      "confidence_level": "high",
+      "source_url": "https://www.newsweek.com/photos-chinese-cargo-ship-missile-launchers-11270114",
+      "source_name": "Newsweek"
+    },
+    {
+      "id": "osint-b40fc6da757d",
+      "vessel_id": 1,
+      "vessel_name": "ZHONG DA 79",
+      "event_type": "media_coverage",
+      "severity": "medium",
+      "title": "OSINT: ZHONG DA 79 mentioned in Lloyd's List",
+      "description": "Article from Lloyd's List correlates with ZHONG DA 79. Locations: South China Sea. Key terms: military, cargo.",
+      "event_date": "2025-12-22T00:00:00",
+      "confidence_score": 0.3825,
+      "confidence_level": "low",
+      "source_url": "https://example.com/scs-shipping-disruption",
+      "source_name": "Lloyd's List"
+    }
+  ]
+}

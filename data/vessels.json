@@ -1,0 +1,16 @@
+{
+  "description": "Tracked vessels for OSINT correlation",
+  "vessels": [
+    {
+      "id": 1,
+      "name": "ZHONG DA 79",
+      "mmsi": "413000000",
+      "imo": null,
+      "flag_state": "China",
+      "vessel_type": "Container Feeder",
+      "aliases": ["ZHONGDA 79", "ZHONGDA79", "ZHONG DA79"],
+      "keywords": ["arsenal ship", "containerized missile", "VLS", "CIWS", "Type 1130"],
+      "related_locations": ["Shanghai", "Longhai", "Fujian", "Huangpu River", "Hudong-Zhonghua"]
+    }
+  ]
+}

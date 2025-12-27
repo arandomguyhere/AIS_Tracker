@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- OSINT data last updated: 2025-12-27T22:21:29.989943Z -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arsenal Ship Tracker</title>
@@ -504,15 +505,31 @@
         ];
 
         const events = [
-            { severity: 'high', title: 'Entered Longhai Shipyard', description: 'ZHONG DA 79 entered Longhai shipyard for extended stay.', event_date: '2025-04-15' },
-            { severity: 'medium', title: 'AIS Signal Lost', description: 'Vessel went dark during shipyard stay.', event_date: '2025-04-20' },
-            { severity: 'critical', title: 'Structural Modifications Observed', description: 'Satellite imagery indicates deck modifications consistent with weapons platform installation.', event_date: '2025-06-15' },
-            { severity: 'high', title: 'Departed Longhai Shipyard', description: 'ZHONG DA 79 departed after 4 months of refit work.', event_date: '2025-08-15' },
-            { severity: 'info', title: 'AIS Signal Resumed', description: 'Vessel AIS transponder active during transit to Shanghai.', event_date: '2025-08-18' },
-            { severity: 'high', title: 'Moored at Shanghai Industrial Pier', description: 'Vessel arrived at industrial pier on Huangpu River.', event_date: '2025-08-22' },
-            { severity: 'critical', title: 'Containerized VLS Confirmed', description: 'Photographs show 48-60 containerized VLS cells. Type 1130 CIWS and Type 726 decoys visible.', event_date: '2025-12-20' },
-            { severity: 'critical', title: 'Major Media Coverage', description: 'United24 Media, Naval News, The War Zone, Newsweek all publish articles.', event_date: '2025-12-26' }
-        ];
+            {
+                        "severity": "critical",
+                        "title": "OSINT: ZHONG DA 79 mentioned in United24 Media",
+                        "description": "Article from United24 Media correlates with ZHONG DA 79. Weapon systems mentioned: VLS, CIWS, cruise missile. Locations: Shanghai. Key terms: missile, weapon, converted, military, CIWS. [Source: United24 Media]",
+                        "event_date": "2025-12-26"
+            },
+            {
+                        "severity": "critical",
+                        "title": "OSINT: ZHONG DA 79 mentioned in Naval News",
+                        "description": "Article from Naval News correlates with ZHONG DA 79. Weapon systems mentioned: VLS, CIWS, containerized missile. Locations: Fujian. Key terms: arsenal ship, missile, converted, CIWS, VLS. [Source: Naval News]",
+                        "event_date": "2025-12-26"
+            },
+            {
+                        "severity": "critical",
+                        "title": "OSINT: ZHONG DA 79 mentioned in Newsweek",
+                        "description": "Article from Newsweek correlates with ZHONG DA 79. Locations: Shanghai. Key terms: missile, weapon, military, launcher, armed. [Source: Newsweek]",
+                        "event_date": "2025-12-26"
+            },
+            {
+                        "severity": "medium",
+                        "title": "OSINT: ZHONG DA 79 mentioned in Lloyd's List",
+                        "description": "Article from Lloyd's List correlates with ZHONG DA 79. Locations: South China Sea. Key terms: military, cargo. [Source: Lloyd's List]",
+                        "event_date": "2025-12-22"
+            }
+];
 
         const positions = [
             { latitude: 24.4456, longitude: 117.8234 },

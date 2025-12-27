@@ -1,0 +1,63 @@
+name: OSINT Correlation
+
+on:
+  # Run daily at 6 AM UTC
+  schedule:
+    - cron: '0 6 * * *'
+
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      search_query:
+        description: 'Custom search query (optional)'
+        required: false
+        default: ''
+
+  # Run on push to main if osint/ or articles change
+  push:
+    branches: [main]
+    paths:
+      - 'osint/**'
+      - 'data/articles/**'
+
+jobs:
+  correlate:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run OSINT correlation
+        run: |
+          echo "Running OSINT correlation..."
+          python scripts/run_osint.py
+        env:
+          SEARCH_QUERY: ${{ github.event.inputs.search_query }}
+
+      - name: Update static site with results
+        run: |
+          echo "Updating docs/index.html with OSINT data..."
+          python scripts/update_static_site.py
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if there are changes
+          if git diff --quiet docs/index.html data/; then
+            echo "No changes to commit"
+          else
+            git add docs/index.html data/
+            git commit -m "Update OSINT data [automated]"
+            git push
+          fi
