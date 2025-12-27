@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arsenal Ship Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #111820;
+            --bg-tertiary: #1a222d;
+            --border-color: #2a3544;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-critical: #f85149;
+            --accent-high: #ff7b00;
+            --accent-medium: #d29922;
+            --accent-low: #3fb950;
+            --accent-info: #58a6ff;
+            --accent-blue: #1f6feb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-critical);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .logo-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 24px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-critical { color: var(--accent-critical); }
+        .stat-high { color: var(--accent-high); }
+        .stat-medium { color: var(--accent-medium); }
+        .stat-info { color: var(--accent-info); }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 320px 1fr 400px;
+            height: calc(100vh - 60px);
+        }
+
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .vessel-list {
+            list-style: none;
+        }
+
+        .vessel-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .vessel-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .vessel-item.active {
+            background: var(--bg-tertiary);
+            border-left: 3px solid var(--accent-critical);
+        }
+
+        .vessel-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .vessel-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            gap: 12px;
+        }
+
+        .threat-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .threat-critical { background: rgba(248, 81, 73, 0.2); color: var(--accent-critical); }
+        .threat-high { background: rgba(255, 123, 0, 0.2); color: var(--accent-high); }
+        .threat-medium { background: rgba(210, 153, 34, 0.2); color: var(--accent-medium); }
+        .threat-low { background: rgba(63, 185, 80, 0.2); color: var(--accent-low); }
+
+        .map-container {
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            background: var(--bg-primary);
+        }
+
+        .detail-panel {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            overflow-y: auto;
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .panel-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .panel-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .info-item {
+            background: var(--bg-tertiary);
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .info-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .intel-notes {
+            background: var(--bg-tertiary);
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .weapons-list {
+            list-style: none;
+        }
+
+        .weapons-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .weapons-list li:last-child {
+            border-bottom: none;
+        }
+
+        .event-timeline {
+            list-style: none;
+        }
+
+        .event-item {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .event-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 16px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-info);
+        }
+
+        .event-item.severity-critical::before { background: var(--accent-critical); }
+        .event-item.severity-high::before { background: var(--accent-high); }
+        .event-item.severity-medium::before { background: var(--accent-medium); }
+
+        .event-date {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .event-title {
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .event-description {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .osint-card {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .osint-source {
+            font-size: 10px;
+            color: var(--accent-info);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .osint-title {
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .osint-title a {
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        .osint-title a:hover {
+            color: var(--accent-info);
+        }
+
+        .osint-summary {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .osint-date {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .empty-state {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        /* Custom Leaflet styles */
+        .leaflet-container {
+            background: var(--bg-primary);
+        }
+
+        .leaflet-tile-pane {
+            filter: invert(1) hue-rotate(180deg) brightness(0.8) contrast(1.2);
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 280px 1fr;
+            }
+            .detail-panel {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
+            }
+            .stats-bar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">A</div>
+            <div>
+                <div class="logo-text">ARSENAL TRACKER</div>
+                <div class="logo-sub">Maritime Gray Zone Monitor</div>
+            </div>
+        </div>
+        <div class="stats-bar" id="stats-bar">
+            <div class="stat">
+                <div class="stat-value stat-critical" id="stat-critical">1</div>
+                <div class="stat-label">Critical</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value stat-high" id="stat-alerts">1</div>
+                <div class="stat-label">Active Alerts</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value stat-info" id="stat-vessels">1</div>
+                <div class="stat-label">Tracked</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value stat-medium" id="stat-osint">4</div>
+                <div class="stat-label">OSINT Reports</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Vessel Watchlist</span>
+            </div>
+            <ul class="vessel-list" id="vessel-list"></ul>
+        </aside>
+
+        <main class="map-container">
+            <div id="map"></div>
+        </main>
+
+        <aside class="detail-panel" id="detail-panel">
+            <div class="empty-state">
+                <p>Select a vessel to view details</p>
+            </div>
+        </aside>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // =============================================================================
+        // EMBEDDED DATA - Arsenal Ship Tracker
+        // =============================================================================
+
+        const DATA = {
+            vessels: [{
+                id: 1,
+                name: "ZHONG DA 79",
+                mmsi: "413000000",
+                imo: null,
+                flag_state: "China",
+                vessel_type: "Container Feeder",
+                length_m: 97.0,
+                classification: "confirmed",
+                threat_level: "critical",
+                intel_notes: "Commercial container feeder converted to arsenal ship. Observed with containerized VLS, CIWS, and radar systems at Shanghai shipyard. Underwent refit at Longhai shipyard April-August 2025. Currently moored at industrial pier on Huangpu River, Shanghai. NOT listed in PLAN registry - retains civilian designation despite visible military modifications.",
+                weapons_config: {
+                    vls_cells: 60,
+                    vls_type: "Containerized VLS (4 cells per container)",
+                    ciws: "Type 1130 30mm",
+                    decoys: "Type 726",
+                    radar: "Unknown type (containerized)",
+                    possible_missiles: ["CJ-10", "YJ-18", "YJ-21"]
+                },
+                last_lat: 31.2456,
+                last_lon: 121.4890,
+                last_position_time: "2025-12-26 09:00:00"
+            }],
+
+            shipyards: [
+                { id: 1, name: "Hudong-Zhonghua Shipbuilding", location: "Shanghai, China", latitude: 31.3456, longitude: 121.5234, geofence_radius_km: 3.0 },
+                { id: 2, name: "Longhai Shipyard", location: "Longhai, Fujian, China", latitude: 24.4456, longitude: 117.8234, geofence_radius_km: 2.0 },
+                { id: 3, name: "Jiangnan Shipyard", location: "Shanghai, China", latitude: 31.3789, longitude: 121.5678, geofence_radius_km: 4.0 },
+                { id: 4, name: "Dalian Shipbuilding", location: "Dalian, Liaoning, China", latitude: 38.9234, longitude: 121.6345, geofence_radius_km: 4.0 },
+                { id: 5, name: "Wuchang Shipbuilding", location: "Wuhan, Hubei, China", latitude: 30.5567, longitude: 114.3234, geofence_radius_km: 3.0 },
+                { id: 6, name: "Guangzhou Shipyard", location: "Guangzhou, Guangdong, China", latitude: 23.0789, longitude: 113.3456, geofence_radius_km: 3.0 },
+                { id: 7, name: "Huangpu Shipbuilding", location: "Guangzhou, Guangdong, China", latitude: 23.1123, longitude: 113.4567, geofence_radius_km: 2.5 },
+                { id: 8, name: "Shanghai Huangpu River Industrial Pier", location: "Shanghai, China", latitude: 31.2456, longitude: 121.4890, geofence_radius_km: 1.5 }
+            ],
+
+            positions: [
+                { vessel_id: 1, latitude: 24.4456, longitude: 117.8234, timestamp: "2025-04-15 08:00:00", source: "satellite" },
+                { vessel_id: 1, latitude: 24.4456, longitude: 117.8234, timestamp: "2025-06-01 10:00:00", source: "satellite" },
+                { vessel_id: 1, latitude: 24.4456, longitude: 117.8234, timestamp: "2025-08-10 14:00:00", source: "satellite" },
+                { vessel_id: 1, latitude: 26.1234, longitude: 119.9876, timestamp: "2025-08-18 06:00:00", source: "ais" },
+                { vessel_id: 1, latitude: 28.9876, longitude: 121.2345, timestamp: "2025-08-20 18:00:00", source: "ais" },
+                { vessel_id: 1, latitude: 31.2456, longitude: 121.4890, timestamp: "2025-08-22 08:00:00", source: "ais" },
+                { vessel_id: 1, latitude: 31.2456, longitude: 121.4890, timestamp: "2025-12-20 12:00:00", source: "satellite" },
+                { vessel_id: 1, latitude: 31.2456, longitude: 121.4890, timestamp: "2025-12-26 09:00:00", source: "manual" }
+            ],
+
+            events: [
+                { vessel_id: 1, event_type: "shipyard_entry", severity: "high", title: "Entered Longhai Shipyard", description: "ZHONG DA 79 entered Longhai shipyard for extended stay. Purpose unknown at time of entry.", event_date: "2025-04-15 08:00:00" },
+                { vessel_id: 1, event_type: "ais_dark", severity: "medium", title: "AIS Signal Lost", description: "Vessel went dark for extended period during shipyard stay. Common for refit activities.", event_date: "2025-04-20 00:00:00" },
+                { vessel_id: 1, event_type: "modification_detected", severity: "critical", title: "Structural Modifications Observed", description: "Satellite imagery indicates deck modifications consistent with weapons platform installation.", event_date: "2025-06-15 00:00:00" },
+                { vessel_id: 1, event_type: "shipyard_exit", severity: "high", title: "Departed Longhai Shipyard", description: "ZHONG DA 79 departed Longhai after approximately 4 months of refit work.", event_date: "2025-08-15 06:00:00" },
+                { vessel_id: 1, event_type: "ais_resume", severity: "info", title: "AIS Signal Resumed", description: "Vessel AIS transponder active during transit to Shanghai.", event_date: "2025-08-18 06:00:00" },
+                { vessel_id: 1, event_type: "shipyard_entry", severity: "high", title: "Moored at Shanghai Industrial Pier", description: "Vessel arrived at industrial pier on Huangpu River near Hudong-Zhonghua facilities.", event_date: "2025-08-22 08:00:00" },
+                { vessel_id: 1, event_type: "weapons_observed", severity: "critical", title: "Containerized VLS Confirmed", description: "Photographs emerged showing 48-60 containerized VLS cells arranged on deck. Type 1130 CIWS and Type 726 decoy launchers also visible.", source_url: "https://x.com/RomboutLuc/status/2004304247811379628", event_date: "2025-12-20 12:00:00" },
+                { vessel_id: 1, event_type: "osint_report", severity: "critical", title: "Major Media Coverage", description: "Multiple international news outlets report on arsenal ship conversion. United24 Media, Naval News, The War Zone, Newsweek all publish articles.", event_date: "2025-12-26 00:00:00" }
+            ],
+
+            osint_reports: [
+                {
+                    id: 1,
+                    vessel_id: 1,
+                    title: "Cargo Ship or Warship? China Arms Civilian Vessel With 60 Missiles in Plain Sight",
+                    source_name: "United24 Media",
+                    source_url: "https://united24media.com/latest-news/cargo-ship-or-warship-china-arms-civilian-vessel-with-60-missiles-in-plain-sight-14585",
+                    publish_date: "2025-12-26",
+                    summary: "China converted a civilian container ship (ZHONGDA 79) into an arsenal ship carrying 60 containerized missiles, radar, and CIWS - openly visible at Shanghai shipyard. Ship retains civilian designation despite military conversion.",
+                    reliability: "confirmed"
+                },
+                {
+                    id: 2,
+                    vessel_id: 1,
+                    title: "Container Ship Turned Missile Battery Spotted in China",
+                    source_name: "Naval News",
+                    source_url: "https://www.navalnews.com/naval-news/2025/12/container-ship-turned-missile-battery-spotted-in-china/",
+                    publish_date: "2025-12-26",
+                    summary: "Naval News analysis of ZHONG DA 79 conversion with expert commentary on strategic implications. VLS cells could fire CJ-10, YJ-18, YJ-21 missiles.",
+                    reliability: "confirmed"
+                },
+                {
+                    id: 3,
+                    vessel_id: 1,
+                    title: "Photos Show Chinese Cargo Ship Armed With Missile Launchers",
+                    source_name: "Newsweek",
+                    source_url: "https://www.newsweek.com/photos-chinese-cargo-ship-missile-launchers-11270114",
+                    publish_date: "2025-12-26",
+                    summary: "Newsweek coverage of the arsenal ship revelation with geopolitical context and Taiwan Strait implications.",
+                    reliability: "confirmed"
+                },
+                {
+                    id: 4,
+                    vessel_id: 1,
+                    title: "Chinese Cargo Ship Packed Full Of Modular Missile Launchers Emerges",
+                    source_name: "The War Zone",
+                    source_url: "https://www.twz.com/sea/chinese-cargo-ship-packed-full-of-modular-missile-launchers-emerges",
+                    publish_date: "2025-12-26",
+                    summary: "Technical analysis of containerized weapons systems. Notes this could 'turn every ship into a target' during conflict.",
+                    reliability: "confirmed"
+                }
+            ]
+        };
+
+        // =============================================================================
+        // APPLICATION
+        // =============================================================================
+
+        let map;
+        let vesselMarkers = {};
+        let shipyardMarkers = {};
+        let trackLine = null;
+        let selectedVessel = null;
+
+        function initMap() {
+            map = L.map('map', {
+                center: [30, 120],
+                zoom: 5,
+                zoomControl: true
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: ''
+            }).addTo(map);
+        }
+
+        function loadVessels() {
+            const list = document.getElementById('vessel-list');
+            list.innerHTML = DATA.vessels.map(v => `
+                <li class="vessel-item" data-id="${v.id}" onclick="selectVessel(${v.id})">
+                    <div class="vessel-name">${v.name}</div>
+                    <div class="vessel-meta">
+                        <span>${v.flag_state || 'Unknown'}</span>
+                        <span class="threat-badge threat-${v.threat_level}">${v.threat_level}</span>
+                    </div>
+                </li>
+            `).join('');
+
+            // Add markers to map
+            DATA.vessels.forEach(v => {
+                if (v.last_lat && v.last_lon) {
+                    const marker = L.circleMarker([v.last_lat, v.last_lon], {
+                        radius: 10,
+                        fillColor: getThreatColor(v.threat_level),
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.9
+                    }).addTo(map);
+
+                    marker.bindPopup(`<b>${v.name}</b><br>${v.classification}<br>Threat: ${v.threat_level}`);
+                    marker.on('click', () => selectVessel(v.id));
+                    vesselMarkers[v.id] = marker;
+                }
+            });
+        }
+
+        function loadShipyards() {
+            DATA.shipyards.forEach(s => {
+                const marker = L.circleMarker([s.latitude, s.longitude], {
+                    radius: 6,
+                    fillColor: '#d29922',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.6
+                }).addTo(map);
+
+                marker.bindPopup(`<b>${s.name}</b><br>${s.location}`);
+                shipyardMarkers[s.id] = marker;
+
+                // Add geofence circle
+                L.circle([s.latitude, s.longitude], {
+                    radius: s.geofence_radius_km * 1000,
+                    color: '#d29922',
+                    fillColor: '#d29922',
+                    fillOpacity: 0.1,
+                    weight: 1,
+                    dashArray: '5, 5'
+                }).addTo(map);
+            });
+        }
+
+        function selectVessel(id) {
+            selectedVessel = id;
+
+            // Update sidebar selection
+            document.querySelectorAll('.vessel-item').forEach(el => {
+                el.classList.toggle('active', parseInt(el.dataset.id) === id);
+            });
+
+            const vessel = DATA.vessels.find(v => v.id === id);
+            const events = DATA.events.filter(e => e.vessel_id === id).sort((a, b) =>
+                new Date(b.event_date) - new Date(a.event_date)
+            );
+            const track = DATA.positions.filter(p => p.vessel_id === id);
+            const osint = DATA.osint_reports.filter(o => o.vessel_id === id);
+
+            if (vessel) {
+                renderVesselDetails(vessel, events, osint);
+
+                // Center map on vessel
+                if (vessel.last_lat && vessel.last_lon) {
+                    map.setView([vessel.last_lat, vessel.last_lon], 8);
+                }
+
+                // Draw track line
+                if (trackLine) {
+                    map.removeLayer(trackLine);
+                }
+                if (track.length > 1) {
+                    const coords = track.map(p => [p.latitude, p.longitude]);
+                    trackLine = L.polyline(coords, {
+                        color: '#58a6ff',
+                        weight: 2,
+                        dashArray: '5, 5',
+                        opacity: 0.7
+                    }).addTo(map);
+                }
+            }
+        }
+
+        function renderVesselDetails(vessel, events, osint) {
+            const panel = document.getElementById('detail-panel');
+            const weapons = vessel.weapons_config || {};
+
+            panel.innerHTML = `
+                <div class="panel-header">
+                    <div class="panel-title">${vessel.name}</div>
+                    <div class="panel-subtitle">
+                        ${vessel.vessel_type || 'Unknown Type'} | ${vessel.flag_state || 'Unknown Flag'}
+                        <span class="threat-badge threat-${vessel.threat_level}">${vessel.threat_level}</span>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="section-title">Vessel Details</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Classification</div>
+                            <div class="info-value">${vessel.classification || '-'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Length</div>
+                            <div class="info-value">${vessel.length_m ? vessel.length_m + 'm' : '-'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">MMSI</div>
+                            <div class="info-value">${vessel.mmsi || '-'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Last Position</div>
+                            <div class="info-value">${vessel.last_lat?.toFixed(4) || '-'}, ${vessel.last_lon?.toFixed(4) || '-'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                ${vessel.intel_notes ? `
+                <div class="panel-section">
+                    <div class="section-title">Intelligence Notes</div>
+                    <div class="intel-notes">${vessel.intel_notes}</div>
+                </div>
+                ` : ''}
+
+                ${Object.keys(weapons).length > 0 ? `
+                <div class="panel-section">
+                    <div class="section-title">Weapons Configuration</div>
+                    <ul class="weapons-list">
+                        ${weapons.vls_cells ? `<li><span>VLS Cells</span><span>${weapons.vls_cells}</span></li>` : ''}
+                        ${weapons.vls_type ? `<li><span>VLS Type</span><span>${weapons.vls_type}</span></li>` : ''}
+                        ${weapons.ciws ? `<li><span>CIWS</span><span>${weapons.ciws}</span></li>` : ''}
+                        ${weapons.decoys ? `<li><span>Decoys</span><span>${weapons.decoys}</span></li>` : ''}
+                        ${weapons.possible_missiles ? `<li><span>Possible Missiles</span><span>${weapons.possible_missiles.join(', ')}</span></li>` : ''}
+                    </ul>
+                </div>
+                ` : ''}
+
+                ${osint && osint.length > 0 ? `
+                <div class="panel-section">
+                    <div class="section-title">OSINT Reports</div>
+                    ${osint.map(r => `
+                        <div class="osint-card">
+                            <div class="osint-source">${r.source_name}</div>
+                            <div class="osint-title">
+                                ${r.source_url ? `<a href="${r.source_url}" target="_blank" rel="noopener">${r.title}</a>` : r.title}
+                            </div>
+                            <div class="osint-summary">${r.summary || ''}</div>
+                            <div class="osint-date">${r.publish_date || ''}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                ` : ''}
+
+                ${events && events.length > 0 ? `
+                <div class="panel-section">
+                    <div class="section-title">Event Timeline</div>
+                    <ul class="event-timeline">
+                        ${events.slice(0, 10).map(e => `
+                            <li class="event-item severity-${e.severity}">
+                                <div class="event-date">${formatDate(e.event_date)}</div>
+                                <div class="event-title">${e.title}</div>
+                                ${e.description ? `<div class="event-description">${e.description}</div>` : ''}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        function getThreatColor(level) {
+            const colors = {
+                critical: '#f85149',
+                high: '#ff7b00',
+                medium: '#d29922',
+                low: '#3fb950',
+                unknown: '#8b949e'
+            };
+            return colors[level] || colors.unknown;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            loadVessels();
+            loadShipyards();
+
+            // Auto-select first vessel
+            if (DATA.vessels.length > 0) {
+                selectVessel(DATA.vessels[0].id);
+            }
+        });
+    </script>
+</body>
+</html>
