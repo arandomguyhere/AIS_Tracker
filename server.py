@@ -476,9 +476,10 @@ def run_server():
     """Start the HTTP server."""
     os.makedirs(STATIC_DIR, exist_ok=True)
 
+    # Auto-initialize database if it doesn't exist
     if not os.path.exists(DB_PATH):
-        print("Database not found. Run 'python server.py init' first.")
-        sys.exit(1)
+        print("Database not found. Initializing...")
+        init_database()
 
     server = HTTPServer(('0.0.0.0', PORT), TrackerHandler)
     print(f"Arsenal Ship Tracker running on http://localhost:{PORT}")

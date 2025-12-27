@@ -19,6 +19,7 @@ from math import radians, sin, cos, sqrt, atan2
 # Configuration
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'arsenal_tracker.db')
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ais_config.json')
+SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'schema.sql')
 
 # Default config template
 DEFAULT_CONFIG = {
@@ -61,6 +62,22 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def ensure_database():
+    """Ensure database exists, initialize if not."""
+    if not os.path.exists(DB_PATH):
+        if not os.path.exists(SCHEMA_PATH):
+            print(f"[Error] Schema file not found: {SCHEMA_PATH}")
+            print("Run this script from the same directory as schema.sql")
+            sys.exit(1)
+        print("Database not found. Initializing...")
+        conn = get_db()
+        with open(SCHEMA_PATH, 'r') as f:
+            conn.executescript(f.read())
+        conn.commit()
+        conn.close()
+        print(f"Database initialized: {DB_PATH}")
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -354,6 +371,9 @@ def run_ingestion(config):
     print("Arsenal Ship Tracker - AIS Ingestion")
     print("=" * 60)
 
+    # Ensure database exists
+    ensure_database()
+
     # Initialize data sources
     sources = []
     if config['sources'].get('aishub', {}).get('enabled'):
@@ -429,6 +449,7 @@ def run_ingestion(config):
 
 def test_connectivity():
     """Test AIS source connectivity."""
+    ensure_database()
     config = load_config()
     print("Testing AIS source connectivity...\n")
 
