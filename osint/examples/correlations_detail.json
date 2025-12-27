@@ -1,0 +1,269 @@
+{
+  "correlations": [
+    {
+      "article_id": "article-001",
+      "vessel_id": 1,
+      "vessel_name": "ZHONG DA 79",
+      "relevance_score": 0.98,
+      "confidence_level": "high",
+      "scoring_breakdown": {
+        "name_match": 1.0,
+        "keywords": 1.0,
+        "location": 1.0,
+        "temporal": 0.8,
+        "context": 1.0
+      },
+      "matched_entities": [
+        {
+          "text": "ZHONG DA 79",
+          "normalized": "ZHONG DA 79",
+          "entity_type": "vessel",
+          "confidence": 0.95,
+          "confidence_level": "high",
+          "provenance": {
+            "source_url": "https://united24media.com/latest-news/cargo-ship-or-warship-china-arms-civilian-vessel-with-60-missiles-in-plain-sight-14585",
+            "source_name": "United24 Media",
+            "retrieved_at": "2025-12-27T22:09:21.653254",
+            "original_text": "...ting missile platform, openly displaying the vessel at a Shanghai shipyard. The ship, identified as ZHONG DA 79, a 97-meter container feeder, has been fitted with approximately 60 containerized vertical launch s...",
+            "extraction_method": "known_vessel_match",
+            "reasoning": "Matched known tracked vessel 'ZHONG DA 79'"
+          },
+          "aliases": [
+            "ZHONGDA 79",
+            "ZHONGDA79"
+          ],
+          "metadata": {
+            "vessel_id": 1
+          }
+        },
+        {
+          "text": "identified as ZHONG DA 79",
+          "normalized": "IDENTIFIED AS ZHONG DA 79",
+          "entity_type": "vessel",
+          "confidence": 0.6,
+          "confidence_level": "medium",
+          "provenance": {
+            "source_url": "https://united24media.com/latest-news/cargo-ship-or-warship-china-arms-civilian-vessel-with-60-missiles-in-plain-sight-14585",
+            "source_name": "United24 Media",
+            "retrieved_at": "2025-12-27T22:09:21.653254",
+            "original_text": "...ip into a floating missile platform, openly displaying the vessel at a Shanghai shipyard. The ship, identified as ZHONG DA 79, a 97-meter container feeder, has been fitted with approximately 60 containerized vertical launch s...",
+            "extraction_method": "pattern_match",
+            "reasoning": "Extracted via vessel name pattern"
+          },
+          "aliases": [],
+          "metadata": {}
+        }
+      ],
+      "matched_keywords": [
+        "missile",
+        "weapon",
+        "converted",
+        "military",
+        "CIWS",
+        "VLS",
+        "launcher",
+        "warship",
+        "cargo",
+        "container",
+        "shipyard",
+        "modification",
+        "observed",
+        "cruise missile",
+        "anti-ship missile",
+        "decoy launcher"
+      ],
+      "reasoning": "STRONG vessel name match: ZHONG DA 79, zhong da 79 | High keyword relevance: missile, weapon, converted, military, CIWS | Geographic location highly relevant | Recent article (high temporal relevance) | Rich contextual signals present"
+    },
+    {
+      "article_id": "article-002",
+      "vessel_id": 1,
+      "vessel_name": "ZHONG DA 79",
+      "relevance_score": 0.98,
+      "confidence_level": "high",
+      "scoring_breakdown": {
+        "name_match": 1.0,
+        "keywords": 1.0,
+        "location": 1.0,
+        "temporal": 0.8,
+        "context": 1.0
+      },
+      "matched_entities": [
+        {
+          "text": "ZHONG DA 79",
+          "normalized": "ZHONG DA 79",
+          "entity_type": "vessel",
+          "confidence": 0.95,
+          "confidence_level": "high",
+          "provenance": {
+            "source_url": "https://www.navalnews.com/naval-news/2025/12/container-ship-turned-missile-battery-spotted-in-china/",
+            "source_name": "Naval News",
+            "retrieved_at": "2025-12-27T22:09:21.653296",
+            "original_text": "...to an arsenal ship carrying containerized missile launchers. Naval News has confirmed the vessel is ZHONG DA 79 (also written as ZHONGDA 79), a small container feeder that underwent modifications at Longhai ship...",
+            "extraction_method": "known_vessel_match",
+            "reasoning": "Matched known tracked vessel 'ZHONG DA 79'"
+          },
+          "aliases": [
+            "ZHONGDA 79",
+            "ZHONGDA79"
+          ],
+          "metadata": {
+            "vessel_id": 1
+          }
+        },
+        {
+          "text": "is ZHONG DA 79",
+          "normalized": "IS ZHONG DA 79",
+          "entity_type": "vessel",
+          "confidence": 0.6,
+          "confidence_level": "medium",
+          "provenance": {
+            "source_url": "https://www.navalnews.com/naval-news/2025/12/container-ship-turned-missile-battery-spotted-in-china/",
+            "source_name": "Naval News",
+            "retrieved_at": "2025-12-27T22:09:21.653296",
+            "original_text": "...nverted into an arsenal ship carrying containerized missile launchers. Naval News has confirmed the vessel is ZHONG DA 79 (also written as ZHONGDA 79), a small container feeder that underwent modifications at Longhai shipy...",
+            "extraction_method": "pattern_match",
+            "reasoning": "Extracted via vessel name pattern"
+          },
+          "aliases": [],
+          "metadata": {}
+        },
+        {
+          "text": "Naval News has confirmed the vessel is ZHONG DA 79",
+          "normalized": "NAVAL NEWS HAS CONFIRMED THE VESSEL IS ZHONG DA 79",
+          "entity_type": "vessel",
+          "confidence": 0.6,
+          "confidence_level": "medium",
+          "provenance": {
+            "source_url": "https://www.navalnews.com/naval-news/2025/12/container-ship-turned-missile-battery-spotted-in-china/",
+            "source_name": "Naval News",
+            "retrieved_at": "2025-12-27T22:09:21.653296",
+            "original_text": "...se container ship has been converted into an arsenal ship carrying containerized missile launchers. Naval News has confirmed the vessel is ZHONG DA 79 (also written as ZHONGDA 79), a small container feeder that underwent modifications at Longhai ship...",
+            "extraction_method": "pattern_match",
+            "reasoning": "Extracted via vessel name pattern"
+          },
+          "aliases": [],
+          "metadata": {}
+        },
+        {
+          "text": "also written as ZHONGDA 79",
+          "normalized": "ALSO WRITTEN AS ZHONGDA 79",
+          "entity_type": "vessel",
+          "confidence": 0.6,
+          "confidence_level": "medium",
+          "provenance": {
+            "source_url": "https://www.navalnews.com/naval-news/2025/12/container-ship-turned-missile-battery-spotted-in-china/",
+            "source_name": "Naval News",
+            "retrieved_at": "2025-12-27T22:09:21.653296",
+            "original_text": "...ship carrying containerized missile launchers. Naval News has confirmed the vessel is ZHONG DA 79 (also written as ZHONGDA 79), a small container feeder that underwent modifications at Longhai shipyard in Fujian province betw...",
+            "extraction_method": "pattern_match",
+            "reasoning": "Extracted via vessel name pattern"
+          },
+          "aliases": [],
+          "metadata": {}
+        }
+      ],
+      "matched_keywords": [
+        "arsenal ship",
+        "missile",
+        "converted",
+        "CIWS",
+        "VLS",
+        "launcher",
+        "container",
+        "shipyard",
+        "modification",
+        "spotted",
+        "containerized missile"
+      ],
+      "reasoning": "STRONG vessel name match: ZHONGDA 79, zhongda 79, ZHONG DA 79, zhong da 79, is ZHONG DA 79 | High keyword relevance: arsenal ship, missile, converted, CIWS, VLS | Geographic location highly relevant | Recent article (high temporal relevance) | Rich contextual signals present"
+    },
+    {
+      "article_id": "article-005",
+      "vessel_id": 1,
+      "vessel_name": "ZHONG DA 79",
+      "relevance_score": 0.98,
+      "confidence_level": "high",
+      "scoring_breakdown": {
+        "name_match": 1.0,
+        "keywords": 1.0,
+        "location": 1.0,
+        "temporal": 0.8,
+        "context": 1.0
+      },
+      "matched_entities": [
+        {
+          "text": "ZHONG DA 79",
+          "normalized": "ZHONG DA 79",
+          "entity_type": "vessel",
+          "confidence": 0.95,
+          "confidence_level": "high",
+          "provenance": {
+            "source_url": "https://www.newsweek.com/photos-chinese-cargo-ship-missile-launchers-11270114",
+            "source_name": "Newsweek",
+            "retrieved_at": "2025-12-27T22:09:21.653341",
+            "original_text": "...ith missile launchers in what appears to be a significant military conversion. The vessel, known as ZHONG DA 79, was photographed at a Shanghai facility sporting rows of containerized weapon systems. Military ex...",
+            "extraction_method": "known_vessel_match",
+            "reasoning": "Matched known tracked vessel 'ZHONG DA 79'"
+          },
+          "aliases": [
+            "ZHONGDA 79",
+            "ZHONGDA79"
+          ],
+          "metadata": {
+            "vessel_id": 1
+          }
+        },
+        {
+          "text": "known as ZHONG DA 79",
+          "normalized": "KNOWN AS ZHONG DA 79",
+          "entity_type": "vessel",
+          "confidence": 0.6,
+          "confidence_level": "medium",
+          "provenance": {
+            "source_url": "https://www.newsweek.com/photos-chinese-cargo-ship-missile-launchers-11270114",
+            "source_name": "Newsweek",
+            "retrieved_at": "2025-12-27T22:09:21.653341",
+            "original_text": "...fitted with missile launchers in what appears to be a significant military conversion. The vessel, known as ZHONG DA 79, was photographed at a Shanghai facility sporting rows of containerized weapon systems. Military ex...",
+            "extraction_method": "pattern_match",
+            "reasoning": "Extracted via vessel name pattern"
+          },
+          "aliases": [],
+          "metadata": {}
+        }
+      ],
+      "matched_keywords": [
+        "missile",
+        "weapon",
+        "military",
+        "launcher",
+        "armed",
+        "cargo",
+        "container",
+        "shipyard",
+        "modification"
+      ],
+      "reasoning": "STRONG vessel name match: ZHONG DA 79, zhong da 79 | High keyword relevance: missile, weapon, military, launcher, armed | Geographic location highly relevant | Recent article (high temporal relevance) | Rich contextual signals present"
+    },
+    {
+      "article_id": "article-004",
+      "vessel_id": 1,
+      "vessel_name": "ZHONG DA 79",
+      "relevance_score": 0.3825,
+      "confidence_level": "low",
+      "scoring_breakdown": {
+        "name_match": 0.0,
+        "keywords": 0.8,
+        "location": 0.45,
+        "temporal": 0.8,
+        "context": 0.35
+      },
+      "matched_entities": [],
+      "matched_keywords": [
+        "military",
+        "cargo"
+      ],
+      "reasoning": "No direct vessel name match | High keyword relevance: military, cargo | Geographic location somewhat relevant | Recent article (high temporal relevance)"
+    }
+  ],
+  "generated_at": "2025-12-27T22:09:21.662722"
+}

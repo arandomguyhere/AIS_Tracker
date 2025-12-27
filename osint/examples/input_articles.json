@@ -1,0 +1,45 @@
+{
+  "description": "Example input articles for OSINT correlation",
+  "articles": [
+    {
+      "id": "article-001",
+      "title": "Cargo Ship or Warship? China Arms Civilian Vessel With 60 Missiles in Plain Sight",
+      "url": "https://united24media.com/latest-news/cargo-ship-or-warship-china-arms-civilian-vessel-with-60-missiles-in-plain-sight-14585",
+      "source_name": "United24 Media",
+      "published_at": "2025-12-26",
+      "content": "China has converted a commercial cargo ship into a floating missile platform, openly displaying the vessel at a Shanghai shipyard. The ship, identified as ZHONG DA 79, a 97-meter container feeder, has been fitted with approximately 60 containerized vertical launch system (VLS) cells, a Type 1130 close-in weapon system (CIWS), and what appears to be a Type 726 decoy launcher. The vessel retains its civilian designation despite the military modifications. Analysts believe the VLS cells could accommodate cruise missiles such as the CJ-10, anti-ship missiles like the YJ-18, or even the hypersonic YJ-21. The ship was observed moored at an industrial pier on the Huangpu River near Hudong-Zhonghua shipbuilding facilities."
+    },
+    {
+      "id": "article-002",
+      "title": "Container Ship Turned Missile Battery Spotted in China",
+      "url": "https://www.navalnews.com/naval-news/2025/12/container-ship-turned-missile-battery-spotted-in-china/",
+      "source_name": "Naval News",
+      "published_at": "2025-12-26",
+      "content": "A Chinese container ship has been converted into an arsenal ship carrying containerized missile launchers. Naval News has confirmed the vessel is ZHONG DA 79 (also written as ZHONGDA 79), a small container feeder that underwent modifications at Longhai shipyard in Fujian province between April and August 2025. The conversion includes 48-60 VLS cells arranged in standard shipping container housings, a 30mm CIWS mount, and integrated fire control systems. This represents China's first publicly visible arsenal ship conversion and raises questions about how many similar vessels may exist. The ship could effectively turn every civilian port into a potential missile launch site during conflict."
+    },
+    {
+      "id": "article-003",
+      "title": "Chinese Navy Conducts Exercises in Taiwan Strait",
+      "url": "https://example.com/taiwan-strait-exercises",
+      "source_name": "Reuters",
+      "published_at": "2025-12-20",
+      "content": "The Chinese People's Liberation Army Navy conducted exercises in the Taiwan Strait this week, deploying multiple surface combatants and support vessels. The exercises included live-fire drills and simulated amphibious operations. Taiwan's Ministry of National Defense monitored the activities closely. The exercises come amid heightened regional tensions following recent developments in cross-strait relations."
+    },
+    {
+      "id": "article-004",
+      "title": "Commercial Shipping Disrupted by Military Activities in South China Sea",
+      "url": "https://example.com/scs-shipping-disruption",
+      "source_name": "Lloyd's List",
+      "published_at": "2025-12-22",
+      "content": "Commercial shipping routes through the South China Sea have experienced delays due to increased military activity in the region. Several cargo vessels reported being diverted around areas where naval exercises were taking place. Maritime insurers have issued advisories regarding transit through contested waters. Industry analysts note that shipping companies are factoring geopolitical risks into their route planning."
+    },
+    {
+      "id": "article-005",
+      "title": "Photos Show Chinese Cargo Ship Armed With Missile Launchers",
+      "url": "https://www.newsweek.com/photos-chinese-cargo-ship-missile-launchers-11270114",
+      "source_name": "Newsweek",
+      "published_at": "2025-12-26",
+      "content": "New photographs have emerged showing a Chinese cargo ship fitted with missile launchers in what appears to be a significant military conversion. The vessel, known as ZHONG DA 79, was photographed at a Shanghai facility sporting rows of containerized weapon systems. Military experts say the ship's modification represents a new approach to distributed lethality, allowing China to potentially deploy significant firepower from civilian-appearing vessels. The conversion was reportedly carried out at Longhai shipyard. The ship's current location at Shanghai's Huangpu River industrial pier suggests it may be undergoing final fitting or testing."
+    }
+  ]
+}
