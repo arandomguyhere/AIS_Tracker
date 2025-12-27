@@ -2,9 +2,23 @@
 
 Maritime gray zone monitoring system for tracking vessels suspected of civilian-to-military conversion, containerized weapons systems, and dual-use activity.
 
+## Live Demo
+
+**[View Static Demo on GitHub Pages](https://arandomguyhere.github.io/AIS_Tracker/)**
+
 ## Overview
 
 This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese container feeder converted to an arsenal ship carrying 60+ containerized missiles, CIWS, and radar while retaining civilian classification.
+
+## Features
+
+- **VesselFinder-style UI** - Full-screen dark map with slide-in panels
+- **Ship markers with heading** - Vessel icons rotate based on course
+- **Search functionality** - Find vessels by name, MMSI, or IMO
+- **Shipyard geofences** - Monitor vessel proximity to facilities of interest
+- **Event timeline** - Track vessel activities and modifications
+- **OSINT integration** - Link to news articles and intelligence reports
+- **Add vessels from UI** - Interactive forms to add new vessels and positions
 
 ## Quick Start
 
@@ -24,7 +38,8 @@ python3 server.py
 |------|-------------|
 | `server.py` | REST API server (Python stdlib only) |
 | `schema.sql` | SQLite database schema + seed data |
-| `static/index.html` | Dark intel-themed dashboard |
+| `static/index.html` | VesselFinder-style interactive dashboard |
+| `docs/index.html` | Static GitHub Pages version |
 | `ais_ingest.py` | AIS data ingestion module |
 | `ais_config.json` | AIS source configuration (auto-created) |
 
