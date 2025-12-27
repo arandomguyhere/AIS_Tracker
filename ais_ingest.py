@@ -3,6 +3,11 @@
 AIS Data Ingestion Module for Arsenal Ship Tracker
 Supports multiple AIS data sources with watchlist filtering and geofence detection.
 Zero external dependencies - uses only Python standard library.
+
+Data Sources (priority order):
+1. AISStream.io - Real-time WebSocket (primary)
+2. Marinesia - REST API (fallback)
+3. Global Fishing Watch - REST API (enrichment only)
 """
 
 import json
@@ -15,6 +20,13 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timedelta
 from math import radians, sin, cos, sqrt, atan2
+
+# Import new AIS source manager
+try:
+    from ais_sources import AISSourceManager, AISPosition
+    NEW_SOURCES_AVAILABLE = True
+except ImportError:
+    NEW_SOURCES_AVAILABLE = False
 
 # Configuration
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'arsenal_tracker.db')
@@ -365,11 +377,142 @@ class NMEAParser:
 # Main Ingestion Loop
 # =============================================================================
 
+def run_ingestion_with_new_sources(config):
+    """
+    Main ingestion loop using new AISSourceManager.
+
+    Uses AISStream.io (WebSocket) as primary source with
+    Marinesia (REST) as fallback.
+    """
+    print("=" * 60)
+    print("Arsenal Ship Tracker - AIS Ingestion (v2)")
+    print("=" * 60)
+    print("Using new source manager: AISStream + Marinesia fallback")
+
+    # Ensure database exists
+    ensure_database()
+
+    # Initialize source manager from config
+    manager = AISSourceManager.from_config(CONFIG_PATH)
+
+    # Get watchlist
+    watchlist = get_watchlist()
+    mmsi_list = list(watchlist.keys())
+
+    if not mmsi_list:
+        print("\n[Warning] Watchlist is empty. Add vessels to track.")
+        return
+
+    print(f"\nTracking {len(mmsi_list)} vessels:")
+    for mmsi, info in watchlist.items():
+        print(f"  - {info['name']} (MMSI: {mmsi})")
+
+    # Subscribe to vessels
+    manager.subscribe(mmsi_list)
+
+    # Start sources
+    if not manager.start():
+        print("\n[Warning] Could not connect to any AIS sources.")
+        print("Check API keys in ais_config.json or set environment variables:")
+        print("  - AISSTREAM_API_KEY (get from https://aisstream.io/)")
+        print("  - GFW_API_KEY (get from https://globalfishingwatch.org/)")
+
+    # Get shipyards for geofence checking
+    shipyards = get_shipyards()
+
+    poll_interval = config.get('poll_interval', config.get('poll_interval_seconds', 60))
+
+    # Position update callback for real-time data
+    def on_position(position: AISPosition):
+        """Handle real-time position update."""
+        mmsi = position.mmsi
+        vessel_info = watchlist.get(mmsi)
+        if not vessel_info:
+            return
+
+        vessel_id = vessel_info['id']
+        lat, lon = position.latitude, position.longitude
+
+        # Log position
+        log_position(
+            vessel_id, lat, lon,
+            position.heading, position.speed_knots,
+            position.source
+        )
+        print(f"  [{vessel_info['name']}] {lat:.4f}, {lon:.4f} (via {position.source})")
+
+        # Check geofences
+        if vessel_info['alert_on_geofence']:
+            geofence = check_geofences(vessel_id, lat, lon, shipyards)
+            if geofence:
+                print(f"  [ALERT] {vessel_info['name']} in geofence: {geofence['name']}")
+                log_event(
+                    vessel_id, 'geofence_enter', 'high',
+                    f"Entered {geofence['name']} geofence",
+                    f"Vessel detected within {geofence['geofence_radius_km']}km of {geofence['name']}",
+                    lat, lon, position.source
+                )
+                create_alert(
+                    vessel_id, 'geofence', 'high',
+                    f"{vessel_info['name']} entered {geofence['name']}",
+                    f"Vessel detected at {lat:.4f}, {lon:.4f} - within {geofence['name']} geofence"
+                )
+
+    # Register callback for real-time updates
+    manager.add_callback(on_position)
+
+    print("\nStarting AIS ingestion (Ctrl+C to stop)...")
+    print(f"Sources: {list(manager.sources.keys())}")
+
+    try:
+        while True:
+            # Status check
+            status = manager.get_status()
+            primary = manager.get_primary_source()
+            source_name = primary.name if primary else "none"
+
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"\n[{timestamp}] Active source: {source_name} | Cached: {status['cached_positions']} positions")
+
+            # For REST fallback, manually fetch positions
+            if not primary or not primary.is_realtime():
+                print("  Polling REST sources...")
+                positions = manager.get_positions(mmsi_list)
+                for pos in positions:
+                    on_position(pos)
+
+            # Check for dark periods
+            for mmsi, vessel_info in watchlist.items():
+                if vessel_info['alert_on_dark'] and check_dark_period(vessel_info['id'], config):
+                    print(f"  [WARNING] {vessel_info['name']} has gone dark")
+
+            # Refresh watchlist periodically
+            watchlist = get_watchlist()
+            new_mmsi_list = list(watchlist.keys())
+            if set(new_mmsi_list) != set(mmsi_list):
+                mmsi_list = new_mmsi_list
+                manager.subscribe(mmsi_list)
+                print(f"  Updated subscription: {len(mmsi_list)} vessels")
+
+            time.sleep(poll_interval)
+
+    except KeyboardInterrupt:
+        print("\n[Shutdown] Stopping ingestion...")
+    finally:
+        manager.stop()
+
+
 def run_ingestion(config):
     """Main ingestion loop."""
+    # Use new source manager if available
+    if NEW_SOURCES_AVAILABLE:
+        return run_ingestion_with_new_sources(config)
+
+    # Legacy ingestion for backward compatibility
     print("=" * 60)
-    print("Arsenal Ship Tracker - AIS Ingestion")
+    print("Arsenal Ship Tracker - AIS Ingestion (Legacy)")
     print("=" * 60)
+    print("[Note] Upgrade to new sources: pip install websocket-client")
 
     # Ensure database exists
     ensure_database()
@@ -458,12 +601,39 @@ def test_connectivity():
     for mmsi, info in watchlist.items():
         print(f"  - {info['name']} (MMSI: {mmsi})")
 
-    print("\nConfigured sources:")
-    for name, cfg in config['sources'].items():
-        status = "ENABLED" if cfg.get('enabled') else "disabled"
-        print(f"  - {name}: {status}")
+    # Test new source manager if available
+    if NEW_SOURCES_AVAILABLE:
+        print("\n--- New AIS Source Manager ---")
+        manager = AISSourceManager.from_config(CONFIG_PATH)
 
-    print("\nTo enable sources, edit ais_config.json")
+        print(f"Configured sources: {list(manager.sources.keys())}")
+        print(f"Priority order: {manager.source_priority}")
+
+        print("\nTesting connections:")
+        for name, source in manager.sources.items():
+            try:
+                connected = source.connect()
+                status = "CONNECTED" if connected else "FAILED"
+                print(f"  - {name}: {status}")
+                if connected:
+                    source.disconnect()
+            except Exception as e:
+                print(f"  - {name}: ERROR - {e}")
+
+        print("\nTo configure sources, edit ais_config.json")
+        print("Environment variables:")
+        print("  - AISSTREAM_API_KEY: Get from https://aisstream.io/")
+        print("  - GFW_API_KEY: Get from https://globalfishingwatch.org/")
+    else:
+        print("\n--- Legacy Sources ---")
+        print("Configured sources:")
+        for name, cfg in config['sources'].items():
+            status = "ENABLED" if cfg.get('enabled') else "disabled"
+            print(f"  - {name}: {status}")
+
+        print("\nTo enable sources, edit ais_config.json")
+        print("\n[Tip] Install websocket-client for real-time data:")
+        print("  pip install websocket-client")
 
 
 def init_config():

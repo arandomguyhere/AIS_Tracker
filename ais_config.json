@@ -1,0 +1,32 @@
+{
+  "sources": {
+    "aisstream": {
+      "enabled": true,
+      "api_key": "${AISSTREAM_API_KEY}",
+      "description": "Real-time WebSocket AIS data from aisstream.io (requires free API key)"
+    },
+    "marinesia": {
+      "enabled": true,
+      "api_key": "",
+      "rate_limit": 30,
+      "description": "REST API fallback from marinesia.com (free, no key required for basic access)"
+    },
+    "gfw": {
+      "enabled": false,
+      "api_key": "${GFW_API_KEY}",
+      "rate_limit": 10,
+      "description": "Global Fishing Watch enrichment data (requires free API key, enrichment only)"
+    }
+  },
+  "priority": ["aisstream", "marinesia"],
+  "poll_interval": 60,
+  "position_cache_ttl": 300,
+  "notes": {
+    "env_vars": [
+      "AISSTREAM_API_KEY - Get from https://aisstream.io/",
+      "GFW_API_KEY - Get from https://globalfishingwatch.org/our-apis/"
+    ],
+    "priority_explanation": "Sources are tried in order. AISStream provides real-time WebSocket data. Marinesia is REST fallback.",
+    "poll_interval_note": "Seconds between REST API polls when real-time source unavailable"
+  }
+}
