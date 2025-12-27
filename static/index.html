@@ -22,11 +22,7 @@
             --accent-blue: #1f6feb;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -45,57 +41,21 @@
             align-items: center;
         }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
+        .logo { display: flex; align-items: center; gap: 12px; }
         .logo-icon {
-            width: 32px;
-            height: 32px;
+            width: 32px; height: 32px;
             background: var(--accent-critical);
             border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             font-weight: bold;
         }
+        .logo-text { font-size: 18px; font-weight: 600; letter-spacing: 1px; }
+        .logo-sub { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; }
 
-        .logo-text {
-            font-size: 18px;
-            font-weight: 600;
-            letter-spacing: 1px;
-        }
-
-        .logo-sub {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .stats-bar {
-            display: flex;
-            gap: 24px;
-        }
-
-        .stat {
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 20px;
-            font-weight: 700;
-        }
-
-        .stat-label {
-            font-size: 10px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
+        .stats-bar { display: flex; gap: 24px; }
+        .stat { text-align: center; }
+        .stat-value { font-size: 20px; font-weight: 700; }
+        .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
         .stat-critical { color: var(--accent-critical); }
         .stat-high { color: var(--accent-high); }
         .stat-medium { color: var(--accent-medium); }
@@ -121,44 +81,38 @@
             align-items: center;
         }
 
-        .sidebar-title {
-            font-size: 12px;
+        .sidebar-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); }
+
+        .btn {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            font-family: inherit;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-secondary);
+            letter-spacing: 0.5px;
         }
+        .btn:hover { background: #388bfd; }
+        .btn-small { padding: 4px 8px; font-size: 10px; }
+        .btn-success { background: var(--accent-low); }
+        .btn-success:hover { background: #46c35f; }
+        .btn-danger { background: var(--accent-critical); }
+        .btn-danger:hover { background: #f96961; }
 
-        .vessel-list {
-            list-style: none;
-        }
-
+        .vessel-list { list-style: none; }
         .vessel-item {
             padding: 14px 16px;
             border-bottom: 1px solid var(--border-color);
             cursor: pointer;
             transition: background 0.2s;
         }
-
-        .vessel-item:hover {
-            background: var(--bg-tertiary);
-        }
-
-        .vessel-item.active {
-            background: var(--bg-tertiary);
-            border-left: 3px solid var(--accent-critical);
-        }
-
-        .vessel-name {
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .vessel-meta {
-            font-size: 11px;
-            color: var(--text-muted);
-            display: flex;
-            gap: 12px;
-        }
+        .vessel-item:hover { background: var(--bg-tertiary); }
+        .vessel-item.active { background: var(--bg-tertiary); border-left: 3px solid var(--accent-critical); }
+        .vessel-name { font-weight: 600; margin-bottom: 4px; }
+        .vessel-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 12px; }
 
         .threat-badge {
             display: inline-block;
@@ -169,21 +123,28 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-
         .threat-critical { background: rgba(248, 81, 73, 0.2); color: var(--accent-critical); }
         .threat-high { background: rgba(255, 123, 0, 0.2); color: var(--accent-high); }
         .threat-medium { background: rgba(210, 153, 34, 0.2); color: var(--accent-medium); }
         .threat-low { background: rgba(63, 185, 80, 0.2); color: var(--accent-low); }
 
-        .map-container {
-            position: relative;
-        }
+        .map-container { position: relative; }
+        #map { height: 100%; width: 100%; background: var(--bg-primary); }
 
-        #map {
-            height: 100%;
-            width: 100%;
-            background: var(--bg-primary);
+        .map-instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(17, 24, 32, 0.9);
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            z-index: 1000;
+            display: none;
         }
+        .map-instructions.active { display: block; }
 
         .detail-panel {
             background: var(--bg-secondary);
@@ -196,218 +157,125 @@
             border-bottom: 1px solid var(--border-color);
             background: var(--bg-tertiary);
         }
+        .panel-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+        .panel-subtitle { font-size: 11px; color: var(--text-muted); }
 
-        .panel-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .panel-subtitle {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-
-        .panel-section {
-            padding: 16px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .section-title {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-secondary);
-            margin-bottom: 12px;
-        }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .info-item {
-            background: var(--bg-tertiary);
-            padding: 10px;
-            border-radius: 4px;
-        }
-
-        .info-label {
-            font-size: 10px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-
-        .info-value {
-            font-size: 13px;
-            font-weight: 500;
-        }
-
-        .intel-notes {
-            background: var(--bg-tertiary);
-            padding: 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            line-height: 1.6;
-            color: var(--text-secondary);
-        }
-
-        .weapons-list {
-            list-style: none;
-        }
-
-        .weapons-list li {
-            padding: 8px 0;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 12px;
+        .panel-actions {
             display: flex;
-            justify-content: space-between;
+            gap: 8px;
+            margin-top: 12px;
         }
 
-        .weapons-list li:last-child {
-            border-bottom: none;
-        }
+        .panel-section { padding: 16px; border-bottom: 1px solid var(--border-color); }
+        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 12px; }
 
-        .event-timeline {
-            list-style: none;
-        }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .info-item { background: var(--bg-tertiary); padding: 10px; border-radius: 4px; }
+        .info-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+        .info-value { font-size: 13px; font-weight: 500; }
 
-        .event-item {
-            padding: 12px 0;
-            border-bottom: 1px solid var(--border-color);
-            position: relative;
-            padding-left: 20px;
-        }
+        .intel-notes { background: var(--bg-tertiary); padding: 12px; border-radius: 4px; font-size: 12px; line-height: 1.6; color: var(--text-secondary); }
 
-        .event-item::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 16px;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--accent-info);
-        }
+        .weapons-list { list-style: none; }
+        .weapons-list li { padding: 8px 0; border-bottom: 1px solid var(--border-color); font-size: 12px; display: flex; justify-content: space-between; }
+        .weapons-list li:last-child { border-bottom: none; }
 
+        .event-timeline { list-style: none; }
+        .event-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); position: relative; padding-left: 20px; }
+        .event-item::before { content: ''; position: absolute; left: 0; top: 16px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-info); }
         .event-item.severity-critical::before { background: var(--accent-critical); }
         .event-item.severity-high::before { background: var(--accent-high); }
         .event-item.severity-medium::before { background: var(--accent-medium); }
+        .event-date { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+        .event-title { font-size: 12px; font-weight: 500; margin-bottom: 4px; }
+        .event-description { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
 
-        .event-date {
-            font-size: 10px;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-        }
+        .osint-card { background: var(--bg-tertiary); border-radius: 4px; padding: 12px; margin-bottom: 12px; }
+        .osint-source { font-size: 10px; color: var(--accent-info); text-transform: uppercase; margin-bottom: 6px; }
+        .osint-title { font-size: 13px; font-weight: 500; margin-bottom: 8px; line-height: 1.4; }
+        .osint-title a { color: var(--text-primary); text-decoration: none; }
+        .osint-title a:hover { color: var(--accent-info); }
+        .osint-summary { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+        .osint-date { font-size: 10px; color: var(--text-muted); margin-top: 8px; }
 
-        .event-title {
-            font-size: 12px;
-            font-weight: 500;
-            margin-bottom: 4px;
-        }
+        .loading { display: flex; align-items: center; justify-content: center; height: 100px; color: var(--text-muted); }
+        .empty-state { padding: 40px 20px; text-align: center; color: var(--text-muted); }
 
-        .event-description {
-            font-size: 11px;
-            color: var(--text-secondary);
-            line-height: 1.5;
-        }
-
-        .osint-card {
-            background: var(--bg-tertiary);
-            border-radius: 4px;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-
-        .osint-source {
-            font-size: 10px;
-            color: var(--accent-info);
-            text-transform: uppercase;
-            margin-bottom: 6px;
-        }
-
-        .osint-title {
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 8px;
-            line-height: 1.4;
-        }
-
-        .osint-title a {
-            color: var(--text-primary);
-            text-decoration: none;
-        }
-
-        .osint-title a:hover {
-            color: var(--accent-info);
-        }
-
-        .osint-summary {
-            font-size: 11px;
-            color: var(--text-secondary);
-            line-height: 1.5;
-        }
-
-        .osint-date {
-            font-size: 10px;
-            color: var(--text-muted);
-            margin-top: 8px;
-        }
-
-        .loading {
-            display: flex;
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
             align-items: center;
             justify-content: center;
-            height: 100px;
+            z-index: 2000;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 480px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title { font-size: 16px; font-weight: 600; }
+        .modal-close {
+            background: none;
+            border: none;
             color: var(--text-muted);
+            font-size: 20px;
+            cursor: pointer;
         }
+        .modal-close:hover { color: var(--text-primary); }
 
-        .empty-state {
-            padding: 40px 20px;
-            text-align: center;
-            color: var(--text-muted);
-        }
+        .modal-body { padding: 16px; }
 
-        /* Custom Leaflet styles */
-        .leaflet-container {
-            background: var(--bg-primary);
-        }
-
-        .leaflet-tile-pane {
-            filter: invert(1) hue-rotate(180deg) brightness(0.8) contrast(1.2);
-        }
-
-        .vessel-marker {
-            background: var(--accent-critical);
-            border: 2px solid white;
-            border-radius: 50%;
-            width: 12px;
-            height: 12px;
-        }
-
-        .shipyard-marker {
-            background: var(--accent-medium);
-            border: 2px solid white;
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 6px; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
             border-radius: 4px;
-            width: 10px;
-            height: 10px;
+            padding: 10px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13px;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-info);
+        }
+        .form-textarea { min-height: 80px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .modal-footer {
+            padding: 16px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
         }
 
-        .track-line {
-            stroke: var(--accent-info);
-            stroke-width: 2;
-            stroke-dasharray: 5, 5;
-        }
+        /* Leaflet dark styles */
+        .leaflet-container { background: var(--bg-primary); }
+        .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.8) contrast(1.2); }
 
         @media (max-width: 1200px) {
-            .main-container {
-                grid-template-columns: 280px 1fr;
-            }
-            .detail-panel {
-                display: none;
-            }
+            .main-container { grid-template-columns: 280px 1fr; }
+            .detail-panel { display: none; }
         }
     </style>
 </head>
@@ -444,6 +312,7 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <span class="sidebar-title">Vessel Watchlist</span>
+                <button class="btn" onclick="openAddVesselModal()">+ Add</button>
             </div>
             <ul class="vessel-list" id="vessel-list">
                 <li class="loading">Loading vessels...</li>
@@ -452,6 +321,9 @@
 
         <main class="map-container">
             <div id="map"></div>
+            <div class="map-instructions" id="map-instructions">
+                Click on map to set position for selected vessel
+            </div>
         </main>
 
         <aside class="detail-panel" id="detail-panel">
@@ -459,6 +331,178 @@
                 <p>Select a vessel to view details</p>
             </div>
         </aside>
+    </div>
+
+    <!-- Add Vessel Modal -->
+    <div class="modal-overlay" id="add-vessel-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Add New Vessel</div>
+                <button class="modal-close" onclick="closeModal('add-vessel-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Vessel Name *</label>
+                    <input type="text" class="form-input" id="vessel-name" placeholder="e.g. ZHONG DA 79">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">MMSI</label>
+                        <input type="text" class="form-input" id="vessel-mmsi" placeholder="9 digits">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">IMO</label>
+                        <input type="text" class="form-input" id="vessel-imo" placeholder="7 digits">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Flag State</label>
+                        <input type="text" class="form-input" id="vessel-flag" placeholder="e.g. China">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Vessel Type</label>
+                        <input type="text" class="form-input" id="vessel-type" placeholder="e.g. Container Feeder">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Classification</label>
+                        <select class="form-select" id="vessel-classification">
+                            <option value="monitoring">Monitoring</option>
+                            <option value="suspected">Suspected</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="cleared">Cleared</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Threat Level</label>
+                        <select class="form-select" id="vessel-threat">
+                            <option value="unknown">Unknown</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Intel Notes</label>
+                    <textarea class="form-textarea" id="vessel-notes" placeholder="Intelligence notes about this vessel..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" style="background: var(--bg-tertiary)" onclick="closeModal('add-vessel-modal')">Cancel</button>
+                <button class="btn btn-success" onclick="addVessel()">Add Vessel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Position Modal -->
+    <div class="modal-overlay" id="add-position-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Update Position</div>
+                <button class="modal-close" onclick="closeModal('add-position-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Vessel</label>
+                    <input type="text" class="form-input" id="position-vessel-name" disabled>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Latitude *</label>
+                        <input type="number" step="0.0001" class="form-input" id="position-lat" placeholder="e.g. 31.2456">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Longitude *</label>
+                        <input type="number" step="0.0001" class="form-input" id="position-lon" placeholder="e.g. 121.4890">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Heading (0-360)</label>
+                        <input type="number" class="form-input" id="position-heading" placeholder="Degrees">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Speed (knots)</label>
+                        <input type="number" step="0.1" class="form-input" id="position-speed" placeholder="Knots">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Source</label>
+                    <select class="form-select" id="position-source">
+                        <option value="manual">Manual Entry</option>
+                        <option value="ais">AIS</option>
+                        <option value="satellite">Satellite</option>
+                        <option value="osint">OSINT</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" style="background: var(--bg-tertiary)" onclick="closeModal('add-position-modal')">Cancel</button>
+                <button class="btn btn-success" onclick="addPosition()">Update Position</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Event Modal -->
+    <div class="modal-overlay" id="add-event-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Log Event</div>
+                <button class="modal-close" onclick="closeModal('add-event-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Vessel</label>
+                    <input type="text" class="form-input" id="event-vessel-name" disabled>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Event Type *</label>
+                        <select class="form-select" id="event-type">
+                            <option value="position_update">Position Update</option>
+                            <option value="shipyard_entry">Shipyard Entry</option>
+                            <option value="shipyard_exit">Shipyard Exit</option>
+                            <option value="ais_dark">AIS Dark</option>
+                            <option value="ais_resume">AIS Resume</option>
+                            <option value="modification_detected">Modification Detected</option>
+                            <option value="weapons_observed">Weapons Observed</option>
+                            <option value="osint_report">OSINT Report</option>
+                            <option value="anomaly_detected">Anomaly Detected</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Severity *</label>
+                        <select class="form-select" id="event-severity">
+                            <option value="info">Info</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Title *</label>
+                    <input type="text" class="form-input" id="event-title" placeholder="Brief event title">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-textarea" id="event-description" placeholder="Detailed description..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Source URL</label>
+                    <input type="text" class="form-input" id="event-source-url" placeholder="https://...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" style="background: var(--bg-tertiary)" onclick="closeModal('add-event-modal')">Cancel</button>
+                <button class="btn btn-success" onclick="addEvent()">Log Event</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -469,24 +513,35 @@
         let shipyardMarkers = {};
         let trackLine = null;
         let selectedVessel = null;
+        let selectedVesselData = null;
+        let mapClickMode = false;
 
         // Initialize map
         function initMap() {
-            map = L.map('map', {
-                center: [30, 120],
-                zoom: 5,
-                zoomControl: true
-            });
+            map = L.map('map', { center: [30, 120], zoom: 5, zoomControl: true });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(map);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: ''
-            }).addTo(map);
+            // Map click handler for adding positions
+            map.on('click', function(e) {
+                if (mapClickMode && selectedVessel) {
+                    document.getElementById('position-lat').value = e.latlng.lat.toFixed(4);
+                    document.getElementById('position-lon').value = e.latlng.lng.toFixed(4);
+                    openModal('add-position-modal');
+                    setMapClickMode(false);
+                }
+            });
+        }
+
+        function setMapClickMode(enabled) {
+            mapClickMode = enabled;
+            document.getElementById('map-instructions').classList.toggle('active', enabled);
+            document.getElementById('map').style.cursor = enabled ? 'crosshair' : '';
         }
 
         // API calls
-        async function fetchAPI(endpoint) {
+        async function fetchAPI(endpoint, options = {}) {
             try {
-                const response = await fetch(API_BASE + endpoint);
+                const response = await fetch(API_BASE + endpoint, options);
                 return await response.json();
             } catch (error) {
                 console.error('API Error:', error);
@@ -494,7 +549,127 @@
             }
         }
 
-        // Load stats
+        async function postAPI(endpoint, data) {
+            return fetchAPI(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+
+        // Modal functions
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function openAddVesselModal() {
+            document.getElementById('vessel-name').value = '';
+            document.getElementById('vessel-mmsi').value = '';
+            document.getElementById('vessel-imo').value = '';
+            document.getElementById('vessel-flag').value = '';
+            document.getElementById('vessel-type').value = '';
+            document.getElementById('vessel-classification').value = 'monitoring';
+            document.getElementById('vessel-threat').value = 'unknown';
+            document.getElementById('vessel-notes').value = '';
+            openModal('add-vessel-modal');
+        }
+
+        function openAddPositionModal() {
+            if (!selectedVesselData) return alert('Select a vessel first');
+            document.getElementById('position-vessel-name').value = selectedVesselData.name;
+            document.getElementById('position-lat').value = selectedVesselData.last_lat || '';
+            document.getElementById('position-lon').value = selectedVesselData.last_lon || '';
+            document.getElementById('position-heading').value = '';
+            document.getElementById('position-speed').value = '';
+            document.getElementById('position-source').value = 'manual';
+            openModal('add-position-modal');
+        }
+
+        function openAddEventModal() {
+            if (!selectedVesselData) return alert('Select a vessel first');
+            document.getElementById('event-vessel-name').value = selectedVesselData.name;
+            document.getElementById('event-type').value = 'position_update';
+            document.getElementById('event-severity').value = 'info';
+            document.getElementById('event-title').value = '';
+            document.getElementById('event-description').value = '';
+            document.getElementById('event-source-url').value = '';
+            openModal('add-event-modal');
+        }
+
+        // CRUD operations
+        async function addVessel() {
+            const name = document.getElementById('vessel-name').value.trim();
+            if (!name) return alert('Vessel name is required');
+
+            const data = {
+                name: name,
+                mmsi: document.getElementById('vessel-mmsi').value.trim() || null,
+                imo: document.getElementById('vessel-imo').value.trim() || null,
+                flag_state: document.getElementById('vessel-flag').value.trim() || null,
+                vessel_type: document.getElementById('vessel-type').value.trim() || null,
+                classification: document.getElementById('vessel-classification').value,
+                threat_level: document.getElementById('vessel-threat').value,
+                intel_notes: document.getElementById('vessel-notes').value.trim() || null
+            };
+
+            const result = await postAPI('/vessels', data);
+            if (result && result.id) {
+                closeModal('add-vessel-modal');
+                await loadVessels();
+                await loadStats();
+                selectVessel(result.id);
+            } else {
+                alert('Failed to add vessel');
+            }
+        }
+
+        async function addPosition() {
+            const lat = parseFloat(document.getElementById('position-lat').value);
+            const lon = parseFloat(document.getElementById('position-lon').value);
+
+            if (isNaN(lat) || isNaN(lon)) return alert('Latitude and longitude are required');
+
+            const data = {
+                latitude: lat,
+                longitude: lon,
+                heading: parseFloat(document.getElementById('position-heading').value) || null,
+                speed_knots: parseFloat(document.getElementById('position-speed').value) || null,
+                source: document.getElementById('position-source').value
+            };
+
+            const result = await postAPI(`/vessels/${selectedVessel}/position`, data);
+            if (result) {
+                closeModal('add-position-modal');
+                await loadVessels();
+                selectVessel(selectedVessel);
+            } else {
+                alert('Failed to update position');
+            }
+        }
+
+        async function addEvent() {
+            const title = document.getElementById('event-title').value.trim();
+            if (!title) return alert('Event title is required');
+
+            const data = {
+                event_type: document.getElementById('event-type').value,
+                severity: document.getElementById('event-severity').value,
+                title: title,
+                description: document.getElementById('event-description').value.trim() || null,
+                source_url: document.getElementById('event-source-url').value.trim() || null,
+                latitude: selectedVesselData?.last_lat || null,
+                longitude: selectedVesselData?.last_lon || null
+            };
+
+            const result = await postAPI(`/vessels/${selectedVessel}/event`, data);
+            if (result) {
+                closeModal('add-event-modal');
+                selectVessel(selectedVessel);
+            } else {
+                alert('Failed to log event');
+            }
+        }
+
+        // Load data
         async function loadStats() {
             const stats = await fetchAPI('/stats');
             if (stats) {
@@ -505,10 +680,13 @@
             }
         }
 
-        // Load vessels
         async function loadVessels() {
             const vessels = await fetchAPI('/vessels');
             const list = document.getElementById('vessel-list');
+
+            // Clear existing markers
+            Object.values(vesselMarkers).forEach(m => map.removeLayer(m));
+            vesselMarkers = {};
 
             if (!vessels || vessels.length === 0) {
                 list.innerHTML = '<li class="empty-state">No vessels found</li>';
@@ -516,7 +694,7 @@
             }
 
             list.innerHTML = vessels.map(v => `
-                <li class="vessel-item" data-id="${v.id}" onclick="selectVessel(${v.id})">
+                <li class="vessel-item ${selectedVessel === v.id ? 'active' : ''}" data-id="${v.id}" onclick="selectVessel(${v.id})">
                     <div class="vessel-name">${v.name}</div>
                     <div class="vessel-meta">
                         <span>${v.flag_state || 'Unknown'}</span>
@@ -525,7 +703,6 @@
                 </li>
             `).join('');
 
-            // Add markers to map
             vessels.forEach(v => {
                 if (v.last_lat && v.last_lon) {
                     const marker = L.circleMarker([v.last_lat, v.last_lon], {
@@ -536,7 +713,6 @@
                         opacity: 1,
                         fillOpacity: 0.8
                     }).addTo(map);
-
                     marker.bindPopup(`<b>${v.name}</b><br>${v.classification}`);
                     marker.on('click', () => selectVessel(v.id));
                     vesselMarkers[v.id] = marker;
@@ -544,46 +720,30 @@
             });
         }
 
-        // Load shipyards
         async function loadShipyards() {
             const shipyards = await fetchAPI('/shipyards');
             if (!shipyards) return;
 
             shipyards.forEach(s => {
                 const marker = L.circleMarker([s.latitude, s.longitude], {
-                    radius: 6,
-                    fillColor: '#d29922',
-                    color: '#fff',
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.6
+                    radius: 6, fillColor: '#d29922', color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.6
                 }).addTo(map);
-
                 marker.bindPopup(`<b>${s.name}</b><br>${s.location}`);
                 shipyardMarkers[s.id] = marker;
 
-                // Add geofence circle
                 L.circle([s.latitude, s.longitude], {
                     radius: s.geofence_radius_km * 1000,
-                    color: '#d29922',
-                    fillColor: '#d29922',
-                    fillOpacity: 0.1,
-                    weight: 1,
-                    dashArray: '5, 5'
+                    color: '#d29922', fillColor: '#d29922', fillOpacity: 0.1, weight: 1, dashArray: '5, 5'
                 }).addTo(map);
             });
         }
 
-        // Select vessel
         async function selectVessel(id) {
             selectedVessel = id;
-
-            // Update sidebar selection
             document.querySelectorAll('.vessel-item').forEach(el => {
                 el.classList.toggle('active', parseInt(el.dataset.id) === id);
             });
 
-            // Load vessel details
             const [vessel, events, track, osint] = await Promise.all([
                 fetchAPI(`/vessels/${id}`),
                 fetchAPI(`/vessels/${id}/events`),
@@ -591,37 +751,25 @@
                 fetchAPI(`/osint?vessel_id=${id}`)
             ]);
 
+            selectedVesselData = vessel;
+
             if (vessel) {
                 renderVesselDetails(vessel, events, osint);
-
-                // Center map on vessel
                 if (vessel.last_lat && vessel.last_lon) {
                     map.setView([vessel.last_lat, vessel.last_lon], 8);
                 }
-
-                // Draw track line
-                if (trackLine) {
-                    map.removeLayer(trackLine);
-                }
+                if (trackLine) map.removeLayer(trackLine);
                 if (track && track.length > 1) {
                     const coords = track.map(p => [p.latitude, p.longitude]);
-                    trackLine = L.polyline(coords, {
-                        color: '#58a6ff',
-                        weight: 2,
-                        dashArray: '5, 5',
-                        opacity: 0.7
-                    }).addTo(map);
+                    trackLine = L.polyline(coords, { color: '#58a6ff', weight: 2, dashArray: '5, 5', opacity: 0.7 }).addTo(map);
                 }
             }
         }
 
-        // Render vessel details
         function renderVesselDetails(vessel, events, osint) {
             const panel = document.getElementById('detail-panel');
             let weapons = {};
-            try {
-                weapons = JSON.parse(vessel.weapons_config || '{}');
-            } catch (e) {}
+            try { weapons = JSON.parse(vessel.weapons_config || '{}'); } catch (e) {}
 
             panel.innerHTML = `
                 <div class="panel-header">
@@ -629,6 +777,11 @@
                     <div class="panel-subtitle">
                         ${vessel.vessel_type || 'Unknown Type'} | ${vessel.flag_state || 'Unknown Flag'}
                         <span class="threat-badge threat-${vessel.threat_level}">${vessel.threat_level}</span>
+                    </div>
+                    <div class="panel-actions">
+                        <button class="btn btn-small" onclick="openAddPositionModal()">Update Position</button>
+                        <button class="btn btn-small" onclick="setMapClickMode(true)">Pick on Map</button>
+                        <button class="btn btn-small" onclick="openAddEventModal()">Log Event</button>
                     </div>
                 </div>
 
@@ -658,8 +811,7 @@
                 <div class="panel-section">
                     <div class="section-title">Intelligence Notes</div>
                     <div class="intel-notes">${vessel.intel_notes}</div>
-                </div>
-                ` : ''}
+                </div>` : ''}
 
                 ${Object.keys(weapons).length > 0 ? `
                 <div class="panel-section">
@@ -671,8 +823,7 @@
                         ${weapons.decoys ? `<li><span>Decoys</span><span>${weapons.decoys}</span></li>` : ''}
                         ${weapons.possible_missiles ? `<li><span>Possible Missiles</span><span>${weapons.possible_missiles.join(', ')}</span></li>` : ''}
                     </ul>
-                </div>
-                ` : ''}
+                </div>` : ''}
 
                 ${osint && osint.length > 0 ? `
                 <div class="panel-section">
@@ -687,8 +838,7 @@
                             <div class="osint-date">${r.publish_date || ''}</div>
                         </div>
                     `).join('')}
-                </div>
-                ` : ''}
+                </div>` : ''}
 
                 ${events && events.length > 0 ? `
                 <div class="panel-section">
@@ -702,48 +852,33 @@
                             </li>
                         `).join('')}
                     </ul>
-                </div>
-                ` : ''}
+                </div>` : ''}
             `;
         }
 
-        // Helpers
         function getThreatColor(level) {
-            const colors = {
-                critical: '#f85149',
-                high: '#ff7b00',
-                medium: '#d29922',
-                low: '#3fb950',
-                unknown: '#8b949e'
-            };
+            const colors = { critical: '#f85149', high: '#ff7b00', medium: '#d29922', low: '#3fb950', unknown: '#8b949e' };
             return colors[level] || colors.unknown;
         }
 
         function formatDate(dateStr) {
             if (!dateStr) return '';
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
             initMap();
-            await Promise.all([
-                loadStats(),
-                loadVessels(),
-                loadShipyards()
-            ]);
-
-            // Auto-select first vessel
+            await Promise.all([loadStats(), loadVessels(), loadShipyards()]);
             const firstVessel = document.querySelector('.vessel-item');
-            if (firstVessel) {
-                selectVessel(parseInt(firstVessel.dataset.id));
+            if (firstVessel) selectVessel(parseInt(firstVessel.dataset.id));
+        });
+
+        // Close modals on escape
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+                setMapClickMode(false);
             }
         });
     </script>
