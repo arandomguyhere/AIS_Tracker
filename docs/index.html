@@ -453,7 +453,7 @@
         <div class="stats-bar">
             <div class="stat stat-critical"><div class="stat-value">1</div><div class="stat-label">Critical</div></div>
             <div class="stat stat-warning"><div class="stat-value">1</div><div class="stat-label">Alerts</div></div>
-            <div class="stat stat-info"><div class="stat-value">1</div><div class="stat-label">Vessels</div></div>
+            <div class="stat stat-info"><div class="stat-value" id="live-count">0</div><div class="stat-label">Live</div></div>
         </div>
     </div>
 
@@ -466,6 +466,11 @@
         <button class="control-btn active" id="toggle-shipyards" title="Toggle Shipyards">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-3"/>
+            </svg>
+        </button>
+        <button class="control-btn active" id="toggle-live" title="Toggle Live Vessels" style="background:#3498db;color:white;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
         </button>
     </div>
@@ -545,7 +550,64 @@
             { source_name: 'The War Zone', title: 'Chinese Cargo Ship Packed Full Of Modular Missile Launchers', source_url: 'https://www.twz.com/sea/chinese-cargo-ship-packed-full-of-modular-missile-launchers-emerges', summary: 'Technical analysis of containerized weapons systems.' }
         ];
 
-        let map, vesselMarkers = {}, shipyardMarkers = [], shipyardCircles = [], trackLine = null, showShipyards = true;
+        let map, vesselMarkers = {}, liveVesselMarkers = {}, shipyardMarkers = [], shipyardCircles = [], trackLine = null, showShipyards = true, showLiveVessels = true;
+        let liveVessels = [];
+
+        // Load live vessels from JSON file
+        async function loadLiveVessels() {
+            try {
+                const response = await fetch('live_vessels.json?t=' + Date.now());
+                if (!response.ok) return;
+                const data = await response.json();
+                liveVessels = data.vessels || [];
+                renderLiveVessels();
+                document.getElementById('live-count').textContent = liveVessels.length;
+            } catch(e) {
+                console.log('No live vessel data available');
+            }
+        }
+
+        // Render live vessels on map
+        function renderLiveVessels() {
+            // Clear existing live markers
+            Object.values(liveVesselMarkers).forEach(m => map.removeLayer(m));
+            liveVesselMarkers = {};
+
+            if (!showLiveVessels) return;
+
+            liveVessels.forEach(v => {
+                if (!v.lat || !v.lon) return;
+                const color = '#3498db'; // Blue for live vessels
+                const marker = L.marker([v.lat, v.lon], {
+                    icon: createShipIcon(color, v.heading || v.course || 0)
+                }).addTo(map);
+                marker.bindPopup(`<div class="popup-content">
+                    <div class="popup-name">${v.name || 'MMSI ' + v.mmsi}</div>
+                    <div class="popup-type">${v.ship_type || 'Unknown'} ${v.flag || ''}</div>
+                    <div class="popup-stats">
+                        <div class="popup-stat"><div class="popup-stat-value">${v.lat.toFixed(4)}</div><div class="popup-stat-label">Lat</div></div>
+                        <div class="popup-stat"><div class="popup-stat-value">${v.lon.toFixed(4)}</div><div class="popup-stat-label">Lon</div></div>
+                        <div class="popup-stat"><div class="popup-stat-value">${v.speed ? v.speed.toFixed(1) : '-'}</div><div class="popup-stat-label">Knots</div></div>
+                    </div>
+                    <div style="font-size:11px;color:#666;margin-top:8px">MMSI: ${v.mmsi}</div>
+                </div>`, { maxWidth: 280 });
+                liveVesselMarkers[v.mmsi] = marker;
+            });
+        }
+
+        // Delete a tracked vessel
+        function deleteVessel(id) {
+            const idx = vessels.findIndex(v => v.id === id);
+            if (idx > -1) {
+                if (vesselMarkers[id]) {
+                    map.removeLayer(vesselMarkers[id]);
+                    delete vesselMarkers[id];
+                }
+                vessels.splice(idx, 1);
+                renderVesselList();
+                document.getElementById('vessel-panel').classList.remove('active');
+            }
+        }
 
         function createShipIcon(color, heading = 0) {
             return L.divIcon({
@@ -566,15 +628,16 @@
 
         function renderVesselList() {
             document.getElementById('vessel-list').innerHTML = vessels.map(v => `
-                <div class="vessel-list-item" onclick="selectVessel(${v.id})">
-                    <div class="vessel-list-icon ${v.threat_level}">
+                <div class="vessel-list-item">
+                    <div class="vessel-list-icon ${v.threat_level}" onclick="selectVessel(${v.id})">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 19h16L12 2z"/></svg>
                     </div>
-                    <div class="vessel-list-info">
+                    <div class="vessel-list-info" onclick="selectVessel(${v.id})">
                         <div class="vessel-list-name">${v.name}</div>
                         <div class="vessel-list-meta">${v.flag_state} - ${v.vessel_type}</div>
                         <div class="vessel-list-status">${v.last_lat.toFixed(2)}, ${v.last_lon.toFixed(2)}</div>
                     </div>
+                    <button onclick="event.stopPropagation(); deleteVessel(${v.id})" style="background:#e94560;color:white;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:auto;">X</button>
                 </div>
             `).join('');
         }
@@ -642,7 +705,17 @@
         document.getElementById('toggle-shipyards').addEventListener('click', () => { showShipyards = !showShipyards; document.getElementById('toggle-shipyards').classList.toggle('active', showShipyards); renderShipyards(); });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('vessel-panel').classList.remove('active'); });
 
-        document.addEventListener('DOMContentLoaded', () => { initMap(); renderVesselList(); renderVesselMarkers(); renderShipyards(); });
+        document.getElementById('toggle-live').addEventListener('click', () => { showLiveVessels = !showLiveVessels; document.getElementById('toggle-live').classList.toggle('active', showLiveVessels); renderLiveVessels(); });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            renderVesselList();
+            renderVesselMarkers();
+            renderShipyards();
+            loadLiveVessels();
+            // Auto-refresh live vessels every 10 seconds
+            setInterval(loadLiveVessels, 10000);
+        });
     </script>
 </body>
 </html>
