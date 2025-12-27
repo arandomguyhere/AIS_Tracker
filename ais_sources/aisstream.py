@@ -42,22 +42,29 @@ class AISStreamSource(AISSource):
     AISStream.io WebSocket client.
 
     Primary real-time AIS source. Connects via WebSocket and receives
-    continuous position updates for subscribed vessels.
+    continuous position updates for subscribed vessels or geographic areas.
 
     Configuration:
         api_key: AISStream.io API key (required)
+        bounding_boxes: List of [[lat_min, lon_min], [lat_max, lon_max]] areas
 
-    Usage:
+    Usage - Specific Vessels:
         source = AISStreamSource(api_key="your-key")
         source.subscribe(["413000000", "123456789"])
         source.connect()
 
-        positions = source.fetch_positions(["413000000"])
+    Usage - Geographic Area (all traffic):
+        source = AISStreamSource(api_key="your-key")
+        source.set_bounding_box(lat_min=20, lon_min=110, lat_max=35, lon_max=130)
+        source.connect()
+
+        # Get all vessels in the area
+        positions = source.get_all_cached_positions()
     """
 
     WEBSOCKET_URL = "wss://stream.aisstream.io/v0/stream"
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, bounding_boxes: Optional[List[List[List[float]]]] = None):
         super().__init__(name="aisstream", source_type=SourceType.REALTIME)
 
         if not WEBSOCKET_AVAILABLE:
@@ -65,6 +72,10 @@ class AISStreamSource(AISSource):
 
         self.api_key = api_key
         self.subscribed_mmsi: List[str] = []
+
+        # Bounding boxes for geographic filtering
+        # Format: [[[lat_min, lon_min], [lat_max, lon_max]], ...]
+        self.bounding_boxes: List[List[List[float]]] = bounding_boxes or []
 
         # WebSocket connection
         self._ws: Optional[Any] = None
@@ -148,6 +159,45 @@ class AISStreamSource(AISSource):
                 return False
 
         return True
+
+    def set_bounding_box(self, lat_min: float, lon_min: float,
+                         lat_max: float, lon_max: float) -> None:
+        """
+        Set geographic bounding box for area-based tracking.
+
+        This subscribes to ALL vessels in the specified area.
+        Clear subscribed_mmsi to avoid MMSI filtering.
+
+        Args:
+            lat_min: Southern latitude boundary
+            lon_min: Western longitude boundary
+            lat_max: Northern latitude boundary
+            lon_max: Eastern longitude boundary
+
+        Example - East China Sea area:
+            source.set_bounding_box(20, 110, 35, 130)
+        """
+        self.bounding_boxes = [[[lat_min, lon_min], [lat_max, lon_max]]]
+        self.subscribed_mmsi = []  # Clear MMSI filter for area mode
+        self._log(f"Set bounding box: ({lat_min},{lon_min}) to ({lat_max},{lon_max})")
+
+        # If connected, update subscription
+        if self.is_available() and self._ws:
+            self._send_subscription()
+
+    def add_bounding_box(self, lat_min: float, lon_min: float,
+                         lat_max: float, lon_max: float) -> None:
+        """Add an additional bounding box (supports multiple areas)."""
+        self.bounding_boxes.append([[lat_min, lon_min], [lat_max, lon_max]])
+        self._log(f"Added bounding box: ({lat_min},{lon_min}) to ({lat_max},{lon_max})")
+
+        if self.is_available() and self._ws:
+            self._send_subscription()
+
+    def clear_bounding_boxes(self) -> None:
+        """Clear all bounding boxes."""
+        self.bounding_boxes = []
+        self._log("Cleared all bounding boxes")
 
     def fetch_positions(self, mmsi_list: List[str]) -> List[AISPosition]:
         """
@@ -243,22 +293,29 @@ class AISStreamSource(AISSource):
             return
 
         # Build subscription message
-        # AISStream format: subscribe by MMSI list or bounding box
         subscribe_msg = {
             "APIKey": self.api_key,
-            "BoundingBoxes": [
-                # Global coverage - will be filtered by MMSI
-                [[-90, -180], [90, 180]]
-            ]
         }
 
-        # If we have specific MMSIs, add filter
+        # Use configured bounding boxes or default to global
+        if self.bounding_boxes:
+            subscribe_msg["BoundingBoxes"] = self.bounding_boxes
+            box_count = len(self.bounding_boxes)
+            self._log(f"Using {box_count} bounding box(es) for geographic filtering")
+        else:
+            # Global coverage
+            subscribe_msg["BoundingBoxes"] = [[[-90, -180], [90, 180]]]
+
+        # Only add MMSI filter if we have specific vessels to track
+        # (not in area mode)
         if self.subscribed_mmsi:
             subscribe_msg["FiltersShipMMSI"] = self.subscribed_mmsi
+            self._log(f"Subscription sent: {len(self.subscribed_mmsi)} vessels")
+        else:
+            self._log(f"Subscription sent: ALL vessels in bounding box")
 
         try:
             self._ws.send(json.dumps(subscribe_msg))
-            self._log(f"Subscription sent for {len(self.subscribed_mmsi)} vessels")
         except Exception as e:
             self._log(f"Failed to send subscription: {e}", level="error")
 

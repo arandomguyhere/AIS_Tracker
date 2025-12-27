@@ -118,9 +118,9 @@ class AISSourceManager:
             with open(config_path, 'r') as f:
                 config = json.load(f)
 
-            # Parse sources
+            # Parse sources (pass full config for area tracking)
             sources_config = config.get("sources", {})
-            manager._configure_sources(sources_config)
+            manager._configure_sources(sources_config, config)
 
             # Set priority order
             manager.source_priority = config.get("priority", ["aisstream", "marinesia"])
@@ -135,14 +135,28 @@ class AISSourceManager:
 
         return manager
 
-    def _configure_sources(self, sources_config: Dict[str, Any]) -> None:
+    def _configure_sources(self, sources_config: Dict[str, Any], config: Dict[str, Any] = None) -> None:
         """Configure sources from config dict."""
         # AISStream
         ais_config = sources_config.get("aisstream", {})
         if ais_config.get("enabled", False):
             api_key = self._resolve_env_var(ais_config.get("api_key", ""))
             if api_key:
-                self.add_source(AISStreamSource(api_key=api_key))
+                source = AISStreamSource(api_key=api_key)
+
+                # Check for area tracking config
+                if config:
+                    area_config = config.get("area_tracking", {})
+                    if area_config.get("enabled", False):
+                        bbox = area_config.get("bounding_box", {})
+                        if all(k in bbox for k in ["lat_min", "lon_min", "lat_max", "lon_max"]):
+                            source.set_bounding_box(
+                                bbox["lat_min"], bbox["lon_min"],
+                                bbox["lat_max"], bbox["lon_max"]
+                            )
+                            self._log(f"Area tracking enabled: {bbox.get('description', 'custom area')}")
+
+                self.add_source(source)
             else:
                 self._log("AISStream enabled but no API key provided", level="warning")
 

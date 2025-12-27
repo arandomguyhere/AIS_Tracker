@@ -21,12 +21,24 @@
   "priority": ["aisstream", "marinesia"],
   "poll_interval": 60,
   "position_cache_ttl": 300,
+
+  "area_tracking": {
+    "enabled": true,
+    "bounding_box": {
+      "lat_min": 20,
+      "lon_min": 110,
+      "lat_max": 40,
+      "lon_max": 135,
+      "description": "East China Sea / Yellow Sea area (centered on map view)"
+    }
+  },
+
   "notes": {
     "env_vars": [
       "AISSTREAM_API_KEY - Get from https://aisstream.io/",
       "GFW_API_KEY - Get from https://globalfishingwatch.org/our-apis/"
     ],
     "priority_explanation": "Sources are tried in order. AISStream provides real-time WebSocket data. Marinesia is REST fallback.",
-    "poll_interval_note": "Seconds between REST API polls when real-time source unavailable"
+    "area_tracking_note": "Set area_tracking.enabled=true to receive ALL vessels in the bounding box instead of only watchlisted vessels"
   }
 }
