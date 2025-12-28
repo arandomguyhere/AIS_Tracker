@@ -13,6 +13,13 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from math import radians, sin, cos, sqrt, atan2
 from urllib.parse import urlparse, parse_qs
 
+# Import vessel intelligence module
+try:
+    from vessel_intel import analyze_vessel_intel, quick_vessel_bluf
+    INTEL_AVAILABLE = True
+except ImportError:
+    INTEL_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -725,6 +732,24 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             if not all(k in data for k in required):
                 return self.send_json({'error': 'lat_min, lon_min, lat_max, lon_max required'}, 400)
             return self.send_json(update_bounding_box(data))
+
+        elif path == '/api/vessel-intel':
+            # Full AI-powered vessel intelligence analysis
+            if not INTEL_AVAILABLE:
+                return self.send_json({'error': 'Vessel intel module not available'}, 500)
+            vessel_data = data.get('vessel')
+            if not vessel_data:
+                return self.send_json({'error': 'Vessel data required'}, 400)
+            return self.send_json(analyze_vessel_intel(vessel_data))
+
+        elif path == '/api/vessel-bluf':
+            # Quick BLUF assessment
+            if not INTEL_AVAILABLE:
+                return self.send_json({'error': 'Vessel intel module not available'}, 500)
+            vessel_data = data.get('vessel')
+            if not vessel_data:
+                return self.send_json({'error': 'Vessel data required'}, 400)
+            return self.send_json(quick_vessel_bluf(vessel_data))
 
         else:
             self.send_json({'error': 'Not found'}, 404)

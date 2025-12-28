@@ -1118,6 +1118,31 @@
         </div>
     </div>
 
+    <!-- AI Analysis Modal -->
+    <div class="modal-overlay" id="intel-modal">
+        <div class="modal" style="width:700px;max-width:95vw">
+            <div class="modal-header">
+                <span class="modal-title">AI Intelligence Analysis</span>
+                <button class="modal-close" onclick="closeModal('intel-modal')">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height:75vh;overflow-y:auto">
+                <div id="intel-loading" style="text-align:center;padding:40px;color:#666">
+                    <div style="font-size:24px;margin-bottom:16px">Analyzing vessel...</div>
+                    <div style="font-size:14px">Generating search queries, scanning news sources, running AI assessment</div>
+                </div>
+                <div id="intel-error" style="display:none;text-align:center;padding:40px;color:#e94560"></div>
+                <div id="intel-results" style="display:none">
+                    <div id="intel-bluf" style="background:#1a1a2e;color:#fff;padding:16px;border-radius:8px;margin-bottom:16px"></div>
+                    <div id="intel-news" style="margin-bottom:16px"></div>
+                    <div id="intel-analysis" style="background:#f8f9fa;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:13px;line-height:1.6"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('intel-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const API = '/api';
@@ -1468,8 +1493,8 @@
                 </div>` : ''}
 
                 <div class="action-buttons">
-                    <button class="action-btn action-btn-primary" onclick="openPositionModal()">Update Position</button>
-                    <button class="action-btn action-btn-secondary" onclick="pickOnMap()">Pick on Map</button>
+                    <button class="action-btn action-btn-primary" onclick="runVesselIntel(${v.id})">AI Analysis</button>
+                    <button class="action-btn action-btn-secondary" onclick="openPositionModal()">Update Position</button>
                     <button class="action-btn action-btn-secondary" onclick="openEditVesselModal(${v.id})">Edit Vessel</button>
                     <button class="action-btn action-btn-secondary" style="color:#e94560" onclick="deleteVessel(${v.id})">Delete</button>
                 </div>
@@ -1856,6 +1881,92 @@
 
             } catch (e) {
                 alert('Failed to track vessel: ' + e.message);
+            }
+        }
+
+        // Run AI-powered vessel intelligence analysis
+        async function runVesselIntel(vesselId) {
+            const v = vessels.find(x => x.id === vesselId);
+            if (!v) return;
+
+            // Show modal with loading state
+            document.getElementById('intel-loading').style.display = 'block';
+            document.getElementById('intel-error').style.display = 'none';
+            document.getElementById('intel-results').style.display = 'none';
+            openModal('intel-modal');
+
+            try {
+                const vesselData = {
+                    name: v.name,
+                    mmsi: v.mmsi,
+                    imo: v.imo,
+                    vessel_type: v.vessel_type,
+                    flag_state: v.flag_state,
+                    length_m: v.length_m,
+                    classification: v.classification,
+                    threat_level: v.threat_level,
+                    intel_notes: v.intel_notes
+                };
+
+                const result = await post('/vessel-intel', { vessel: vesselData });
+
+                document.getElementById('intel-loading').style.display = 'none';
+
+                if (result.error) {
+                    document.getElementById('intel-error').textContent = result.error;
+                    document.getElementById('intel-error').style.display = 'block';
+                    return;
+                }
+
+                // Display results
+                document.getElementById('intel-results').style.display = 'block';
+
+                // Extract and display BLUF
+                const analysis = result.analysis?.analysis || '';
+                const blufMatch = analysis.match(/## BLUF\s*([\s\S]*?)(?=##|$)/i);
+                const blufText = blufMatch ? blufMatch[1].trim() : 'Analysis complete';
+
+                // Determine risk color
+                let riskColor = '#3498db';
+                if (analysis.includes('CRITICAL')) riskColor = '#e94560';
+                else if (analysis.includes('HIGH')) riskColor = '#e74c3c';
+                else if (analysis.includes('MODERATE')) riskColor = '#f39c12';
+                else if (analysis.includes('LOW')) riskColor = '#27ae60';
+
+                document.getElementById('intel-bluf').innerHTML = `
+                    <div style="font-weight:600;margin-bottom:8px;color:${riskColor}">BLUF - Bottom Line Up Front</div>
+                    <div style="font-size:14px;line-height:1.6">${blufText}</div>
+                `;
+
+                // Display news results
+                const newsResults = result.news_results || [];
+                if (newsResults.length > 0) {
+                    document.getElementById('intel-news').innerHTML = `
+                        <div style="font-weight:600;margin-bottom:8px">News Coverage (${newsResults.length} articles found)</div>
+                        <div style="background:#f8f9fa;padding:12px;border-radius:8px;max-height:150px;overflow-y:auto">
+                            ${newsResults.slice(0, 5).map(a => `
+                                <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #eee">
+                                    <a href="${a.url}" target="_blank" style="font-weight:500;color:#333;text-decoration:none">${a.title || 'Untitled'}</a>
+                                    <div style="font-size:11px;color:#666">${a.source || ''} • Query: ${a.search_query || ''}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('intel-news').innerHTML = `
+                        <div style="background:#fff3cd;padding:12px;border-radius:8px;color:#856404;font-size:13px">
+                            <strong>No news coverage found</strong> — This is itself intelligence. The vessel has low media visibility.
+                        </div>
+                    `;
+                }
+
+                // Display full analysis
+                document.getElementById('intel-analysis').textContent = analysis;
+
+            } catch (e) {
+                document.getElementById('intel-loading').style.display = 'none';
+                document.getElementById('intel-error').textContent = 'Analysis failed: ' + e.message;
+                document.getElementById('intel-error').style.display = 'block';
             }
         }
 
