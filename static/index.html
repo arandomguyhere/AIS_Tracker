@@ -910,6 +910,61 @@
         </div>
     </div>
 
+    <!-- Edit Vessel Modal -->
+    <div class="modal-overlay" id="edit-vessel-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Edit Vessel</span>
+                <button class="modal-close" onclick="closeModal('edit-vessel-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-vessel-id">
+                <div class="form-group">
+                    <label class="form-label">Vessel Name *</label>
+                    <input type="text" class="form-input" id="edit-vessel-name" placeholder="e.g. ZHONG DA 79">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Flag State</label>
+                        <input type="text" class="form-input" id="edit-vessel-flag" placeholder="e.g. China">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Vessel Type</label>
+                        <input type="text" class="form-input" id="edit-vessel-type" placeholder="e.g. Container Feeder">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Classification</label>
+                        <select class="form-select" id="edit-vessel-classification">
+                            <option value="monitoring">Monitoring</option>
+                            <option value="suspected">Suspected</option>
+                            <option value="confirmed">Confirmed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Threat Level</label>
+                        <select class="form-select" id="edit-vessel-threat">
+                            <option value="unknown">Unknown</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Intel Notes</label>
+                    <textarea class="form-textarea" id="edit-vessel-notes" placeholder="Intelligence notes..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('edit-vessel-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveVesselEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Update Position Modal -->
     <div class="modal-overlay" id="position-modal">
         <div class="modal">
@@ -1301,6 +1356,8 @@
                 <div class="action-buttons">
                     <button class="action-btn action-btn-primary" onclick="openPositionModal()">Update Position</button>
                     <button class="action-btn action-btn-secondary" onclick="pickOnMap()">Pick on Map</button>
+                    <button class="action-btn action-btn-secondary" onclick="openEditVesselModal(${v.id})">Edit Vessel</button>
+                    <button class="action-btn action-btn-secondary" style="color:#e94560" onclick="deleteVessel(${v.id})">Delete</button>
                 </div>
 
                 ${events?.length ? `
@@ -1567,6 +1624,83 @@
 
             } catch (e) {
                 alert('Failed to track vessel: ' + e.message);
+            }
+        }
+
+        // Open edit vessel modal
+        function openEditVesselModal(vesselId) {
+            const v = vessels.find(x => x.id === vesselId);
+            if (!v) return;
+
+            document.getElementById('edit-vessel-id').value = vesselId;
+            document.getElementById('edit-vessel-name').value = v.name || '';
+            document.getElementById('edit-vessel-flag').value = v.flag_state || '';
+            document.getElementById('edit-vessel-type').value = v.vessel_type || '';
+            document.getElementById('edit-vessel-classification').value = v.classification || 'monitoring';
+            document.getElementById('edit-vessel-threat').value = v.threat_level || 'unknown';
+            document.getElementById('edit-vessel-notes').value = v.intel_notes || '';
+
+            openModal('edit-vessel-modal');
+        }
+
+        // Save vessel edits
+        async function saveVesselEdit() {
+            const vesselId = document.getElementById('edit-vessel-id').value;
+            const name = document.getElementById('edit-vessel-name').value.trim();
+
+            if (!name) {
+                alert('Vessel name is required');
+                return;
+            }
+
+            try {
+                const result = await post(`/vessels/${vesselId}/update`, {
+                    name,
+                    flag_state: document.getElementById('edit-vessel-flag').value.trim() || null,
+                    vessel_type: document.getElementById('edit-vessel-type').value.trim() || null,
+                    classification: document.getElementById('edit-vessel-classification').value,
+                    threat_level: document.getElementById('edit-vessel-threat').value,
+                    intel_notes: document.getElementById('edit-vessel-notes').value.trim() || null
+                });
+
+                if (result.error) {
+                    alert('Failed to update vessel: ' + result.error);
+                    return;
+                }
+
+                closeModal('edit-vessel-modal');
+                await loadData();
+                selectVessel(parseInt(vesselId));
+                alert('Vessel updated successfully!');
+
+            } catch (e) {
+                alert('Failed to update vessel: ' + e.message);
+            }
+        }
+
+        // Delete a vessel
+        async function deleteVessel(vesselId) {
+            const v = vessels.find(x => x.id === vesselId);
+            if (!v) return;
+
+            if (!confirm(`Delete "${v.name}"?\n\nThis will remove the vessel and all associated data (positions, events, alerts).`)) {
+                return;
+            }
+
+            try {
+                const result = await api(`/vessels/${vesselId}`, { method: 'DELETE' });
+
+                if (result.error) {
+                    alert('Failed to delete vessel: ' + result.error);
+                    return;
+                }
+
+                closeVesselPanel();
+                await loadData();
+                alert('Vessel deleted successfully!');
+
+            } catch (e) {
+                alert('Failed to delete vessel: ' + e.message);
             }
         }
 

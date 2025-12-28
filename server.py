@@ -443,6 +443,66 @@ def track_live_vessel(data):
     return {'id': vessel_id, 'status': 'created', 'name': data.get('name', f"MMSI {mmsi}")}
 
 
+def update_vessel(vessel_id, data):
+    """Update vessel details."""
+    conn = get_db()
+
+    # Build update query dynamically based on provided fields
+    updates = []
+    values = []
+
+    if 'name' in data:
+        updates.append('name = ?')
+        values.append(data['name'])
+    if 'vessel_type' in data:
+        updates.append('vessel_type = ?')
+        values.append(data['vessel_type'])
+    if 'flag_state' in data:
+        updates.append('flag_state = ?')
+        values.append(data['flag_state'])
+    if 'classification' in data:
+        updates.append('classification = ?')
+        values.append(data['classification'])
+    if 'threat_level' in data:
+        updates.append('threat_level = ?')
+        values.append(data['threat_level'])
+    if 'intel_notes' in data:
+        updates.append('intel_notes = ?')
+        values.append(data['intel_notes'])
+
+    if not updates:
+        conn.close()
+        return {'error': 'No fields to update'}
+
+    updates.append('last_updated = CURRENT_TIMESTAMP')
+    values.append(vessel_id)
+
+    conn.execute(f'''
+        UPDATE vessels SET {', '.join(updates)} WHERE id = ?
+    ''', values)
+    conn.commit()
+    conn.close()
+    return {'status': 'updated', 'vessel_id': vessel_id}
+
+
+def delete_vessel(vessel_id):
+    """Delete a vessel and all related data."""
+    conn = get_db()
+
+    # Delete related data first
+    conn.execute('DELETE FROM positions WHERE vessel_id = ?', (vessel_id,))
+    conn.execute('DELETE FROM events WHERE vessel_id = ?', (vessel_id,))
+    conn.execute('DELETE FROM alerts WHERE vessel_id = ?', (vessel_id,))
+    conn.execute('DELETE FROM watchlist WHERE vessel_id = ?', (vessel_id,))
+    conn.execute('DELETE FROM osint_reports WHERE vessel_id = ?', (vessel_id,))
+
+    # Delete the vessel
+    conn.execute('DELETE FROM vessels WHERE id = ?', (vessel_id,))
+    conn.commit()
+    conn.close()
+    return {'status': 'deleted', 'vessel_id': vessel_id}
+
+
 # =============================================================================
 # HTTP Handler
 # =============================================================================
@@ -554,14 +614,32 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 return self.send_json({'error': 'MMSI required'}, 400)
             return self.send_json(track_live_vessel(data), 201)
 
+        elif path.startswith('/api/vessels/') and path.endswith('/update'):
+            vessel_id = int(path.split('/')[3])
+            return self.send_json(update_vessel(vessel_id, data))
+
         else:
             self.send_json({'error': 'Not found'}, 404)
+
+    def do_DELETE(self):
+        """Handle DELETE requests."""
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        # DELETE /api/vessels/:id
+        if path.startswith('/api/vessels/'):
+            parts = path.split('/')
+            if len(parts) == 4:  # /api/vessels/123
+                vessel_id = int(parts[3])
+                return self.send_json(delete_vessel(vessel_id))
+
+        self.send_json({'error': 'Not found'}, 404)
 
     def do_OPTIONS(self):
         """Handle CORS preflight."""
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
 
