@@ -1,0 +1,155 @@
+{
+  "description": "Tracked vessels for OSINT correlation",
+  "vessels": [
+    {
+      "id": 1,
+      "name": "ZHONG DA 79",
+      "mmsi": "413000000",
+      "imo": null,
+      "flag_state": "China",
+      "vessel_type": "Container Feeder",
+      "length_m": 97.0,
+      "classification": "confirmed",
+      "threat_level": "critical",
+      "aliases": ["ZHONGDA 79", "ZHONGDA79", "ZHONG DA79"],
+      "keywords": ["arsenal ship", "containerized missile", "VLS", "CIWS", "Type 1130"],
+      "related_locations": ["Shanghai", "Longhai", "Fujian", "Huangpu River", "Hudong-Zhonghua"],
+      "intel_notes": "Commercial container feeder converted to arsenal ship. Observed with containerized VLS, CIWS, and radar systems at Shanghai shipyard. Underwent refit at Longhai shipyard April-August 2025. Currently moored at industrial pier on Huangpu River, Shanghai. NOT listed in PLAN registry - retains civilian designation despite visible military modifications.",
+      "weapons_config": {
+        "vls_cells": 60,
+        "vls_type": "Containerized VLS (4 cells per container)",
+        "ciws": "Type 1130 30mm",
+        "decoys": "Type 726",
+        "possible_missiles": ["CJ-10", "YJ-18", "YJ-21"]
+      },
+      "last_lat": 31.2456,
+      "last_lon": 121.489,
+      "last_heading": 0
+    }
+  ],
+  "shipyards": [
+    {
+      "name": "Hudong-Zhonghua Shipbuilding",
+      "location": "Shanghai, China",
+      "latitude": 31.3456,
+      "longitude": 121.5234,
+      "geofence_radius_km": 3.0,
+      "threat_association": "confirmed"
+    },
+    {
+      "name": "Longhai Shipyard",
+      "location": "Longhai, Fujian, China",
+      "latitude": 24.4456,
+      "longitude": 117.8234,
+      "geofence_radius_km": 2.0,
+      "threat_association": "suspected"
+    },
+    {
+      "name": "Jiangnan Shipyard",
+      "location": "Shanghai, China",
+      "latitude": 31.3789,
+      "longitude": 121.5678,
+      "geofence_radius_km": 4.0,
+      "threat_association": "confirmed"
+    },
+    {
+      "name": "Dalian Shipbuilding",
+      "location": "Dalian, Liaoning, China",
+      "latitude": 38.9234,
+      "longitude": 121.6345,
+      "geofence_radius_km": 4.0,
+      "threat_association": "confirmed"
+    },
+    {
+      "name": "Shanghai Huangpu River Industrial Pier",
+      "location": "Shanghai, China",
+      "latitude": 31.2456,
+      "longitude": 121.489,
+      "geofence_radius_km": 1.5,
+      "threat_association": "monitoring"
+    }
+  ],
+  "positions": [
+    {"latitude": 24.4456, "longitude": 117.8234, "timestamp": "2025-04-15", "note": "Longhai Shipyard"},
+    {"latitude": 24.4456, "longitude": 117.8234, "timestamp": "2025-06-01", "note": "Longhai refit"},
+    {"latitude": 24.4456, "longitude": 117.8234, "timestamp": "2025-08-10", "note": "Longhai refit complete"},
+    {"latitude": 26.1234, "longitude": 119.9876, "timestamp": "2025-08-18", "note": "Transit"},
+    {"latitude": 28.9876, "longitude": 121.2345, "timestamp": "2025-08-20", "note": "Transit"},
+    {"latitude": 31.2456, "longitude": 121.489, "timestamp": "2025-08-22", "note": "Arrived Shanghai"},
+    {"latitude": 31.2456, "longitude": 121.489, "timestamp": "2025-12-26", "note": "Current position"}
+  ],
+  "events": [
+    {
+      "severity": "high",
+      "title": "Entered Longhai Shipyard",
+      "description": "ZHONG DA 79 entered Longhai shipyard for extended stay. Purpose unknown at time of entry.",
+      "event_date": "2025-04-15"
+    },
+    {
+      "severity": "medium",
+      "title": "AIS Signal Lost",
+      "description": "Vessel went dark for extended period during shipyard stay. Common for refit activities.",
+      "event_date": "2025-04-20"
+    },
+    {
+      "severity": "critical",
+      "title": "Structural Modifications Observed",
+      "description": "Satellite imagery indicates deck modifications consistent with weapons platform installation.",
+      "event_date": "2025-06-15"
+    },
+    {
+      "severity": "high",
+      "title": "Departed Longhai Shipyard",
+      "description": "ZHONG DA 79 departed Longhai after approximately 4 months of refit work.",
+      "event_date": "2025-08-15"
+    },
+    {
+      "severity": "high",
+      "title": "Moored at Shanghai Industrial Pier",
+      "description": "Vessel arrived at industrial pier on Huangpu River near Hudong-Zhonghua facilities.",
+      "event_date": "2025-08-22"
+    },
+    {
+      "severity": "critical",
+      "title": "Containerized VLS Confirmed",
+      "description": "Photographs emerged showing 48-60 containerized VLS cells arranged on deck. Type 1130 CIWS and Type 726 decoy launchers also visible.",
+      "event_date": "2025-12-20"
+    },
+    {
+      "severity": "critical",
+      "title": "OSINT: Major Media Coverage",
+      "description": "Multiple international news outlets report on arsenal ship conversion. United24 Media, Naval News, The War Zone, Newsweek all publish articles.",
+      "event_date": "2025-12-26"
+    }
+  ],
+  "osint": [
+    {
+      "source_name": "United24 Media",
+      "title": "Cargo Ship or Warship? China Arms Civilian Vessel With 60 Missiles",
+      "source_url": "https://united24media.com/latest-news/cargo-ship-or-warship-china-arms-civilian-vessel-with-60-missiles-in-plain-sight-14585",
+      "summary": "China converted a civilian container ship into an arsenal ship with 60 containerized missiles, CIWS, radar while retaining civilian status.",
+      "publish_date": "2025-12-26"
+    },
+    {
+      "source_name": "Naval News",
+      "title": "Container Ship Turned Missile Battery Spotted in China",
+      "source_url": "https://www.navalnews.com/naval-news/2025/12/container-ship-turned-missile-battery-spotted-in-china/",
+      "summary": "Naval News analysis of ZHONG DA 79 conversion with expert commentary on strategic implications.",
+      "publish_date": "2025-12-26"
+    },
+    {
+      "source_name": "Newsweek",
+      "title": "Photos Show Chinese Cargo Ship Armed With Missile Launchers",
+      "source_url": "https://www.newsweek.com/photos-chinese-cargo-ship-missile-launchers-11270114",
+      "summary": "Newsweek coverage with geopolitical context and Taiwan Strait implications.",
+      "publish_date": "2025-12-26"
+    },
+    {
+      "source_name": "The War Zone",
+      "title": "Chinese Cargo Ship Packed Full Of Modular Missile Launchers Emerges",
+      "source_url": "https://www.twz.com/sea/chinese-cargo-ship-packed-full-of-modular-missile-launchers-emerges",
+      "summary": "Technical analysis of containerized weapons systems and potential to turn any cargo ship into a weapons platform.",
+      "publish_date": "2025-12-26"
+    }
+  ]
+}
