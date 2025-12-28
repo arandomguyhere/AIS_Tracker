@@ -747,6 +747,10 @@
                 <div class="stat-value" id="stat-vessels">0</div>
                 <div class="stat-label">Vessels</div>
             </div>
+            <div class="stat" style="color:#3498db">
+                <div class="stat-value" id="stat-live">0</div>
+                <div class="stat-label">Live</div>
+            </div>
         </div>
     </div>
 
@@ -764,6 +768,11 @@
         <button class="control-btn" id="toggle-shipyards" title="Toggle Shipyards">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-3"/>
+            </svg>
+        </button>
+        <button class="control-btn active" id="toggle-live" title="Toggle Live Vessels" style="background:#3498db;color:white;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
             </svg>
         </button>
     </div>
@@ -897,8 +906,9 @@
         const API = '/api';
         let map, vessels = [], shipyards = [];
         let vesselMarkers = {}, shipyardMarkers = [], shipyardCircles = [];
+        let liveVesselMarkers = {}, liveVessels = [];
         let selectedVessel = null, trackLine = null;
-        let mapClickMode = false, showShipyards = true;
+        let mapClickMode = false, showShipyards = true, showLiveVessels = true;
 
         // Ship SVG icon
         function createShipIcon(color, heading = 0) {
@@ -1058,6 +1068,53 @@
                     color: '#f39c12', fillColor: '#f39c12', fillOpacity: 0.1, weight: 1, dashArray: '4'
                 }).addTo(map);
                 shipyardCircles.push(circle);
+            });
+        }
+
+        // Load live vessels from streaming API
+        async function loadLiveVessels() {
+            try {
+                const data = await api('/live-vessels');
+                liveVessels = data.vessels || [];
+                renderLiveVessels();
+                const liveCount = document.getElementById('stat-live');
+                if (liveCount) liveCount.textContent = liveVessels.length;
+            } catch(e) {
+                console.log('No live vessel data available');
+            }
+        }
+
+        // Render live vessels on map
+        function renderLiveVessels() {
+            Object.values(liveVesselMarkers).forEach(m => map.removeLayer(m));
+            liveVesselMarkers = {};
+
+            if (!showLiveVessels) return;
+
+            liveVessels.forEach(v => {
+                if (!v.lat || !v.lon) return;
+                const color = '#3498db'; // Blue for live vessels
+                const marker = L.marker([v.lat, v.lon], {
+                    icon: createShipIcon(color, v.heading || v.course || 0)
+                }).addTo(map);
+                marker.bindPopup(`<div class="popup-content">
+                    <div class="popup-header">
+                        <div class="popup-icon" style="background:#3498db20;color:#3498db">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 19h16L12 2z"/></svg>
+                        </div>
+                        <div>
+                            <div class="popup-name">${v.name || 'MMSI ' + v.mmsi}</div>
+                            <div class="popup-type">${v.ship_type || 'Unknown'} ${v.flag || ''}</div>
+                        </div>
+                    </div>
+                    <div class="popup-stats">
+                        <div class="popup-stat"><div class="popup-stat-value">${v.lat.toFixed(4)}</div><div class="popup-stat-label">Lat</div></div>
+                        <div class="popup-stat"><div class="popup-stat-value">${v.lon.toFixed(4)}</div><div class="popup-stat-label">Lon</div></div>
+                        <div class="popup-stat"><div class="popup-stat-value">${v.speed ? v.speed.toFixed(1) : '-'}</div><div class="popup-stat-label">Knots</div></div>
+                    </div>
+                    <div style="font-size:11px;color:#666;margin-top:8px">MMSI: ${v.mmsi}</div>
+                </div>`, { maxWidth: 280 });
+                liveVesselMarkers[v.mmsi] = marker;
             });
         }
 
@@ -1302,6 +1359,19 @@
             renderShipyards();
         });
 
+        document.getElementById('toggle-live').addEventListener('click', () => {
+            showLiveVessels = !showLiveVessels;
+            document.getElementById('toggle-live').classList.toggle('active', showLiveVessels);
+            if (showLiveVessels) {
+                document.getElementById('toggle-live').style.background = '#3498db';
+                document.getElementById('toggle-live').style.color = 'white';
+            } else {
+                document.getElementById('toggle-live').style.background = 'white';
+                document.getElementById('toggle-live').style.color = 'inherit';
+            }
+            renderLiveVessels();
+        });
+
         // Escape key
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') {
@@ -1314,7 +1384,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
             loadData();
+            loadLiveVessels();
             document.getElementById('toggle-shipyards').classList.add('active');
+            // Auto-refresh live vessels every 10 seconds
+            setInterval(loadLiveVessels, 10000);
         });
     </script>
 </body>
