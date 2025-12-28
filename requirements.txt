@@ -1,0 +1,2 @@
+# Arsenal Ship Tracker Dependencies
+gnews>=0.3.7

@@ -375,6 +375,74 @@ def acknowledge_alert(alert_id):
     return {'status': 'acknowledged'}
 
 
+def search_news(query, max_results=10):
+    """Search Google News for vessel information."""
+    try:
+        from gnews import GNews
+        gn = GNews(language='en', country='US', max_results=max_results)
+        results = gn.get_news(query)
+
+        articles = []
+        for item in results:
+            articles.append({
+                'title': item.get('title', ''),
+                'url': item.get('url', ''),
+                'source': item.get('publisher', {}).get('title', 'Unknown'),
+                'published': item.get('published date', ''),
+                'description': item.get('description', '')
+            })
+
+        return {'query': query, 'count': len(articles), 'articles': articles}
+
+    except ImportError:
+        return {'error': 'gnews not installed. Run: pip install gnews', 'articles': []}
+    except Exception as e:
+        print(f"[Error] News search failed: {e}")
+        return {'error': str(e), 'articles': []}
+
+
+def track_live_vessel(data):
+    """Add a live vessel to tracking with its current position."""
+    conn = get_db()
+
+    # Check if vessel already exists by MMSI
+    mmsi = data.get('mmsi')
+    if mmsi:
+        cursor = conn.execute('SELECT id FROM vessels WHERE mmsi = ?', (str(mmsi),))
+        existing = cursor.fetchone()
+        if existing:
+            conn.close()
+            return {'error': 'Vessel with this MMSI already tracked', 'vessel_id': existing['id']}
+
+    # Insert new vessel
+    cursor = conn.execute('''
+        INSERT INTO vessels (name, mmsi, flag_state, vessel_type, classification, threat_level, intel_notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        data.get('name', f"MMSI {mmsi}"),
+        str(mmsi) if mmsi else None,
+        data.get('flag'),
+        data.get('ship_type', data.get('vessel_type')),
+        data.get('classification', 'monitoring'),
+        data.get('threat_level', 'unknown'),
+        data.get('intel_notes', 'Added from live AIS stream')
+    ))
+    vessel_id = cursor.lastrowid
+
+    # Add initial position if available
+    lat = data.get('lat')
+    lon = data.get('lon')
+    if lat and lon:
+        conn.execute('''
+            INSERT INTO positions (vessel_id, latitude, longitude, heading, speed_knots, source)
+            VALUES (?, ?, ?, ?, ?, 'ais')
+        ''', (vessel_id, lat, lon, data.get('heading'), data.get('speed')))
+
+    conn.commit()
+    conn.close()
+    return {'id': vessel_id, 'status': 'created', 'name': data.get('name', f"MMSI {mmsi}")}
+
+
 # =============================================================================
 # HTTP Handler
 # =============================================================================
@@ -473,6 +541,18 @@ class TrackerHandler(SimpleHTTPRequestHandler):
         elif path.startswith('/api/alerts/') and path.endswith('/acknowledge'):
             alert_id = int(path.split('/')[3])
             return self.send_json(acknowledge_alert(alert_id))
+
+        elif path == '/api/search-news':
+            query = data.get('query', '')
+            max_results = data.get('max_results', 10)
+            if not query:
+                return self.send_json({'error': 'Query required'}, 400)
+            return self.send_json(search_news(query, max_results))
+
+        elif path == '/api/track-vessel':
+            if not data.get('mmsi'):
+                return self.send_json({'error': 'MMSI required'}, 400)
+            return self.send_json(track_live_vessel(data), 201)
 
         else:
             self.send_json({'error': 'Not found'}, 404)

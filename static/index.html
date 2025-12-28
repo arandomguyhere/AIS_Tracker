@@ -857,6 +857,22 @@
         </div>
     </div>
 
+    <!-- News Search Results Modal -->
+    <div class="modal-overlay" id="news-modal">
+        <div class="modal" style="width:600px;max-width:95vw">
+            <div class="modal-header">
+                <span class="modal-title" id="news-modal-title">News Results</span>
+                <button class="modal-close" onclick="closeModal('news-modal')">&times;</button>
+            </div>
+            <div class="modal-body" id="news-results" style="max-height:70vh">
+                <div style="text-align:center;padding:40px;color:#666">Loading...</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('news-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Update Position Modal -->
     <div class="modal-overlay" id="position-modal">
         <div class="modal">
@@ -1113,7 +1129,11 @@
                         <div class="popup-stat"><div class="popup-stat-value">${v.speed ? v.speed.toFixed(1) : '-'}</div><div class="popup-stat-label">Knots</div></div>
                     </div>
                     <div style="font-size:11px;color:#666;margin-top:8px">MMSI: ${v.mmsi}</div>
-                </div>`, { maxWidth: 280 });
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+                        <button class="popup-btn" style="margin:0;background:#3498db" onclick="searchVesselNews('${v.name || ''}', '${v.mmsi}')">Search News</button>
+                        <button class="popup-btn" style="margin:0;background:#27ae60" onclick="trackLiveVessel(${JSON.stringify(v).replace(/"/g, '&quot;')})">Track Vessel</button>
+                    </div>
+                </div>`, { maxWidth: 300 });
                 liveVesselMarkers[v.mmsi] = marker;
             });
         }
@@ -1343,6 +1363,63 @@
             closeModal('position-modal');
             await loadData();
             selectVessel(selectedVessel);
+        }
+
+        // Search news for a vessel
+        async function searchVesselNews(name, mmsi) {
+            const query = name || `MMSI ${mmsi}`;
+            document.getElementById('news-modal-title').textContent = `News: ${query}`;
+            document.getElementById('news-results').innerHTML = '<div style="text-align:center;padding:40px;color:#666">Searching Google News...</div>';
+            openModal('news-modal');
+
+            try {
+                const result = await post('/search-news', { query: query + ' ship vessel', max_results: 10 });
+
+                if (result.error) {
+                    document.getElementById('news-results').innerHTML = `<div style="text-align:center;padding:40px;color:#e94560">${result.error}</div>`;
+                    return;
+                }
+
+                if (!result.articles || result.articles.length === 0) {
+                    document.getElementById('news-results').innerHTML = '<div style="text-align:center;padding:40px;color:#666">No news articles found</div>';
+                    return;
+                }
+
+                document.getElementById('news-results').innerHTML = result.articles.map(a => `
+                    <div style="padding:16px;border-bottom:1px solid #eee">
+                        <a href="${a.url}" target="_blank" style="font-weight:600;color:#333;text-decoration:none;font-size:14px">${a.title}</a>
+                        <div style="font-size:12px;color:#666;margin-top:4px">${a.source} • ${a.published}</div>
+                        ${a.description ? `<div style="font-size:13px;color:#444;margin-top:8px">${a.description}</div>` : ''}
+                    </div>
+                `).join('');
+
+            } catch (e) {
+                document.getElementById('news-results').innerHTML = `<div style="text-align:center;padding:40px;color:#e94560">Search failed: ${e.message}</div>`;
+            }
+        }
+
+        // Track a live vessel (add to database)
+        async function trackLiveVessel(vesselData) {
+            if (!confirm(`Add "${vesselData.name || 'MMSI ' + vesselData.mmsi}" to tracked vessels?`)) return;
+
+            try {
+                const result = await post('/track-vessel', vesselData);
+
+                if (result.error) {
+                    alert(result.error);
+                    if (result.vessel_id) {
+                        selectVessel(result.vessel_id);
+                    }
+                    return;
+                }
+
+                alert(`Vessel "${result.name}" added to tracking!`);
+                await loadData(); // Refresh vessel list
+                selectVessel(result.id);
+
+            } catch (e) {
+                alert('Failed to track vessel: ' + e.message);
+            }
         }
 
         // Toggle buttons
