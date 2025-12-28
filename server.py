@@ -17,7 +17,8 @@ from urllib.parse import urlparse, parse_qs
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'arsenal_tracker.db')
 SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'schema.sql')
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
-LIVE_VESSELS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs', 'live_vessels.json')
+DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+LIVE_VESSELS_PATH = os.path.join(DOCS_DIR, 'live_vessels.json')
 PORT = 8080
 
 
@@ -228,18 +229,6 @@ def get_watchlist():
     return watchlist
 
 
-def get_live_vessels():
-    """Get live vessel positions from streaming JSON file."""
-    if not os.path.exists(LIVE_VESSELS_PATH):
-        return {'timestamp': None, 'vessel_count': 0, 'vessels': []}
-
-    try:
-        with open(LIVE_VESSELS_PATH, 'r') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return {'timestamp': None, 'vessel_count': 0, 'vessels': []}
-
-
 def get_stats():
     """Get dashboard statistics."""
     conn = get_db()
@@ -271,6 +260,19 @@ def get_stats():
 
     conn.close()
     return stats
+
+
+def get_live_vessels():
+    """Get live vessels from stream_area.py output file."""
+    if not os.path.exists(LIVE_VESSELS_PATH):
+        return {'timestamp': None, 'vessel_count': 0, 'vessels': []}
+
+    try:
+        with open(LIVE_VESSELS_PATH, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"[Error] Failed to read live vessels: {e}")
+        return {'timestamp': None, 'vessel_count': 0, 'vessels': []}
 
 
 def add_vessel(data):
@@ -401,6 +403,9 @@ class TrackerHandler(SimpleHTTPRequestHandler):
         if path == '/api/vessels':
             return self.send_json(get_vessels())
 
+        elif path == '/api/live-vessels':
+            return self.send_json(get_live_vessels())
+
         elif path.startswith('/api/vessels/') and path.endswith('/track'):
             vessel_id = int(path.split('/')[3])
             days = int(params.get('days', [90])[0])
@@ -437,9 +442,6 @@ class TrackerHandler(SimpleHTTPRequestHandler):
 
         elif path == '/api/stats':
             return self.send_json(get_stats())
-
-        elif path == '/api/live-vessels':
-            return self.send_json(get_live_vessels())
 
         # Static files
         else:
@@ -499,6 +501,7 @@ def run_server():
 
     server = HTTPServer(('0.0.0.0', PORT), TrackerHandler)
     print(f"Arsenal Ship Tracker running on http://localhost:{PORT}")
+    print(f"Live vessels file: {LIVE_VESSELS_PATH}")
     print("Press Ctrl+C to stop")
 
     try:
