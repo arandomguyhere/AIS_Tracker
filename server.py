@@ -417,18 +417,31 @@ def track_live_vessel(data):
             conn.close()
             return {'error': 'Vessel with this MMSI already tracked', 'vessel_id': existing['id']}
 
-    # Insert new vessel
+    # Process weapons config
+    weapons_config = data.get('weapons_config')
+    if weapons_config and isinstance(weapons_config, dict):
+        weapons_config = json.dumps(weapons_config)
+    elif weapons_config:
+        weapons_config = str(weapons_config)
+    else:
+        weapons_config = None
+
+    # Insert new vessel with all fields
     cursor = conn.execute('''
-        INSERT INTO vessels (name, mmsi, flag_state, vessel_type, classification, threat_level, intel_notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO vessels (name, mmsi, imo, flag_state, vessel_type, length_m,
+                            classification, threat_level, intel_notes, weapons_config)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         data.get('name', f"MMSI {mmsi}"),
         str(mmsi) if mmsi else None,
+        data.get('imo'),
         data.get('flag'),
         data.get('ship_type', data.get('vessel_type')),
+        data.get('length_m'),
         data.get('classification', 'monitoring'),
         data.get('threat_level', 'unknown'),
-        data.get('intel_notes', 'Added from live AIS stream')
+        data.get('intel_notes', 'Added from live AIS stream'),
+        weapons_config
     ))
     vessel_id = cursor.lastrowid
 
