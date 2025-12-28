@@ -870,7 +870,6 @@
                 <button class="modal-close" onclick="closeModal('area-modal')">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom:16px;color:#666">Update <code>ais_config.json</code> with these coordinates, then restart <code>stream_area.py</code>:</p>
                 <div style="background:#f5f5f5;padding:16px;border-radius:8px;font-family:monospace;font-size:13px">
                     <div>"bounding_box": {</div>
                     <div style="padding-left:20px">"lat_min": <span id="area-lat-min">0</span>,</div>
@@ -879,7 +878,9 @@
                     <div style="padding-left:20px">"lon_max": <span id="area-lon-max">0</span></div>
                     <div>}</div>
                 </div>
-                <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="copyAreaConfig()">Copy to Clipboard</button>
+                <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="applyAreaConfig()">Apply & Save Config</button>
+                <button class="btn btn-secondary" style="margin-top:8px;width:100%" onclick="copyAreaConfig()">Copy to Clipboard</button>
+                <p style="margin-top:12px;font-size:12px;color:#666">After applying, restart <code>stream_area.py</code> to use the new area.</p>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('area-modal')">Close</button>
@@ -956,6 +957,12 @@
                 <div class="form-group">
                     <label class="form-label">Intel Notes</label>
                     <textarea class="form-textarea" id="edit-vessel-notes" placeholder="Intelligence notes..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Vessel Photo</label>
+                    <div id="edit-vessel-photo-preview" style="margin-bottom:8px"></div>
+                    <input type="file" id="edit-vessel-photo" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+                    <button type="button" class="btn btn-secondary" style="width:100%" onclick="document.getElementById('edit-vessel-photo').click()">Choose Photo</button>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1314,6 +1321,11 @@
                     <div class="threat-indicator threat-${v.threat_level}">${v.threat_level}</div>
                 </div>
 
+                ${v.photo_url ? `
+                <div class="panel-section" style="padding:0">
+                    <img src="${v.photo_url}" style="width:100%;max-height:200px;object-fit:cover" alt="Vessel photo">
+                </div>` : ''}
+
                 <div class="panel-section">
                     <div class="section-title">Position</div>
                     <div class="position-display">
@@ -1595,6 +1607,65 @@
             });
         }
 
+        async function applyAreaConfig() {
+            const data = {
+                lat_min: parseFloat(document.getElementById('area-lat-min').textContent),
+                lon_min: parseFloat(document.getElementById('area-lon-min').textContent),
+                lat_max: parseFloat(document.getElementById('area-lat-max').textContent),
+                lon_max: parseFloat(document.getElementById('area-lon-max').textContent),
+                description: 'Custom area drawn on map'
+            };
+
+            try {
+                const result = await post('/config/bounding-box', data);
+                if (result.error) {
+                    alert('Failed to save: ' + result.error);
+                } else {
+                    alert('Config saved! Restart stream_area.py to apply the new area.');
+                    closeModal('area-modal');
+                }
+            } catch (e) {
+                alert('Failed to save config: ' + e.message);
+            }
+        }
+
+        // Photo preview for edit modal
+        function previewPhoto(input) {
+            const preview = document.getElementById('edit-vessel-photo-preview');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:150px;border-radius:8px;border:1px solid #ddd">`;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Upload vessel photo
+        async function uploadVesselPhoto(vesselId) {
+            const input = document.getElementById('edit-vessel-photo');
+            if (!input.files || !input.files[0]) return null;
+
+            const file = input.files[0];
+            const reader = new FileReader();
+
+            return new Promise((resolve, reject) => {
+                reader.onload = async function(e) {
+                    try {
+                        const result = await post(`/vessels/${vesselId}/photo`, {
+                            photo: e.target.result,
+                            filename: file.name
+                        });
+                        resolve(result);
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
         document.getElementById('draw-area-btn').addEventListener('click', () => {
             if (drawingArea) {
                 stopDrawArea();
@@ -1640,6 +1711,16 @@
             document.getElementById('edit-vessel-threat').value = v.threat_level || 'unknown';
             document.getElementById('edit-vessel-notes').value = v.intel_notes || '';
 
+            // Show existing photo or clear preview
+            const preview = document.getElementById('edit-vessel-photo-preview');
+            if (v.photo_url) {
+                preview.innerHTML = `<img src="${v.photo_url}" style="max-width:100%;max-height:150px;border-radius:8px;border:1px solid #ddd">`;
+            } else {
+                preview.innerHTML = '';
+            }
+            // Clear file input
+            document.getElementById('edit-vessel-photo').value = '';
+
             openModal('edit-vessel-modal');
         }
 
@@ -1654,6 +1735,7 @@
             }
 
             try {
+                // Update vessel info
                 const result = await post(`/vessels/${vesselId}/update`, {
                     name,
                     flag_state: document.getElementById('edit-vessel-flag').value.trim() || null,
@@ -1666,6 +1748,17 @@
                 if (result.error) {
                     alert('Failed to update vessel: ' + result.error);
                     return;
+                }
+
+                // Upload photo if selected
+                const photoInput = document.getElementById('edit-vessel-photo');
+                if (photoInput.files && photoInput.files[0]) {
+                    try {
+                        await uploadVesselPhoto(vesselId);
+                    } catch (photoErr) {
+                        console.error('Photo upload failed:', photoErr);
+                        alert('Vessel updated but photo upload failed.');
+                    }
                 }
 
                 closeModal('edit-vessel-modal');

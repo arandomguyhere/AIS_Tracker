@@ -14,11 +14,14 @@ from math import radians, sin, cos, sqrt, atan2
 from urllib.parse import urlparse, parse_qs
 
 # Configuration
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'arsenal_tracker.db')
-SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'schema.sql')
-STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
-DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
+SCHEMA_PATH = os.path.join(SCRIPT_DIR, 'schema.sql')
+STATIC_DIR = os.path.join(SCRIPT_DIR, 'static')
+DOCS_DIR = os.path.join(SCRIPT_DIR, 'docs')
+PHOTOS_DIR = os.path.join(STATIC_DIR, 'photos')
 LIVE_VESSELS_PATH = os.path.join(DOCS_DIR, 'live_vessels.json')
+CONFIG_PATH = os.path.join(SCRIPT_DIR, 'ais_config.json')
 PORT = 8080
 
 
@@ -503,6 +506,84 @@ def delete_vessel(vessel_id):
     return {'status': 'deleted', 'vessel_id': vessel_id}
 
 
+def update_bounding_box(data):
+    """Update the bounding box in ais_config.json."""
+    try:
+        # Load existing config
+        config = {}
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, 'r') as f:
+                config = json.load(f)
+
+        # Update bounding box
+        if 'area_tracking' not in config:
+            config['area_tracking'] = {'enabled': True, 'bounding_box': {}}
+
+        config['area_tracking']['bounding_box'] = {
+            'lat_min': data.get('lat_min'),
+            'lon_min': data.get('lon_min'),
+            'lat_max': data.get('lat_max'),
+            'lon_max': data.get('lon_max'),
+            'description': data.get('description', 'Custom area')
+        }
+
+        # Save config
+        with open(CONFIG_PATH, 'w') as f:
+            json.dump(config, f, indent=2)
+
+        return {
+            'status': 'updated',
+            'message': 'Bounding box saved. Restart stream_area.py to apply.',
+            'bounding_box': config['area_tracking']['bounding_box']
+        }
+
+    except Exception as e:
+        return {'error': str(e)}
+
+
+def save_vessel_photo(vessel_id, photo_data, filename):
+    """Save a vessel photo and update database."""
+    import base64
+
+    # Ensure photos directory exists
+    os.makedirs(PHOTOS_DIR, exist_ok=True)
+
+    # Decode base64 image data
+    try:
+        # Remove data URL prefix if present
+        if ',' in photo_data:
+            photo_data = photo_data.split(',')[1]
+
+        image_bytes = base64.b64decode(photo_data)
+
+        # Generate filename
+        ext = os.path.splitext(filename)[1] or '.jpg'
+        photo_filename = f"vessel_{vessel_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
+        photo_path = os.path.join(PHOTOS_DIR, photo_filename)
+
+        # Save file
+        with open(photo_path, 'wb') as f:
+            f.write(image_bytes)
+
+        # Update database with photo path
+        conn = get_db()
+        conn.execute('''
+            UPDATE vessels SET photo_url = ?, last_updated = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (f'/photos/{photo_filename}', vessel_id))
+        conn.commit()
+        conn.close()
+
+        return {
+            'status': 'uploaded',
+            'photo_url': f'/photos/{photo_filename}',
+            'vessel_id': vessel_id
+        }
+
+    except Exception as e:
+        return {'error': str(e)}
+
+
 # =============================================================================
 # HTTP Handler
 # =============================================================================
@@ -618,6 +699,20 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             vessel_id = int(path.split('/')[3])
             return self.send_json(update_vessel(vessel_id, data))
 
+        elif path.startswith('/api/vessels/') and path.endswith('/photo'):
+            vessel_id = int(path.split('/')[3])
+            photo_data = data.get('photo')
+            filename = data.get('filename', 'photo.jpg')
+            if not photo_data:
+                return self.send_json({'error': 'Photo data required'}, 400)
+            return self.send_json(save_vessel_photo(vessel_id, photo_data, filename))
+
+        elif path == '/api/config/bounding-box':
+            required = ['lat_min', 'lon_min', 'lat_max', 'lon_max']
+            if not all(k in data for k in required):
+                return self.send_json({'error': 'lat_min, lon_min, lat_max, lon_max required'}, 400)
+            return self.send_json(update_bounding_box(data))
+
         else:
             self.send_json({'error': 'Not found'}, 404)
 
@@ -648,14 +743,31 @@ class TrackerHandler(SimpleHTTPRequestHandler):
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {args[0]}")
 
 
+def migrate_database():
+    """Run database migrations."""
+    conn = get_db()
+    # Add photo_url column if it doesn't exist
+    try:
+        conn.execute('SELECT photo_url FROM vessels LIMIT 1')
+    except sqlite3.OperationalError:
+        print("Adding photo_url column to vessels table...")
+        conn.execute('ALTER TABLE vessels ADD COLUMN photo_url TEXT')
+        conn.commit()
+    conn.close()
+
+
 def run_server():
     """Start the HTTP server."""
     os.makedirs(STATIC_DIR, exist_ok=True)
+    os.makedirs(PHOTOS_DIR, exist_ok=True)
 
     # Auto-initialize database if it doesn't exist
     if not os.path.exists(DB_PATH):
         print("Database not found. Initializing...")
         init_database()
+
+    # Run migrations
+    migrate_database()
 
     server = HTTPServer(('0.0.0.0', PORT), TrackerHandler)
     print(f"Arsenal Ship Tracker running on http://localhost:{PORT}")
