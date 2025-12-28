@@ -864,10 +864,17 @@
                 <span class="modal-title" id="news-modal-title">News Results</span>
                 <button class="modal-close" onclick="closeModal('news-modal')">&times;</button>
             </div>
-            <div class="modal-body" id="news-results" style="max-height:70vh">
-                <div style="text-align:center;padding:40px;color:#666">Loading...</div>
+            <div class="modal-body" style="max-height:70vh">
+                <div style="margin-bottom:16px;display:flex;gap:8px">
+                    <input type="text" class="form-input" id="news-search-query" placeholder="Search query..." style="flex:1">
+                    <button class="btn btn-primary" onclick="executeNewsSearch()" style="white-space:nowrap">Search</button>
+                </div>
+                <div id="news-results">
+                    <div style="text-align:center;padding:40px;color:#666">Enter vessel name and click Search</div>
+                </div>
             </div>
             <div class="modal-footer">
+                <a id="mmsi-lookup-link" href="#" target="_blank" class="btn btn-secondary" style="margin-right:auto">Lookup MMSI</a>
                 <button class="btn btn-secondary" onclick="closeModal('news-modal')">Close</button>
             </div>
         </div>
@@ -1367,10 +1374,30 @@
 
         // Search news for a vessel
         async function searchVesselNews(name, mmsi) {
-            const query = name || `MMSI ${mmsi}`;
-            document.getElementById('news-modal-title').textContent = `News: ${query}`;
-            document.getElementById('news-results').innerHTML = '<div style="text-align:center;padding:40px;color:#666">Searching Google News...</div>';
+            const query = name || '';
+            document.getElementById('news-modal-title').textContent = `News Search: ${name || 'MMSI ' + mmsi}`;
+            document.getElementById('news-search-query').value = query;
+            document.getElementById('mmsi-lookup-link').href = `https://www.vesselfinder.com/vessels?mmsi=${mmsi}`;
+            document.getElementById('news-results').innerHTML = name
+                ? '<div style="text-align:center;padding:40px;color:#666">Click Search to find news articles</div>'
+                : '<div style="text-align:center;padding:40px;color:#666">No vessel name available.<br><br>Click "Lookup MMSI" to find the vessel name,<br>then enter it above and click Search.</div>';
             openModal('news-modal');
+
+            // Auto-search if we have a name
+            if (name) {
+                executeNewsSearch();
+            }
+        }
+
+        // Execute news search with current query
+        async function executeNewsSearch() {
+            const query = document.getElementById('news-search-query').value.trim();
+            if (!query) {
+                document.getElementById('news-results').innerHTML = '<div style="text-align:center;padding:40px;color:#e94560">Please enter a search query</div>';
+                return;
+            }
+
+            document.getElementById('news-results').innerHTML = '<div style="text-align:center;padding:40px;color:#666">Searching Google News...</div>';
 
             try {
                 const result = await post('/search-news', { query: query + ' ship vessel', max_results: 10 });
@@ -1381,7 +1408,7 @@
                 }
 
                 if (!result.articles || result.articles.length === 0) {
-                    document.getElementById('news-results').innerHTML = '<div style="text-align:center;padding:40px;color:#666">No news articles found</div>';
+                    document.getElementById('news-results').innerHTML = '<div style="text-align:center;padding:40px;color:#666">No news articles found.<br><br>Try a different search term.</div>';
                     return;
                 }
 
