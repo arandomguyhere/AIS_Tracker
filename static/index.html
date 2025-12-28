@@ -1178,6 +1178,13 @@
                 maxZoom: 19
             }).addTo(map);
 
+            // Re-render live vessels when map moves (with debounce)
+            let moveTimeout;
+            map.on('moveend', () => {
+                clearTimeout(moveTimeout);
+                moveTimeout = setTimeout(renderLiveVessels, 100);
+            });
+
             map.on('click', e => {
                 if (mapClickMode && selectedVessel) {
                     document.getElementById('position-lat').value = e.latlng.lat.toFixed(4);
@@ -1362,14 +1369,33 @@
         }
 
         // Render live vessels on map
+        const MAX_LIVE_MARKERS = 500; // Limit to prevent browser lag
+
         function renderLiveVessels() {
             Object.values(liveVesselMarkers).forEach(m => map.removeLayer(m));
             liveVesselMarkers = {};
 
             if (!showLiveVessels) return;
 
-            liveVessels.forEach(v => {
-                if (!v.lat || !v.lon) return;
+            // Filter to only vessels in current viewport
+            const bounds = map.getBounds();
+            const inView = liveVessels.filter(v => {
+                if (!v.lat || !v.lon) return false;
+                return bounds.contains([v.lat, v.lon]);
+            });
+
+            // Limit number of markers to prevent lag
+            const toRender = inView.slice(0, MAX_LIVE_MARKERS);
+
+            // Update live count to show filtered/total
+            const liveCount = document.getElementById('stat-live');
+            if (liveCount) {
+                liveCount.textContent = inView.length > MAX_LIVE_MARKERS
+                    ? `${MAX_LIVE_MARKERS}/${inView.length}`
+                    : `${inView.length}/${liveVessels.length}`;
+            }
+
+            toRender.forEach(v => {
                 const color = '#3498db'; // Blue for live vessels
                 const marker = L.marker([v.lat, v.lon], {
                     icon: createShipIcon(color, v.heading || v.course || 0)
