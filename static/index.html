@@ -775,6 +775,11 @@
                 <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
             </svg>
         </button>
+        <button class="control-btn" id="draw-area-btn" title="Draw Streaming Area">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/>
+            </svg>
+        </button>
     </div>
 
     <div class="map-overlay" id="map-overlay">Click on map to set vessel position</div>
@@ -857,6 +862,31 @@
         </div>
     </div>
 
+    <!-- Draw Area Modal -->
+    <div class="modal-overlay" id="area-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Streaming Area Selected</span>
+                <button class="modal-close" onclick="closeModal('area-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:16px;color:#666">Update <code>ais_config.json</code> with these coordinates, then restart <code>stream_area.py</code>:</p>
+                <div style="background:#f5f5f5;padding:16px;border-radius:8px;font-family:monospace;font-size:13px">
+                    <div>"bounding_box": {</div>
+                    <div style="padding-left:20px">"lat_min": <span id="area-lat-min">0</span>,</div>
+                    <div style="padding-left:20px">"lon_min": <span id="area-lon-min">0</span>,</div>
+                    <div style="padding-left:20px">"lat_max": <span id="area-lat-max">0</span>,</div>
+                    <div style="padding-left:20px">"lon_max": <span id="area-lon-max">0</span></div>
+                    <div>}</div>
+                </div>
+                <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="copyAreaConfig()">Copy to Clipboard</button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('area-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- News Search Results Modal -->
     <div class="modal-overlay" id="news-modal">
         <div class="modal" style="width:600px;max-width:95vw">
@@ -932,6 +962,7 @@
         let liveVesselMarkers = {}, liveVessels = [];
         let selectedVessel = null, trackLine = null;
         let mapClickMode = false, showShipyards = true, showLiveVessels = true;
+        let drawingArea = false, areaStartPoint = null, areaRectangle = null;
 
         // Ship SVG icon
         function createShipIcon(color, heading = 0) {
@@ -964,6 +995,40 @@
                     document.getElementById('position-lon').value = e.latlng.lng.toFixed(4);
                     openModal('position-modal');
                     setMapClickMode(false);
+                }
+            });
+
+            // Drawing area handlers
+            map.on('mousedown', e => {
+                if (drawingArea && !areaStartPoint) {
+                    areaStartPoint = e.latlng;
+                    map.dragging.disable();
+                }
+            });
+
+            map.on('mousemove', e => {
+                if (drawingArea && areaStartPoint) {
+                    const bounds = L.latLngBounds(areaStartPoint, e.latlng);
+                    if (areaRectangle) {
+                        areaRectangle.setBounds(bounds);
+                    } else {
+                        areaRectangle = L.rectangle(bounds, {
+                            color: '#e94560',
+                            weight: 2,
+                            fillOpacity: 0.2
+                        }).addTo(map);
+                    }
+                }
+            });
+
+            map.on('mouseup', e => {
+                if (drawingArea && areaStartPoint) {
+                    const bounds = L.latLngBounds(areaStartPoint, e.latlng);
+                    map.dragging.enable();
+                    stopDrawArea();
+                    if (bounds.getNorthEast().lat !== bounds.getSouthWest().lat) {
+                        showAreaModal(bounds);
+                    }
                 }
             });
         }
@@ -1424,6 +1489,62 @@
                 document.getElementById('news-results').innerHTML = `<div style="text-align:center;padding:40px;color:#e94560">Search failed: ${e.message}</div>`;
             }
         }
+
+        // Draw streaming area
+        function startDrawArea() {
+            drawingArea = true;
+            areaStartPoint = null;
+            if (areaRectangle) {
+                map.removeLayer(areaRectangle);
+                areaRectangle = null;
+            }
+            document.getElementById('draw-area-btn').classList.add('active');
+            document.getElementById('draw-area-btn').style.background = '#e94560';
+            document.getElementById('draw-area-btn').style.color = 'white';
+            document.getElementById('map').style.cursor = 'crosshair';
+            document.getElementById('map-overlay').textContent = 'Click and drag to draw streaming area';
+            document.getElementById('map-overlay').classList.add('active');
+        }
+
+        function stopDrawArea() {
+            drawingArea = false;
+            areaStartPoint = null;
+            document.getElementById('draw-area-btn').classList.remove('active');
+            document.getElementById('draw-area-btn').style.background = '';
+            document.getElementById('draw-area-btn').style.color = '';
+            document.getElementById('map').style.cursor = '';
+            document.getElementById('map-overlay').classList.remove('active');
+        }
+
+        function showAreaModal(bounds) {
+            const sw = bounds.getSouthWest();
+            const ne = bounds.getNorthEast();
+            document.getElementById('area-lat-min').textContent = sw.lat.toFixed(2);
+            document.getElementById('area-lon-min').textContent = sw.lng.toFixed(2);
+            document.getElementById('area-lat-max').textContent = ne.lat.toFixed(2);
+            document.getElementById('area-lon-max').textContent = ne.lng.toFixed(2);
+            openModal('area-modal');
+        }
+
+        function copyAreaConfig() {
+            const config = `"bounding_box": {
+  "lat_min": ${document.getElementById('area-lat-min').textContent},
+  "lon_min": ${document.getElementById('area-lon-min').textContent},
+  "lat_max": ${document.getElementById('area-lat-max').textContent},
+  "lon_max": ${document.getElementById('area-lon-max').textContent}
+}`;
+            navigator.clipboard.writeText(config).then(() => {
+                alert('Copied to clipboard! Paste into ais_config.json');
+            });
+        }
+
+        document.getElementById('draw-area-btn').addEventListener('click', () => {
+            if (drawingArea) {
+                stopDrawArea();
+            } else {
+                startDrawArea();
+            }
+        });
 
         // Track a live vessel (add to database)
         async function trackLiveVessel(vesselData) {
