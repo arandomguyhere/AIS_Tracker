@@ -25,11 +25,11 @@
   "area_tracking": {
     "enabled": true,
     "bounding_box": {
-      "lat_min": 20,
-      "lon_min": 110,
-      "lat_max": 40,
-      "lon_max": 135,
-      "description": "East China Sea / Yellow Sea area (centered on map view)"
+      "lat_min": -10,
+      "lon_min": 90,
+      "lat_max": 50,
+      "lon_max": 150,
+      "description": "Asia-Pacific region (Southeast Asia to Japan)"
     }
   },
 
