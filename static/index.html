@@ -1377,7 +1377,7 @@
             const query = name || '';
             document.getElementById('news-modal-title').textContent = `News Search: ${name || 'MMSI ' + mmsi}`;
             document.getElementById('news-search-query').value = query;
-            document.getElementById('mmsi-lookup-link').href = `https://www.vesselfinder.com/vessels/details?mmsi=${mmsi}`;
+            document.getElementById('mmsi-lookup-link').href = `https://www.vesselfinder.com/vessels?name=${mmsi}`;
             document.getElementById('news-results').innerHTML = name
                 ? '<div style="text-align:center;padding:40px;color:#666">Click Search to find news articles</div>'
                 : '<div style="text-align:center;padding:20px;color:#666"><strong>No vessel name in AIS data</strong><br><br>1. Click <b>"Lookup MMSI"</b> below<br>2. Find the vessel name on VesselFinder<br>3. Copy the name and paste it in the search box above<br>4. Click Search</div>';
