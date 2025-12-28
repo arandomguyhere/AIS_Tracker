@@ -13,8 +13,11 @@ This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese 
 ## Features
 
 - **VesselFinder-style UI** - Full-screen dark map with slide-in panels
+- **Live AIS streaming** - Real-time vessel positions from AIS data (109+ vessels)
 - **Ship markers with heading** - Vessel icons rotate based on course
 - **Search functionality** - Find vessels by name, MMSI, or IMO
+- **Google News search** - Search news for any vessel directly from the map
+- **Track live vessels** - Add any live AIS vessel to your tracking database
 - **Shipyard geofences** - Monitor vessel proximity to facilities of interest
 - **Event timeline** - Track vessel activities and modifications
 - **OSINT integration** - Link to news articles and intelligence reports
@@ -23,8 +26,14 @@ This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese 
 ## Quick Start
 
 ```bash
+# Install dependencies (for Google News search)
+pip install -r requirements.txt
+
 # Initialize database with seed data
 python3 server.py init
+
+# Start live AIS streaming (in separate terminal)
+python3 stream_area.py
 
 # Start the web server
 python3 server.py
@@ -36,10 +45,13 @@ python3 server.py
 
 | File | Description |
 |------|-------------|
-| `server.py` | REST API server (Python stdlib only) |
+| `server.py` | REST API server with live vessel & news search |
+| `stream_area.py` | Live AIS streaming from aisstream.io |
 | `schema.sql` | SQLite database schema + seed data |
 | `static/index.html` | VesselFinder-style interactive dashboard |
 | `docs/index.html` | Static GitHub Pages version |
+| `docs/live_vessels.json` | Live vessel data (updated by stream_area.py) |
+| `requirements.txt` | Python dependencies (gnews) |
 | `ais_ingest.py` | AIS data ingestion module |
 | `ais_config.json` | AIS source configuration (auto-created) |
 
@@ -59,6 +71,7 @@ python3 server.py
 | GET | `/api/osint?vessel_id=1` | OSINT reports |
 | GET | `/api/watchlist` | Watchlist with vessel details |
 | GET | `/api/stats` | Dashboard statistics |
+| GET | `/api/live-vessels` | Live AIS streaming vessels |
 
 ### Write Operations
 
@@ -69,6 +82,8 @@ python3 server.py
 | POST | `/api/vessels/:id/event` | Log event |
 | POST | `/api/osint` | Add OSINT report |
 | POST | `/api/alerts/:id/acknowledge` | Acknowledge alert |
+| POST | `/api/search-news` | Search Google News for vessel |
+| POST | `/api/track-vessel` | Add live vessel to tracking |
 
 ### Example API Calls
 
@@ -139,8 +154,8 @@ python3 ais_ingest.py
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
-│  │  AIS Sources │  │   Satellite  │  │    OSINT     │       │
-│  │  (API/Feed)  │  │   Imagery    │  │   Scrapers   │       │
+│  │  AIS Stream  │  │ Google News  │  │    OSINT     │       │
+│  │ (aisstream)  │  │    Search    │  │   Reports    │       │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘       │
 │         │                 │                 │               │
 │         └────────────────┬┴─────────────────┘               │
@@ -153,8 +168,8 @@ python3 ais_ingest.py
 │         ┌────────────────┼────────────────┐                 │
 │         │                │                │                 │
 │  ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐         │
-│  │  Watchlist  │  │  Geofence   │  │   Alert     │         │
-│  │  Filtering  │  │  Detection  │  │  Generation │         │
+│  │ Live Vessel │  │  Geofence   │  │   Alert     │         │
+│  │  Tracking   │  │  Detection  │  │  Generation │         │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘         │
 │         │                │                │                 │
 │         └────────────────┼────────────────┘                 │
