@@ -16,12 +16,14 @@
             overflow: hidden;
         }
 
+        /* Full screen map */
         #map {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
             z-index: 1;
         }
 
+        /* Top bar */
         .top-bar {
             position: absolute;
             top: 0; left: 0; right: 0;
@@ -76,7 +78,10 @@
         }
 
         .search-input::placeholder { color: rgba(255,255,255,0.5); }
-        .search-input:focus { background: rgba(255,255,255,0.15); border-color: #e94560; }
+        .search-input:focus {
+            background: rgba(255,255,255,0.15);
+            border-color: #e94560;
+        }
 
         .search-icon {
             position: absolute;
@@ -111,6 +116,7 @@
         }
 
         .search-result-item:hover { background: rgba(255,255,255,0.05); }
+        .search-result-item:last-child { border-bottom: none; }
 
         .result-icon {
             width: 32px; height: 32px;
@@ -131,13 +137,27 @@
             margin-left: auto;
         }
 
-        .stat { text-align: center; color: white; }
-        .stat-value { font-size: 18px; font-weight: 700; }
-        .stat-label { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; }
+        .stat {
+            text-align: center;
+            color: white;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+        }
+
         .stat-critical .stat-value { color: #e94560; }
         .stat-warning .stat-value { color: #f39c12; }
         .stat-info .stat-value { color: #3498db; }
 
+        /* Control buttons */
         .map-controls {
             position: absolute;
             top: 72px;
@@ -159,11 +179,20 @@
             justify-content: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             transition: all 0.2s;
+            font-size: 18px;
         }
 
-        .control-btn:hover { background: #f8f9fa; transform: scale(1.05); }
-        .control-btn.active { background: #e94560; color: white; }
+        .control-btn:hover {
+            background: #f8f9fa;
+            transform: scale(1.05);
+        }
 
+        .control-btn.active {
+            background: #e94560;
+            color: white;
+        }
+
+        /* Vessel panel (slide-in from right) */
         .vessel-panel {
             position: absolute;
             top: 56px;
@@ -215,8 +244,16 @@
             margin-bottom: 12px;
         }
 
-        .vessel-name { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
-        .vessel-type { font-size: 13px; color: rgba(255,255,255,0.7); }
+        .vessel-name {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .vessel-type {
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+        }
 
         .threat-indicator {
             display: inline-block;
@@ -232,8 +269,12 @@
         .threat-high { background: #f39c12; }
         .threat-medium { background: #3498db; }
         .threat-low { background: #27ae60; }
+        .threat-unknown { background: #95a5a6; }
 
-        .panel-section { padding: 20px; border-bottom: 1px solid #eee; }
+        .panel-section {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
 
         .section-title {
             font-size: 12px;
@@ -264,9 +305,22 @@
             gap: 16px;
         }
 
-        .coord-box { text-align: center; }
-        .coord-label { font-size: 11px; color: #666; text-transform: uppercase; }
-        .coord-value { font-size: 18px; font-weight: 600; color: #333; font-family: 'Monaco', 'Consolas', monospace; }
+        .coord-box {
+            text-align: center;
+        }
+
+        .coord-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .coord-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            font-family: 'Monaco', 'Consolas', monospace;
+        }
 
         .intel-box {
             background: #fff8e1;
@@ -278,7 +332,10 @@
             line-height: 1.6;
         }
 
-        .weapons-grid { display: grid; gap: 8px; }
+        .weapons-grid {
+            display: grid;
+            gap: 8px;
+        }
 
         .weapon-item {
             background: #fee;
@@ -292,7 +349,44 @@
         .weapon-name { color: #c0392b; font-size: 12px; }
         .weapon-value { font-weight: 600; color: #333; font-size: 13px; }
 
-        .timeline { position: relative; padding-left: 24px; }
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 20px;
+        }
+
+        .action-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .action-btn-primary {
+            background: #e94560;
+            color: white;
+        }
+
+        .action-btn-primary:hover { background: #d63850; }
+
+        .action-btn-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .action-btn-secondary:hover { background: #eee; }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 24px;
+        }
+
         .timeline::before {
             content: '';
             position: absolute;
@@ -303,7 +397,11 @@
             background: #eee;
         }
 
-        .timeline-item { position: relative; padding-bottom: 20px; }
+        .timeline-item {
+            position: relative;
+            padding-bottom: 20px;
+        }
+
         .timeline-item:last-child { padding-bottom: 0; }
 
         .timeline-dot {
@@ -322,10 +420,26 @@
         .timeline-dot.severity-medium { background: #3498db; box-shadow: 0 0 0 2px #3498db; }
         .timeline-dot.severity-info { background: #95a5a6; box-shadow: 0 0 0 2px #95a5a6; }
 
-        .timeline-date { font-size: 11px; color: #999; margin-bottom: 4px; }
-        .timeline-title { font-size: 13px; font-weight: 500; color: #333; margin-bottom: 4px; }
-        .timeline-desc { font-size: 12px; color: #666; line-height: 1.5; }
+        .timeline-date {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 4px;
+        }
 
+        .timeline-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .timeline-desc {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        /* Vessel list panel (left side) */
         .list-panel {
             position: absolute;
             top: 56px;
@@ -351,18 +465,29 @@
             align-items: center;
         }
 
-        .list-title { font-weight: 600; font-size: 16px; color: #333; }
-
-        .static-badge {
-            background: #f39c12;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
+        .list-title {
             font-weight: 600;
+            font-size: 16px;
+            color: #333;
         }
 
-        .vessel-list { flex: 1; overflow-y: auto; }
+        .add-vessel-btn {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .add-vessel-btn:hover { background: #d63850; }
+
+        .vessel-list {
+            flex: 1;
+            overflow-y: auto;
+        }
 
         .vessel-list-item {
             padding: 16px;
@@ -387,31 +512,207 @@
         }
 
         .vessel-list-icon.critical { background: rgba(233,69,96,0.1); color: #e94560; }
+        .vessel-list-icon.high { background: rgba(243,156,18,0.1); color: #f39c12; }
+        .vessel-list-icon.medium { background: rgba(52,152,219,0.1); color: #3498db; }
+        .vessel-list-icon.low { background: rgba(39,174,96,0.1); color: #27ae60; }
+        .vessel-list-icon.unknown { background: rgba(149,165,166,0.1); color: #95a5a6; }
 
         .vessel-list-info { flex: 1; min-width: 0; }
         .vessel-list-name { font-weight: 600; font-size: 14px; color: #333; margin-bottom: 2px; }
         .vessel-list-meta { font-size: 12px; color: #666; }
         .vessel-list-status { font-size: 11px; color: #999; margin-top: 4px; }
 
-        .ship-marker { width: 24px; height: 24px; transform-origin: center center; }
-        .ship-marker svg { width: 100%; height: 100%; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
 
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            width: 480px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title { font-size: 18px; font-weight: 600; color: #333; }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #999;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .modal-close:hover { color: #333; }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 13px; font-weight: 500; color: #333; margin-bottom: 8px; }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .form-textarea { min-height: 100px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: #e94560; color: white; }
+        .btn-primary:hover { background: #d63850; }
+        .btn-secondary { background: #f5f5f5; color: #333; }
+        .btn-secondary:hover { background: #eee; }
+
+        /* Ship marker styles */
+        .ship-marker {
+            width: 24px;
+            height: 24px;
+            transform-origin: center center;
+        }
+
+        .ship-marker svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        /* Leaflet customization */
         .leaflet-container { background: #1a1a2e; }
-        .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-        .leaflet-popup-content { margin: 0; min-width: 200px; }
 
-        .popup-content { padding: 16px; }
-        .popup-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-        .popup-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            min-width: 200px;
+        }
+
+        .popup-content {
+            padding: 16px;
+        }
+
+        .popup-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .popup-icon {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .popup-name { font-weight: 600; font-size: 15px; }
         .popup-type { font-size: 12px; color: #666; }
-        .popup-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-        .popup-stat { background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center; }
+
+        .popup-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .popup-stat {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
         .popup-stat-value { font-weight: 600; font-size: 14px; }
         .popup-stat-label { font-size: 10px; color: #666; text-transform: uppercase; }
-        .popup-btn { width: 100%; margin-top: 12px; padding: 10px; background: #e94560; color: white; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; }
+
+        .popup-btn {
+            width: 100%;
+            margin-top: 12px;
+            padding: 10px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
         .popup-btn:hover { background: #d63850; }
 
+        /* Map instructions overlay */
+        .map-overlay {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26,26,46,0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .map-overlay.active { display: block; }
+
+        
         .static-banner {
             position: absolute;
             bottom: 24px;
@@ -451,9 +752,18 @@
         </div>
 
         <div class="stats-bar">
-            <div class="stat stat-critical"><div class="stat-value">1</div><div class="stat-label">Critical</div></div>
-            <div class="stat stat-warning"><div class="stat-value">1</div><div class="stat-label">Alerts</div></div>
-            <div class="stat stat-info"><div class="stat-value" id="live-count">0</div><div class="stat-label">Live</div></div>
+            <div class="stat stat-critical">
+                <div class="stat-value">1</div>
+                <div class="stat-label">Critical</div>
+            </div>
+            <div class="stat stat-warning">
+                <div class="stat-value">1</div>
+                <div class="stat-label">Alerts</div>
+            </div>
+            <div class="stat stat-info">
+                <div class="stat-value" id="live-count">0</div>
+                <div class="stat-label">Live</div>
+            </div>
         </div>
     </div>
 
@@ -463,7 +773,7 @@
                 <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
         </button>
-        <button class="control-btn active" id="toggle-shipyards" title="Toggle Shipyards">
+        <button class="control-btn" id="toggle-shipyards" title="Toggle Shipyards">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-3"/>
             </svg>
@@ -475,6 +785,7 @@
         </button>
     </div>
 
+    <!-- Vessel List Panel -->
     <div class="list-panel" id="list-panel">
         <div class="list-header">
             <span class="list-title">Tracked Vessels</span>
@@ -483,31 +794,74 @@
         <div class="vessel-list" id="vessel-list"></div>
     </div>
 
+    <!-- Vessel Detail Panel -->
     <div class="vessel-panel" id="vessel-panel">
         <div id="vessel-panel-content"></div>
     </div>
-
     <div class="static-banner">
         Static GitHub Pages demo - <a href="https://github.com/arandomguyhere/AIS_Tracker">View source</a> for full version
     </div>
 
+
+    
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const vessels = [{
-            id: 1, name: 'ZHONG DA 79', mmsi: '413000000', flag_state: 'China', vessel_type: 'Container Feeder',
-            length_m: 97.0, classification: 'confirmed', threat_level: 'critical',
-            intel_notes: 'Commercial container feeder converted to arsenal ship. Observed with containerized VLS, CIWS, and radar systems at Shanghai shipyard. Underwent refit at Longhai shipyard April-August 2025. Currently moored at industrial pier on Huangpu River, Shanghai. NOT listed in PLAN registry - retains civilian designation despite visible military modifications.',
-            weapons_config: '{"vls_cells": 60, "vls_type": "Containerized VLS (4 cells per container)", "ciws": "Type 1130 30mm", "decoys": "Type 726", "possible_missiles": ["CJ-10", "YJ-18", "YJ-21"]}',
-            last_lat: 31.2456, last_lon: 121.4890, last_heading: 0
-        }];
+        const vessels = [
+        {
+                "id": 1,
+                "name": "ZHONG DA 79",
+                "mmsi": "413000000",
+                "flag_state": "China",
+                "vessel_type": "Container Feeder",
+                "length_m": 97.0,
+                "classification": "confirmed",
+                "threat_level": "critical",
+                "intel_notes": "Commercial container feeder converted to arsenal ship. Observed with containerized VLS, CIWS, and radar systems at Shanghai shipyard. Underwent refit at Longhai shipyard April-August 2025. Currently moored at industrial pier on Huangpu River, Shanghai. NOT listed in PLAN registry - retains civilian designation despite visible military modifications.",
+                "weapons_config": "{\"vls_cells\": 60, \"vls_type\": \"Containerized VLS (4 cells per container)\", \"ciws\": \"Type 1130 30mm\", \"decoys\": \"Type 726\", \"possible_missiles\": [\"CJ-10\", \"YJ-18\", \"YJ-21\"]}",
+                "last_lat": 31.2456,
+                "last_lon": 121.489,
+                "last_heading": 0
+        }
+];
 
         const shipyards = [
-            { name: 'Hudong-Zhonghua Shipbuilding', location: 'Shanghai', latitude: 31.3456, longitude: 121.5234, geofence_radius_km: 3.0 },
-            { name: 'Longhai Shipyard', location: 'Fujian', latitude: 24.4456, longitude: 117.8234, geofence_radius_km: 2.0 },
-            { name: 'Jiangnan Shipyard', location: 'Shanghai', latitude: 31.3789, longitude: 121.5678, geofence_radius_km: 4.0 },
-            { name: 'Dalian Shipbuilding', location: 'Liaoning', latitude: 38.9234, longitude: 121.6345, geofence_radius_km: 4.0 },
-            { name: 'Shanghai Huangpu River Pier', location: 'Shanghai', latitude: 31.2456, longitude: 121.4890, geofence_radius_km: 1.5 }
-        ];
+            {
+                        "name": "Hudong-Zhonghua Shipbuilding",
+                        "location": "Shanghai",
+                        "latitude": 31.3456,
+                        "longitude": 121.5234,
+                        "geofence_radius_km": 3.0
+            },
+            {
+                        "name": "Longhai Shipyard",
+                        "location": "Fujian",
+                        "latitude": 24.4456,
+                        "longitude": 117.8234,
+                        "geofence_radius_km": 2.0
+            },
+            {
+                        "name": "Jiangnan Shipyard",
+                        "location": "Shanghai",
+                        "latitude": 31.3789,
+                        "longitude": 121.5678,
+                        "geofence_radius_km": 4.0
+            },
+            {
+                        "name": "Dalian Shipbuilding",
+                        "location": "Liaoning",
+                        "latitude": 38.9234,
+                        "longitude": 121.6345,
+                        "geofence_radius_km": 4.0
+            },
+            {
+                        "name": "Shanghai Huangpu River Pier",
+                        "location": "Shanghai",
+                        "latitude": 31.2456,
+                        "longitude": 121.489,
+                        "geofence_radius_km": 1.5
+            }
+];
 
         const events = [
             {
@@ -537,18 +891,50 @@
 ];
 
         const positions = [
-            { latitude: 24.4456, longitude: 117.8234 },
-            { latitude: 26.1234, longitude: 119.9876 },
-            { latitude: 28.9876, longitude: 121.2345 },
-            { latitude: 31.2456, longitude: 121.4890 }
-        ];
+            {
+                        "latitude": 24.4456,
+                        "longitude": 117.8234
+            },
+            {
+                        "latitude": 26.1234,
+                        "longitude": 119.9876
+            },
+            {
+                        "latitude": 28.9876,
+                        "longitude": 121.2345
+            },
+            {
+                        "latitude": 31.2456,
+                        "longitude": 121.489
+            }
+];
 
         const osint = [
-            { source_name: 'United24 Media', title: 'Cargo Ship or Warship? China Arms Civilian Vessel With 60 Missiles', source_url: 'https://united24media.com/latest-news/cargo-ship-or-warship-china-arms-civilian-vessel-with-60-missiles-in-plain-sight-14585', summary: 'China converted a civilian container ship into an arsenal ship with 60 containerized missiles.' },
-            { source_name: 'Naval News', title: 'Container Ship Turned Missile Battery Spotted in China', source_url: 'https://www.navalnews.com/naval-news/2025/12/container-ship-turned-missile-battery-spotted-in-china/', summary: 'Naval News analysis of ZHONG DA 79 conversion.' },
-            { source_name: 'Newsweek', title: 'Photos Show Chinese Cargo Ship Armed With Missile Launchers', source_url: 'https://www.newsweek.com/photos-chinese-cargo-ship-missile-launchers-11270114', summary: 'Newsweek coverage with geopolitical context.' },
-            { source_name: 'The War Zone', title: 'Chinese Cargo Ship Packed Full Of Modular Missile Launchers', source_url: 'https://www.twz.com/sea/chinese-cargo-ship-packed-full-of-modular-missile-launchers-emerges', summary: 'Technical analysis of containerized weapons systems.' }
-        ];
+            {
+                        "source_name": "United24 Media",
+                        "title": "Cargo Ship or Warship? China Arms Civilian Vessel With 60 Missiles",
+                        "source_url": "https://united24media.com/latest-news/cargo-ship-or-warship-china-arms-civilian-vessel-with-60-missiles-in-plain-sight-14585",
+                        "summary": "China converted a civilian container ship into an arsenal ship with 60 containerized missiles."
+            },
+            {
+                        "source_name": "Naval News",
+                        "title": "Container Ship Turned Missile Battery Spotted in China",
+                        "source_url": "https://www.navalnews.com/naval-news/2025/12/container-ship-turned-missile-battery-spotted-in-china/",
+                        "summary": "Naval News analysis of ZHONG DA 79 conversion."
+            },
+            {
+                        "source_name": "Newsweek",
+                        "title": "Photos Show Chinese Cargo Ship Armed With Missile Launchers",
+                        "source_url": "https://www.newsweek.com/photos-chinese-cargo-ship-missile-launchers-11270114",
+                        "summary": "Newsweek coverage with geopolitical context."
+            },
+            {
+                        "source_name": "The War Zone",
+                        "title": "Chinese Cargo Ship Packed Full Of Modular Missile Launchers",
+                        "source_url": "https://www.twz.com/sea/chinese-cargo-ship-packed-full-of-modular-missile-launchers-emerges",
+                        "summary": "Technical analysis of containerized weapons systems."
+            }
+];
 
         let map, vesselMarkers = {}, liveVesselMarkers = {}, shipyardMarkers = [], shipyardCircles = [], trackLine = null, showShipyards = true, showLiveVessels = true;
         let liveVessels = [];
