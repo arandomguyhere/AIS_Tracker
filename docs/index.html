@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- OSINT data last updated: 2025-12-27T22:58:34.376439Z -->
+    <!-- OSINT data last updated: 2025-12-28T06:23:47.394977Z -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arsenal Ship Tracker</title>
@@ -787,6 +787,11 @@
                 <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
             </svg>
         </button>
+        <button class="control-btn" id="draw-area-btn" title="Draw Streaming Area">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/>
+            </svg>
+        </button>
     </div>
 
     <!-- Vessel List Panel -->
@@ -802,12 +807,139 @@
     <div class="vessel-panel" id="vessel-panel">
         <div id="vessel-panel-content"></div>
     </div>
+
+    
+
+    <!-- Track Live Vessel Modal -->
+    <div class="modal-overlay" id="track-vessel-modal">
+        <div class="modal" style="width:550px;max-width:95vw">
+            <div class="modal-header">
+                <span class="modal-title">Track Live Vessel</span>
+                <button class="modal-close" onclick="closeModal('track-vessel-modal')">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height:75vh;overflow-y:auto">
+                <div style="background:#f5f5f5;padding:12px;border-radius:8px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <div style="font-size:12px;color:#666">MMSI</div>
+                        <div style="font-size:18px;font-weight:600" id="track-vessel-mmsi">-</div>
+                    </div>
+                    <a id="track-vessel-lookup" href="#" target="_blank" class="btn btn-secondary" style="font-size:12px">Lookup on VesselFinder</a>
+                </div>
+
+                <div style="font-weight:600;margin-bottom:8px;color:#333">Basic Info</div>
+                <div class="form-group">
+                    <label class="form-label">Vessel Name *</label>
+                    <input type="text" class="form-input" id="track-vessel-name" placeholder="Enter vessel name from VesselFinder">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Ship Type</label>
+                        <input type="text" class="form-input" id="track-vessel-type" placeholder="e.g. Container Feeder">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Flag</label>
+                        <input type="text" class="form-input" id="track-vessel-flag" placeholder="e.g. China">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">IMO Number</label>
+                        <input type="text" class="form-input" id="track-vessel-imo" placeholder="e.g. 9429625">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Length (m)</label>
+                        <input type="number" class="form-input" id="track-vessel-length" placeholder="e.g. 97">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Classification</label>
+                        <select class="form-select" id="track-vessel-classification">
+                            <option value="monitoring">Monitoring</option>
+                            <option value="suspected">Suspected</option>
+                            <option value="confirmed">Confirmed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Threat Level</label>
+                        <select class="form-select" id="track-vessel-threat">
+                            <option value="unknown">Unknown</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="font-weight:600;margin:16px 0 8px;color:#333">Weapons Configuration</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">VLS Cells</label>
+                        <input type="number" class="form-input" id="track-vessel-vls" placeholder="e.g. 60">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">VLS Type</label>
+                        <input type="text" class="form-input" id="track-vessel-vls-type" placeholder="e.g. Containerized">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">CIWS</label>
+                        <input type="text" class="form-input" id="track-vessel-ciws" placeholder="e.g. Type 1130 30mm">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Decoys</label>
+                        <input type="text" class="form-input" id="track-vessel-decoys" placeholder="e.g. Type 726">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Possible Missiles (comma-separated)</label>
+                    <input type="text" class="form-input" id="track-vessel-missiles" placeholder="e.g. CJ-10, YJ-18, YJ-21">
+                </div>
+
+                <div style="font-weight:600;margin:16px 0 8px;color:#333">Intelligence</div>
+                <div class="form-group">
+                    <label class="form-label">Intel Notes</label>
+                    <textarea class="form-textarea" id="track-vessel-notes" rows="4" placeholder="Paste vessel details, observations, sources..."></textarea>
+                </div>
+                <input type="hidden" id="track-vessel-data">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('track-vessel-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmTrackVessel()">Track Vessel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Analysis Modal -->
+    <div class="modal-overlay" id="intel-modal">
+        <div class="modal" style="width:700px;max-width:95vw">
+            <div class="modal-header">
+                <span class="modal-title">AI Intelligence Analysis</span>
+                <button class="modal-close" onclick="closeModal('intel-modal')">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height:75vh;overflow-y:auto">
+                <div id="intel-loading" style="text-align:center;padding:40px;color:#666">
+                    <div style="font-size:24px;margin-bottom:16px">Analyzing vessel...</div>
+                    <div style="font-size:14px">Generating search queries, scanning news sources, running AI assessment</div>
+                </div>
+                <div id="intel-error" style="display:none;text-align:center;padding:40px;color:#e94560"></div>
+                <div id="intel-results" style="display:none">
+                    <div id="intel-bluf" style="background:#1a1a2e;color:#fff;padding:16px;border-radius:8px;margin-bottom:16px"></div>
+                    <div id="intel-news" style="margin-bottom:16px"></div>
+                    <div id="intel-analysis" style="background:#f8f9fa;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:13px;line-height:1.6"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('intel-modal')">Close</button>
+            </div>
+        </div>
+    </div>
     <div class="static-banner">
         Static GitHub Pages demo - <a href="https://github.com/arandomguyhere/AIS_Tracker">View source</a> for full version
     </div>
 
-
-    
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
