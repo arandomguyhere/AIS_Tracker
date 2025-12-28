@@ -1016,6 +1016,48 @@
         </div>
     </div>
 
+    <!-- Track Live Vessel Modal -->
+    <div class="modal-overlay" id="track-vessel-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Track Live Vessel</span>
+                <button class="modal-close" onclick="closeModal('track-vessel-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="background:#f5f5f5;padding:12px;border-radius:8px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <div style="font-size:12px;color:#666">MMSI</div>
+                        <div style="font-size:18px;font-weight:600" id="track-vessel-mmsi">-</div>
+                    </div>
+                    <a id="track-vessel-lookup" href="#" target="_blank" class="btn btn-secondary" style="font-size:12px">Lookup on VesselFinder</a>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Vessel Name *</label>
+                    <input type="text" class="form-input" id="track-vessel-name" placeholder="Enter vessel name from VesselFinder">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Ship Type</label>
+                        <input type="text" class="form-input" id="track-vessel-type" placeholder="e.g. Cargo Ship">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Flag</label>
+                        <input type="text" class="form-input" id="track-vessel-flag" placeholder="e.g. Hong Kong">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Intel Notes</label>
+                    <textarea class="form-textarea" id="track-vessel-notes" placeholder="Paste vessel details from VesselFinder..."></textarea>
+                </div>
+                <input type="hidden" id="track-vessel-data">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('track-vessel-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmTrackVessel()">Track Vessel</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const API = '/api';
@@ -1674,9 +1716,34 @@
             }
         });
 
-        // Track a live vessel (add to database)
-        async function trackLiveVessel(vesselData) {
-            if (!confirm(`Add "${vesselData.name || 'MMSI ' + vesselData.mmsi}" to tracked vessels?`)) return;
+        // Track a live vessel - open modal to enter details
+        function trackLiveVessel(vesselData) {
+            const mmsi = vesselData.mmsi;
+            document.getElementById('track-vessel-mmsi').textContent = mmsi;
+            document.getElementById('track-vessel-lookup').href = `https://www.vesselfinder.com/vessels?name=${mmsi}`;
+            document.getElementById('track-vessel-name').value = vesselData.name && !vesselData.name.startsWith('MMSI') ? vesselData.name : '';
+            document.getElementById('track-vessel-type').value = vesselData.ship_type || '';
+            document.getElementById('track-vessel-flag').value = vesselData.flag || '';
+            document.getElementById('track-vessel-notes').value = '';
+            document.getElementById('track-vessel-data').value = JSON.stringify(vesselData);
+            openModal('track-vessel-modal');
+        }
+
+        // Confirm tracking after user fills in details
+        async function confirmTrackVessel() {
+            const vesselData = JSON.parse(document.getElementById('track-vessel-data').value);
+            const name = document.getElementById('track-vessel-name').value.trim();
+
+            if (!name) {
+                alert('Please enter the vessel name (look it up on VesselFinder)');
+                return;
+            }
+
+            // Update vessel data with user input
+            vesselData.name = name;
+            vesselData.ship_type = document.getElementById('track-vessel-type').value.trim() || vesselData.ship_type;
+            vesselData.flag = document.getElementById('track-vessel-flag').value.trim() || vesselData.flag;
+            vesselData.intel_notes = document.getElementById('track-vessel-notes').value.trim() || null;
 
             try {
                 const result = await post('/track-vessel', vesselData);
@@ -1684,13 +1751,15 @@
                 if (result.error) {
                     alert(result.error);
                     if (result.vessel_id) {
+                        closeModal('track-vessel-modal');
                         selectVessel(result.vessel_id);
                     }
                     return;
                 }
 
+                closeModal('track-vessel-modal');
                 alert(`Vessel "${result.name}" added to tracking!`);
-                await loadData(); // Refresh vessel list
+                await loadData();
                 selectVessel(result.id);
 
             } catch (e) {
