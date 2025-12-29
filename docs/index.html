@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- OSINT data last updated: 2025-12-28T06:23:47.394977Z -->
+    <!-- OSINT data last updated: 2025-12-29T06:27:31.375852Z -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arsenal Ship Tracker</title>
@@ -953,9 +953,6 @@
                 "length_m": 97.0,
                 "classification": "confirmed",
                 "threat_level": "critical",
-                "aliases": ["ZHONGDA 79", "ZHONGDA79", "ZHONG DA79"],
-                "keywords": ["arsenal ship", "containerized missile", "VLS", "CIWS", "Type 1130"],
-                "related_locations": ["Shanghai", "Longhai", "Fujian", "Huangpu River", "Hudong-Zhonghua"],
                 "intel_notes": "Commercial container feeder converted to arsenal ship. Observed with containerized VLS, CIWS, and radar systems at Shanghai shipyard. Underwent refit at Longhai shipyard April-August 2025. Currently moored at industrial pier on Huangpu River, Shanghai. NOT listed in PLAN registry - retains civilian designation despite visible military modifications.",
                 "weapons_config": "{\"vls_cells\": 60, \"vls_type\": \"Containerized VLS (4 cells per container)\", \"ciws\": \"Type 1130 30mm\", \"decoys\": \"Type 726\", \"possible_missiles\": [\"CJ-10\", \"YJ-18\", \"YJ-21\"]}",
                 "last_lat": 31.2456,
@@ -1005,45 +1002,27 @@
         const events = [
             {
                         "severity": "critical",
-                        "title": "Major Media Coverage",
-                        "description": "Multiple international outlets report on arsenal ship conversion. United24 Media, Naval News, The War Zone, Newsweek all publish detailed articles with photographs.",
+                        "title": "OSINT: ZHONG DA 79 mentioned in United24 Media",
+                        "description": "Article from United24 Media correlates with ZHONG DA 79. Weapon systems mentioned: VLS, CIWS, cruise missile. Locations: Shanghai. Key terms: missile, weapon, converted, military, CIWS. [Source: United24 Media]",
                         "event_date": "2025-12-26"
             },
             {
                         "severity": "critical",
-                        "title": "Containerized VLS Confirmed",
-                        "description": "Photographs emerged showing 48-60 containerized VLS cells arranged on deck. Type 1130 CIWS and Type 726 decoy launchers also visible.",
-                        "event_date": "2025-12-20"
-            },
-            {
-                        "severity": "high",
-                        "title": "Moored at Shanghai Industrial Pier",
-                        "description": "Vessel arrived at industrial pier on Huangpu River near Hudong-Zhonghua facilities.",
-                        "event_date": "2025-08-22"
-            },
-            {
-                        "severity": "high",
-                        "title": "Departed Longhai Shipyard",
-                        "description": "ZHONG DA 79 departed Longhai after approximately 4 months of refit work.",
-                        "event_date": "2025-08-15"
+                        "title": "OSINT: ZHONG DA 79 mentioned in Naval News",
+                        "description": "Article from Naval News correlates with ZHONG DA 79. Weapon systems mentioned: VLS, CIWS, containerized missile. Locations: Fujian. Key terms: arsenal ship, missile, converted, CIWS, VLS. [Source: Naval News]",
+                        "event_date": "2025-12-26"
             },
             {
                         "severity": "critical",
-                        "title": "Structural Modifications Observed",
-                        "description": "Satellite imagery indicates deck modifications consistent with weapons platform installation.",
-                        "event_date": "2025-06-15"
+                        "title": "OSINT: ZHONG DA 79 mentioned in Newsweek",
+                        "description": "Article from Newsweek correlates with ZHONG DA 79. Locations: Shanghai. Key terms: missile, weapon, military, launcher, armed. [Source: Newsweek]",
+                        "event_date": "2025-12-26"
             },
             {
                         "severity": "medium",
-                        "title": "AIS Signal Lost",
-                        "description": "Vessel went dark for extended period during shipyard stay. Common for refit activities.",
-                        "event_date": "2025-04-20"
-            },
-            {
-                        "severity": "high",
-                        "title": "Entered Longhai Shipyard",
-                        "description": "ZHONG DA 79 entered Longhai shipyard for extended stay. Purpose unknown at time of entry.",
-                        "event_date": "2025-04-15"
+                        "title": "OSINT: ZHONG DA 79 mentioned in Lloyd's List",
+                        "description": "Article from Lloyd's List correlates with ZHONG DA 79. Locations: South China Sea. Key terms: military, cargo. [Source: Lloyd's List]",
+                        "event_date": "2025-12-22"
             }
 ];
 
@@ -1216,9 +1195,6 @@
             trackLine = L.polyline(positions.map(p => [p.latitude, p.longitude]), { color: getThreatColor(v.threat_level), weight: 2, opacity: 0.7, dashArray: '6' }).addTo(map);
 
             let weapons = {}; try { weapons = JSON.parse(v.weapons_config || '{}'); } catch(e) {}
-            // Demo AI BLUF for static site
-            const demoBluf = `<strong>CRITICAL</strong> - ZHONG DA 79 represents a confirmed arsenal ship conversion with significant strategic implications. The vessel's conversion from civilian container feeder to weapons platform carrying 48-60 containerized VLS cells, Type 1130 CIWS, and Type 726 decoys demonstrates China's capability to rapidly militarize commercial shipping. Retaining civilian classification while operating military hardware indicates potential gray zone operations capability. The vessel's modification timeline at Longhai shipyard followed by positioning near major naval shipyards in Shanghai warrants immediate and sustained monitoring.`;
-
             document.getElementById('vessel-panel-content').innerHTML = `
                 <div class="panel-header">
                     <button class="panel-close" onclick="document.getElementById('vessel-panel').classList.remove('active')">&times;</button>
@@ -1227,13 +1203,11 @@
                     <div class="vessel-type">${v.flag_state} - ${v.vessel_type}</div>
                     <div class="threat-indicator threat-${v.threat_level}">${v.threat_level}</div>
                 </div>
-                <div class="panel-section"><div class="section-title">AI Intelligence Assessment (BLUF)</div><div style="background:#fee;border-left:4px solid #e94560;padding:12px;border-radius:0 8px 8px 0;font-size:13px;color:#333;line-height:1.6">${demoBluf}</div></div>
                 <div class="panel-section"><div class="section-title">Position</div><div class="position-display"><div class="coord-box"><div class="coord-label">Latitude</div><div class="coord-value">${v.last_lat.toFixed(4)}</div></div><div class="coord-box"><div class="coord-label">Longitude</div><div class="coord-value">${v.last_lon.toFixed(4)}</div></div></div></div>
-                <div class="panel-section"><div class="section-title">Details</div><div class="info-row"><span class="info-label">MMSI</span><span class="info-value">${v.mmsi || '-'}</span></div><div class="info-row"><span class="info-label">Classification</span><span class="info-value">${v.classification}</span></div><div class="info-row"><span class="info-label">Length</span><span class="info-value">${v.length_m}m</span></div>${v.aliases ? `<div class="info-row"><span class="info-label">Aliases</span><span class="info-value">${v.aliases.join(', ')}</span></div>` : ''}</div>
-                <div class="panel-section"><div class="section-title">Keywords</div><div style="display:flex;flex-wrap:wrap;gap:6px">${(v.keywords || []).map(k => `<span style="background:#e9f5ff;color:#3498db;padding:4px 10px;border-radius:20px;font-size:11px">${k}</span>`).join('')}</div></div>
+                <div class="panel-section"><div class="section-title">Details</div><div class="info-row"><span class="info-label">MMSI</span><span class="info-value">${v.mmsi || '-'}</span></div><div class="info-row"><span class="info-label">Classification</span><span class="info-value">${v.classification}</span></div><div class="info-row"><span class="info-label">Length</span><span class="info-value">${v.length_m}m</span></div></div>
                 <div class="panel-section"><div class="section-title">Intelligence</div><div class="intel-box">${v.intel_notes}</div></div>
-                <div class="panel-section"><div class="section-title">Weapons Configuration</div><div class="weapons-grid">${weapons.vls_cells ? `<div class="weapon-item"><span class="weapon-name">VLS Cells</span><span class="weapon-value">${weapons.vls_cells}</span></div>` : ''}${weapons.ciws ? `<div class="weapon-item"><span class="weapon-name">CIWS</span><span class="weapon-value">${weapons.ciws}</span></div>` : ''}${weapons.decoys ? `<div class="weapon-item"><span class="weapon-name">Decoys</span><span class="weapon-value">${weapons.decoys}</span></div>` : ''}${weapons.possible_missiles ? `<div class="weapon-item"><span class="weapon-name">Possible Missiles</span><span class="weapon-value">${weapons.possible_missiles.join(', ')}</span></div>` : ''}</div></div>
-                <div class="panel-section"><div class="section-title">Event Timeline</div><div class="timeline">${events.slice(0, 8).map(e => `<div class="timeline-item"><div class="timeline-dot severity-${e.severity === 'critical' ? 'critical' : e.severity === 'high' ? 'high' : e.severity === 'medium' ? 'medium' : 'info'}"></div><div class="timeline-date">${new Date(e.event_date).toLocaleDateString()}</div><div class="timeline-title">${e.title}</div><div class="timeline-desc">${e.description}</div></div>`).join('')}</div></div>
+                <div class="panel-section"><div class="section-title">Weapons</div><div class="weapons-grid">${weapons.vls_cells ? `<div class="weapon-item"><span class="weapon-name">VLS Cells</span><span class="weapon-value">${weapons.vls_cells}</span></div>` : ''}${weapons.ciws ? `<div class="weapon-item"><span class="weapon-name">CIWS</span><span class="weapon-value">${weapons.ciws}</span></div>` : ''}${weapons.decoys ? `<div class="weapon-item"><span class="weapon-name">Decoys</span><span class="weapon-value">${weapons.decoys}</span></div>` : ''}${weapons.possible_missiles ? `<div class="weapon-item"><span class="weapon-name">Missiles</span><span class="weapon-value">${weapons.possible_missiles.join(', ')}</span></div>` : ''}</div></div>
+                <div class="panel-section"><div class="section-title">Timeline</div><div class="timeline">${events.slice(0, 8).map(e => `<div class="timeline-item"><div class="timeline-dot severity-${e.severity === 'critical' ? 'critical' : e.severity === 'high' ? 'high' : e.severity === 'medium' ? 'medium' : 'info'}"></div><div class="timeline-date">${new Date(e.event_date).toLocaleDateString()}</div><div class="timeline-title">${e.title}</div><div class="timeline-desc">${e.description}</div></div>`).join('')}</div></div>
                 <div class="panel-section"><div class="section-title">OSINT Reports</div>${osint.map(r => `<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px"><div style="font-size:11px;color:#e94560;text-transform:uppercase;margin-bottom:4px">${r.source_name}</div><a href="${r.source_url}" target="_blank" style="font-weight:500;color:#333;text-decoration:none">${r.title}</a><div style="font-size:12px;color:#666;margin-top:4px">${r.summary}</div></div>`).join('')}</div>`;
             document.getElementById('vessel-panel').classList.add('active');
         }

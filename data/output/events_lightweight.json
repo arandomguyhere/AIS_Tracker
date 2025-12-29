@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-12-28T06:23:47.394977Z",
+  "generated_at": "2025-12-29T06:27:31.375852Z",
   "event_count": 4,
   "events": [
     {
@@ -53,7 +53,7 @@
       "title": "OSINT: ZHONG DA 79 mentioned in Lloyd's List",
       "description": "Article from Lloyd's List correlates with ZHONG DA 79. Locations: South China Sea. Key terms: military, cargo.",
       "event_date": "2025-12-22T00:00:00",
-      "confidence_score": 0.3825,
+      "confidence_score": 0.3525,
       "confidence_level": "low",
       "source_url": "https://example.com/scs-shipping-disruption",
       "source_name": "Lloyd's List"
