@@ -15,21 +15,33 @@ This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese 
 ### Core Tracking
 - **VesselFinder-style UI** - Full-screen dark map with slide-in panels
 - **Live AIS streaming** - Real-time vessel positions via aisstream.io WebSocket
+- **Multi-source AIS** - Support for AISStream, AISHub, and Marinesia APIs
 - **Ship markers with heading** - Vessel icons rotate based on course
+- **Vessel-type color coding** - Different colors for cargo, tanker, passenger, military, etc.
 - **Viewport-optimized rendering** - Handles 10,000+ live vessels without browser lag
+- **SQLite WAL mode** - Better concurrent database access
 
 ### Vessel Management
 - **Add/Edit/Delete vessels** - Full CRUD operations with UI forms
 - **Track live vessels** - Add any AIS vessel to your tracking database
 - **Photo upload** - Attach vessel images with base64 storage
 - **Comprehensive vessel forms** - Track weapons config, classification, threat levels
+- **MMSI-based enrichment** - Auto-populate vessel data from tracking databases
 
 ### Intelligence Features
 - **AI-powered vessel analysis** - OpenAI integration for strategic intelligence
-- **Automated search query generation** - AI generates OSINT search queries
+- **MMSI vessel lookups** - Query VesselFinder, MarineTraffic, ITU MARS databases
+- **Auto-update fields** - Automatically populate flag, type, IMO from lookups
+- **Targeted search queries** - Uses exact vessel names and IMO for accurate results
 - **BLUF assessments** - Bottom Line Up Front risk analysis (LOW/MODERATE/HIGH/CRITICAL)
-- **News correlation** - Automated news search and vessel correlation
+- **Analysis persistence** - Save and retrieve AI analysis for each vessel
+- **News correlation** - Automated news search with relevance filtering
 - **OSINT integration** - Link to news articles and intelligence reports
+
+### Weather & Environment
+- **Weather enrichment** - Open-Meteo API integration (no API key required)
+- **Marine conditions** - Wave height, sea state, swell data
+- **Vessel weather** - Get weather at any vessel's current position
 
 ### Geospatial
 - **Shipyard geofences** - Monitor vessel proximity to facilities of interest
@@ -60,16 +72,20 @@ python3 server.py
 # Required for AI intelligence features
 export OPENAI_API_KEY="your-openai-api-key"
 
-# Required for live AIS streaming
+# Required for live AIS streaming (primary source)
 export AISSTREAM_API_KEY="your-aisstream-api-key"
+
+# Optional: AISHub community data sharing (register at aishub.net)
+export AISHUB_USERNAME="your-aishub-username"
 ```
 
 ## Components
 
 | File | Description |
 |------|-------------|
-| `server.py` | REST API server with vessel intel & news search |
-| `vessel_intel.py` | AI-powered vessel intelligence analysis |
+| `server.py` | REST API server with vessel intel, weather & news search |
+| `vessel_intel.py` | AI-powered vessel intelligence with MMSI lookups |
+| `weather.py` | Weather enrichment via Open-Meteo API |
 | `stream_area.py` | Live AIS streaming from aisstream.io |
 | `schema.sql` | SQLite database schema + seed data |
 | `static/index.html` | VesselFinder-style interactive dashboard |
@@ -77,6 +93,8 @@ export AISSTREAM_API_KEY="your-aisstream-api-key"
 | `requirements.txt` | Python dependencies (openai) |
 | `ais_ingest.py` | AIS data ingestion module |
 | `ais_config.json` | AIS source configuration (auto-created) |
+| `ais_sources/` | Multi-source AIS integration (AISStream, AISHub, Marinesia) |
+| `osint/` | OSINT correlation and monitoring tools |
 
 ## API Endpoints
 
@@ -105,6 +123,13 @@ export AISSTREAM_API_KEY="your-aisstream-api-key"
 | GET | `/api/osint?vessel_id=1` | OSINT reports |
 | POST | `/api/osint` | Add OSINT report |
 
+### Weather Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/weather?lat=31.2&lon=121.4` | Weather at coordinates |
+| GET | `/api/vessels/:id/weather` | Weather at vessel position |
+
 ### Other Endpoints
 
 | Method | Endpoint | Description |
@@ -115,6 +140,7 @@ export AISSTREAM_API_KEY="your-aisstream-api-key"
 | GET | `/api/watchlist` | Watchlist with vessel details |
 | GET | `/api/stats` | Dashboard statistics |
 | GET | `/api/live-vessels` | Live AIS streaming vessels |
+| GET | `/api/vessels/:id/analysis` | Get saved AI analysis |
 | POST | `/api/alerts/:id/acknowledge` | Acknowledge alert |
 | POST | `/api/save-config` | Save AIS bounding box config |
 | POST | `/api/upload-photo/:id` | Upload vessel photo |
@@ -150,12 +176,24 @@ curl -X PUT http://localhost:8080/api/vessels/1 \
 
 The vessel intelligence module (`vessel_intel.py`) provides:
 
-### Search Plan Generation
-AI generates targeted OSINT search queries based on vessel data:
-- Direct queries (vessel name, MMSI, IMO)
-- Operator queries (owner, flag state)
-- Risk queries (incidents, security events)
-- Context queries (geopolitical factors)
+### MMSI-Based Vessel Lookups
+When you run AI Analysis, the system queries multiple vessel tracking databases:
+- **VesselFinder** - Vessel details, IMO, flag
+- **MarineTraffic** - Comprehensive vessel data, dimensions, year built
+- **ITU MARS** - Official MMSI registry with owner information
+- **MyShipTracking** - Additional vessel data
+
+### Auto-Update Fields
+After analysis, the system automatically updates the vessel record with:
+- Flag state, vessel type, IMO number
+- Callsign, owner, dimensions
+- Classification and threat level recommendations
+
+### Targeted Search Queries
+Improved search accuracy with:
+- Exact vessel name searches: `"GRACEFUL STARS" vessel`
+- IMO-based searches: `IMO 9123456 ship`
+- Relevance filtering (only shows articles mentioning the vessel)
 
 ### Strategic Analysis
 Full vessel analysis with structured output:
@@ -170,6 +208,11 @@ Full vessel analysis with structured output:
 - **MODERATE** - Some factors warrant monitoring
 - **HIGH** - Significant security implications
 - **CRITICAL** - Immediate attention required
+
+### Analysis Persistence
+- AI analysis results are saved to the database
+- BLUF summaries are extracted and stored
+- Retrieve previous analysis via `/api/vessels/:id/analysis`
 
 ## Demo Data
 
@@ -196,47 +239,49 @@ The tracker includes comprehensive demo data for ZHONG DA 79:
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Arsenal Ship Tracker                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
-│  │  AIS Stream  │  │   OpenAI     │  │    OSINT     │       │
-│  │ (aisstream)  │  │  Analysis    │  │   Reports    │       │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘       │
-│         │                 │                 │               │
-│         └────────────────┬┴─────────────────┘               │
-│                          │                                  │
-│                   ┌──────▼──────┐                           │
-│                   │  Ingestion  │                           │
-│                   │   Layer     │                           │
-│                   └──────┬──────┘                           │
-│                          │                                  │
-│         ┌────────────────┼────────────────┐                 │
-│         │                │                │                 │
-│  ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐         │
-│  │ Live Vessel │  │  Geofence   │  │    AI       │         │
-│  │  Tracking   │  │  Detection  │  │  Analysis   │         │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘         │
-│         │                │                │                 │
-│         └────────────────┼────────────────┘                 │
-│                          │                                  │
-│                   ┌──────▼──────┐                           │
-│                   │   SQLite    │                           │
-│                   │   Database  │                           │
-│                   └──────┬──────┘                           │
-│                          │                                  │
-│                   ┌──────▼──────┐                           │
-│                   │  REST API   │                           │
-│                   │   Server    │                           │
-│                   └──────┬──────┘                           │
-│                          │                                  │
-│                   ┌──────▼──────┐                           │
-│                   │  Dashboard  │                           │
-│                   │    (Web)    │                           │
-│                   └─────────────┘                           │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                       Arsenal Ship Tracker                            │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
+│  │ AISStream   │ │   AISHub    │ │  Marinesia  │ │  Open-Meteo │     │
+│  │ (WebSocket) │ │   (REST)    │ │   (REST)    │ │  (Weather)  │     │
+│  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘     │
+│         │               │               │               │            │
+│         └───────────────┼───────────────┼───────────────┘            │
+│                         │               │                            │
+│  ┌──────────────────────▼───────────────▼──────────────────────┐     │
+│  │                  AIS Source Manager                          │     │
+│  │            (Priority-based fallback system)                  │     │
+│  └──────────────────────────┬───────────────────────────────────┘     │
+│                             │                                        │
+│   ┌─────────────────────────┼─────────────────────────┐              │
+│   │                         │                         │              │
+│   ▼                         ▼                         ▼              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐        │
+│  │ Live Vessel  │  │  Geofence    │  │   AI Intelligence    │        │
+│  │  Tracking    │  │  Detection   │  │  (OpenAI + MMSI      │        │
+│  │              │  │              │  │   Lookups)           │        │
+│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘        │
+│         │                 │                     │                    │
+│         └─────────────────┼─────────────────────┘                    │
+│                           │                                          │
+│                    ┌──────▼──────┐                                   │
+│                    │   SQLite    │                                   │
+│                    │  (WAL Mode) │                                   │
+│                    └──────┬──────┘                                   │
+│                           │                                          │
+│                    ┌──────▼──────┐                                   │
+│                    │  REST API   │                                   │
+│                    │   Server    │                                   │
+│                    └──────┬──────┘                                   │
+│                           │                                          │
+│                    ┌──────▼──────┐                                   │
+│                    │  Dashboard  │                                   │
+│                    │    (Web)    │                                   │
+│                    └─────────────┘                                   │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Key Intelligence: ZHONG DA 79
