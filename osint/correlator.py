@@ -394,6 +394,7 @@ def load_vessels_from_db(db_path: str) -> List[TrackedVessel]:
 
     vessels = []
     conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
 
     cursor = conn.execute("""
