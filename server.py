@@ -20,6 +20,13 @@ try:
 except ImportError:
     INTEL_AVAILABLE = False
 
+# Import weather module
+try:
+    from weather import get_weather_service, enrich_position_with_weather
+    WEATHER_AVAILABLE = True
+except ImportError:
+    WEATHER_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -724,6 +731,39 @@ class TrackerHandler(SimpleHTTPRequestHandler):
 
         elif path == '/api/stats':
             return self.send_json(get_stats())
+
+        elif path == '/api/weather':
+            # Get weather for a location
+            if not WEATHER_AVAILABLE:
+                return self.send_json({'error': 'Weather module not available'}, 500)
+            lat = params.get('lat', [None])[0]
+            lon = params.get('lon', [None])[0]
+            if not lat or not lon:
+                return self.send_json({'error': 'lat and lon required'}, 400)
+            try:
+                service = get_weather_service()
+                weather = service.get_full_conditions(float(lat), float(lon))
+                if weather:
+                    return self.send_json(weather)
+                return self.send_json({'error': 'Could not fetch weather'}, 500)
+            except Exception as e:
+                return self.send_json({'error': str(e)}, 500)
+
+        elif path.startswith('/api/vessels/') and path.endswith('/weather'):
+            # Get weather at vessel's current position
+            if not WEATHER_AVAILABLE:
+                return self.send_json({'error': 'Weather module not available'}, 500)
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel or not vessel.get('last_lat') or not vessel.get('last_lon'):
+                return self.send_json({'error': 'Vessel position not available'}, 404)
+            service = get_weather_service()
+            weather = service.get_full_conditions(vessel['last_lat'], vessel['last_lon'])
+            if weather:
+                weather['vessel_id'] = vessel_id
+                weather['vessel_name'] = vessel.get('name')
+                return self.send_json(weather)
+            return self.send_json({'error': 'Could not fetch weather'}, 500)
 
         # Static files
         else:
