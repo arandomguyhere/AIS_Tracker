@@ -97,9 +97,9 @@ class AISHubSource(AISSource):
         self.username = username
         self.bounding_box = bounding_box  # (lat_min, lon_min, lat_max, lon_max)
 
-        # Rate limiting (AISHub has limits)
+        # Rate limiting (AISHub: max once per minute!)
         self._last_request_time: float = 0
-        self._min_request_interval: float = 2.0  # seconds between requests
+        self._min_request_interval: float = 60.0  # AISHub requires 60 seconds between requests
 
         # Cache
         self._position_cache: Dict[str, AISPosition] = {}
@@ -338,9 +338,11 @@ class AISHubSource(AISSource):
                 if lat is None or lon is None:
                     continue
 
-                # Parse timestamp
+                # Parse timestamp (format: "2021-07-09 08:06:53 GMT")
                 time_str = vessel.get("TIME", "")
                 try:
+                    # Remove " GMT" suffix if present
+                    time_str = time_str.replace(" GMT", "")
                     timestamp = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
                 except:
                     timestamp = datetime.utcnow()
