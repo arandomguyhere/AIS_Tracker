@@ -47,14 +47,24 @@ _db_local = threading.local()
 
 def get_db():
     """Get database connection with row factory (thread-safe with connection reuse)."""
-    if not hasattr(_db_local, 'conn') or _db_local.conn is None:
-        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")  # Faster writes, still safe
-        conn.execute("PRAGMA cache_size=-64000")   # 64MB cache
-        conn.execute("PRAGMA temp_store=MEMORY")   # Temp tables in memory
-        conn.row_factory = sqlite3.Row
-        _db_local.conn = conn
+    # Check if we have a cached connection and if it's still valid
+    if hasattr(_db_local, 'conn') and _db_local.conn is not None:
+        try:
+            # Test if connection is still valid
+            _db_local.conn.execute("SELECT 1")
+            return _db_local.conn
+        except (sqlite3.ProgrammingError, sqlite3.OperationalError):
+            # Connection is closed or invalid, clear it
+            _db_local.conn = None
+
+    # Create new connection
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")  # Faster writes, still safe
+    conn.execute("PRAGMA cache_size=-64000")   # 64MB cache
+    conn.execute("PRAGMA temp_store=MEMORY")   # Temp tables in memory
+    conn.row_factory = sqlite3.Row
+    _db_local.conn = conn
     return _db_local.conn
 
 
