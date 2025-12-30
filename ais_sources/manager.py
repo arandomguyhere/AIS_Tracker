@@ -28,6 +28,7 @@ from .base import (
     SourceType, SourceStatus
 )
 from .aisstream import AISStreamSource
+from .aishub import AISHubSource
 from .marinesia import MarinesiaSource
 from .gfw import GlobalFishingWatchSource
 
@@ -159,6 +160,28 @@ class AISSourceManager:
                 self.add_source(source)
             else:
                 self._log("AISStream enabled but no API key provided", level="warning")
+
+        # AISHub
+        aishub_config = sources_config.get("aishub", {})
+        if aishub_config.get("enabled", False):
+            username = self._resolve_env_var(aishub_config.get("username", ""))
+            if username:
+                source = AISHubSource(username=username)
+
+                # Set bounding box if area tracking enabled
+                if config:
+                    area_config = config.get("area_tracking", {})
+                    if area_config.get("enabled", False):
+                        bbox = area_config.get("bounding_box", {})
+                        if all(k in bbox for k in ["lat_min", "lon_min", "lat_max", "lon_max"]):
+                            source.set_bounding_box(
+                                bbox["lat_min"], bbox["lon_min"],
+                                bbox["lat_max"], bbox["lon_max"]
+                            )
+
+                self.add_source(source)
+            else:
+                self._log("AISHub enabled but no username provided", level="warning")
 
         # Marinesia
         mar_config = sources_config.get("marinesia", {})
@@ -565,6 +588,10 @@ EXAMPLE_CONFIG = {
             "enabled": True,
             "api_key": "${AISSTREAM_API_KEY}"
         },
+        "aishub": {
+            "enabled": False,
+            "username": "${AISHUB_USERNAME}"
+        },
         "marinesia": {
             "enabled": True,
             "rate_limit": 30
@@ -575,6 +602,6 @@ EXAMPLE_CONFIG = {
             "rate_limit": 10
         }
     },
-    "priority": ["aisstream", "marinesia"],
+    "priority": ["aisstream", "aishub", "marinesia"],
     "poll_interval": 60
 }

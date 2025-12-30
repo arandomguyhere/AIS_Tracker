@@ -5,6 +5,11 @@
       "api_key": "b378a3f39593fd2ac18c43f350dca09a269b20eb",
       "description": "Real-time WebSocket AIS data from aisstream.io (requires free API key)"
     },
+    "aishub": {
+      "enabled": false,
+      "username": "${AISHUB_USERNAME}",
+      "description": "Community AIS data sharing from aishub.net (free, requires registration and data contribution)"
+    },
     "marinesia": {
       "enabled": true,
       "api_key": "",
@@ -18,7 +23,7 @@
       "description": "Global Fishing Watch enrichment data (requires free API key, enrichment only)"
     }
   },
-  "priority": ["aisstream", "marinesia"],
+  "priority": ["aisstream", "aishub", "marinesia"],
   "poll_interval": 60,
   "position_cache_ttl": 300,
 
@@ -36,9 +41,10 @@
   "notes": {
     "env_vars": [
       "AISSTREAM_API_KEY - Get from https://aisstream.io/",
+      "AISHUB_USERNAME - Register at https://www.aishub.net/register",
       "GFW_API_KEY - Get from https://globalfishingwatch.org/our-apis/"
     ],
-    "priority_explanation": "Sources are tried in order. AISStream provides real-time WebSocket data. Marinesia is REST fallback.",
+    "priority_explanation": "Sources are tried in order. AISStream provides real-time WebSocket data. AISHub is community-based fallback. Marinesia is REST fallback.",
     "area_tracking_note": "Set area_tracking.enabled=true to receive ALL vessels in the bounding box instead of only watchlisted vessels"
   }
 }

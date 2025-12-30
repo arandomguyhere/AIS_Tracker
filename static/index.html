@@ -1153,10 +1153,37 @@
         let mapClickMode = false, showShipyards = true, showLiveVessels = true;
         let drawingArea = false, areaStartPoint = null, areaRectangle = null;
 
-        // Ship SVG icon
-        function createShipIcon(color, heading = 0) {
+        // Ship SVG icons by vessel type
+        const SHIP_ICONS = {
+            container: `<path d="M4 17h16v2H4v-2zm0-4h16v2H4v-2zm2-3h12l-1-5H7l-1 5zm1-7h10v2H7V3z"/>`,
+            tanker: `<path d="M4 16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-2H4v2zm16-6l-2-5H6L4 10v2h16v-2zM7 6h10v2H7V6z"/>`,
+            cargo: `<path d="M3 17h18v2H3v-2zm1-5h16l-1.5-6h-13L4 12zm3-8h10v3H7V4z"/>`,
+            passenger: `<path d="M12 3L4 10v2h2v6h12v-6h2v-2L12 3zm0 12h-2v-3h4v3h-2z"/>`,
+            fishing: `<path d="M12 4L8 8v2l4-2 4 2V8l-4-4zm-6 8l2 6h8l2-6H6zm6 1a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>`,
+            tug: `<path d="M6 14l-2 4h16l-2-4H6zm1-2h10l1-4H6l1 4zm4-6h2v3h-2V6z"/>`,
+            military: `<path d="M12 2l-8 8v2h3v6h10v-6h3v-2l-8-8zm0 4l4 4h-8l4-4zm-2 6h4v3h-4v-3z"/>`,
+            default: `<path d="M12 2L4 19h16L12 2z"/>`
+        };
+
+        function getShipType(vesselType) {
+            if (!vesselType) return 'default';
+            const type = vesselType.toLowerCase();
+            if (type.includes('container') || type.includes('feeder')) return 'container';
+            if (type.includes('tanker') || type.includes('oil') || type.includes('chemical') || type.includes('lng') || type.includes('lpg')) return 'tanker';
+            if (type.includes('cargo') || type.includes('bulk') || type.includes('general')) return 'cargo';
+            if (type.includes('passenger') || type.includes('cruise') || type.includes('ferry') || type.includes('roro')) return 'passenger';
+            if (type.includes('fish') || type.includes('trawl')) return 'fishing';
+            if (type.includes('tug') || type.includes('pilot') || type.includes('supply')) return 'tug';
+            if (type.includes('military') || type.includes('naval') || type.includes('patrol') || type.includes('coast guard')) return 'military';
+            return 'default';
+        }
+
+        function createShipIcon(color, heading = 0, vesselType = null) {
+            const shipType = getShipType(vesselType);
+            const iconPath = SHIP_ICONS[shipType] || SHIP_ICONS.default;
             const svg = `<svg viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L4 19h16L12 2z" stroke="white" stroke-width="1"/>
+                ${iconPath}
+                <style>path{stroke:white;stroke-width:0.5}</style>
             </svg>`;
             return L.divIcon({
                 html: `<div class="ship-marker" style="transform: rotate(${heading}deg)">${svg}</div>`,
@@ -1296,7 +1323,7 @@
                 const color = getThreatColor(v.threat_level);
                 const heading = v.last_heading || 0;
                 const marker = L.marker([v.last_lat, v.last_lon], {
-                    icon: createShipIcon(color, heading)
+                    icon: createShipIcon(color, heading, v.vessel_type)
                 }).addTo(map);
 
                 marker.bindPopup(() => createPopup(v), { maxWidth: 300 });
@@ -1398,7 +1425,7 @@
             toRender.forEach(v => {
                 const color = '#3498db'; // Blue for live vessels
                 const marker = L.marker([v.lat, v.lon], {
-                    icon: createShipIcon(color, v.heading || v.course || 0)
+                    icon: createShipIcon(color, v.heading || v.course || 0, v.ship_type)
                 }).addTo(map);
                 marker.bindPopup(`<div class="popup-content">
                     <div class="popup-header">

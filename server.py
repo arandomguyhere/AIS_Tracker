@@ -605,6 +605,51 @@ def save_vessel_photo(vessel_id, photo_data, filename):
         return {'error': str(e)}
 
 
+def save_vessel_analysis(vessel_id, analysis_result):
+    """Save AI analysis results to the vessel record."""
+    conn = get_db()
+    try:
+        # Extract and store the full analysis and BLUF separately
+        ai_analysis = json.dumps(analysis_result) if analysis_result else None
+        ai_bluf = None
+
+        if analysis_result and 'analysis' in analysis_result:
+            bluf_data = analysis_result['analysis'].get('bluf')
+            if bluf_data:
+                ai_bluf = json.dumps(bluf_data)
+
+        conn.execute('''
+            UPDATE vessels
+            SET ai_analysis = ?, ai_bluf = ?, ai_analyzed_at = CURRENT_TIMESTAMP, last_updated = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (ai_analysis, ai_bluf, vessel_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"[Error] Failed to save analysis: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def get_vessel_analysis(vessel_id):
+    """Get saved AI analysis for a vessel."""
+    conn = get_db()
+    cursor = conn.execute('''
+        SELECT ai_analysis, ai_bluf, ai_analyzed_at FROM vessels WHERE id = ?
+    ''', (vessel_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if row and row['ai_analysis']:
+        return {
+            'analysis': json.loads(row['ai_analysis']) if row['ai_analysis'] else None,
+            'bluf': json.loads(row['ai_bluf']) if row['ai_bluf'] else None,
+            'analyzed_at': row['ai_analyzed_at']
+        }
+    return None
+
+
 # =============================================================================
 # HTTP Handler
 # =============================================================================
@@ -644,6 +689,13 @@ class TrackerHandler(SimpleHTTPRequestHandler):
         elif path.startswith('/api/vessels/') and path.endswith('/events'):
             vessel_id = int(path.split('/')[3])
             return self.send_json(get_vessel_events(vessel_id))
+
+        elif path.startswith('/api/vessels/') and path.endswith('/analysis'):
+            vessel_id = int(path.split('/')[3])
+            saved = get_vessel_analysis(vessel_id)
+            if saved:
+                return self.send_json(saved)
+            return self.send_json({'error': 'No saved analysis', 'vessel_id': vessel_id}, 404)
 
         elif path.startswith('/api/vessels/'):
             vessel_id = int(path.split('/')[3])
@@ -741,7 +793,17 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             vessel_data = data.get('vessel')
             if not vessel_data:
                 return self.send_json({'error': 'Vessel data required'}, 400)
-            return self.send_json(analyze_vessel_intel(vessel_data))
+
+            # Run analysis
+            result = analyze_vessel_intel(vessel_data)
+
+            # Save to database if vessel has an ID
+            vessel_id = vessel_data.get('id')
+            if vessel_id and result.get('status') == 'success':
+                save_vessel_analysis(vessel_id, result)
+                result['saved'] = True
+
+            return self.send_json(result)
 
         elif path == '/api/vessel-bluf':
             # Quick BLUF assessment
@@ -785,6 +847,7 @@ class TrackerHandler(SimpleHTTPRequestHandler):
 def migrate_database():
     """Run database migrations."""
     conn = get_db()
+
     # Add photo_url column if it doesn't exist
     try:
         conn.execute('SELECT photo_url FROM vessels LIMIT 1')
@@ -792,6 +855,17 @@ def migrate_database():
         print("Adding photo_url column to vessels table...")
         conn.execute('ALTER TABLE vessels ADD COLUMN photo_url TEXT')
         conn.commit()
+
+    # Add AI analysis columns if they don't exist
+    try:
+        conn.execute('SELECT ai_analysis FROM vessels LIMIT 1')
+    except sqlite3.OperationalError:
+        print("Adding AI analysis columns to vessels table...")
+        conn.execute('ALTER TABLE vessels ADD COLUMN ai_analysis TEXT')
+        conn.execute('ALTER TABLE vessels ADD COLUMN ai_bluf TEXT')
+        conn.execute('ALTER TABLE vessels ADD COLUMN ai_analyzed_at TIMESTAMP')
+        conn.commit()
+
     conn.close()
 
 
