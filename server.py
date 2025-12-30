@@ -482,24 +482,27 @@ def update_vessel(vessel_id, data):
     updates = []
     values = []
 
-    if 'name' in data:
-        updates.append('name = ?')
-        values.append(data['name'])
-    if 'vessel_type' in data:
-        updates.append('vessel_type = ?')
-        values.append(data['vessel_type'])
-    if 'flag_state' in data:
-        updates.append('flag_state = ?')
-        values.append(data['flag_state'])
-    if 'classification' in data:
-        updates.append('classification = ?')
-        values.append(data['classification'])
-    if 'threat_level' in data:
-        updates.append('threat_level = ?')
-        values.append(data['threat_level'])
-    if 'intel_notes' in data:
-        updates.append('intel_notes = ?')
-        values.append(data['intel_notes'])
+    # Map of allowed fields to column names
+    field_map = {
+        'name': 'name',
+        'vessel_type': 'vessel_type',
+        'flag_state': 'flag_state',
+        'classification': 'classification',
+        'threat_level': 'threat_level',
+        'intel_notes': 'intel_notes',
+        'imo': 'imo',
+        'callsign': 'call_sign',
+        'call_sign': 'call_sign',
+        'owner': 'owner',
+        'length_m': 'length_m',
+        'beam_m': 'beam_m',
+        'gross_tonnage': 'gross_tonnage',
+    }
+
+    for field, column in field_map.items():
+        if field in data and data[field] is not None:
+            updates.append(f'{column} = ?')
+            values.append(data[field])
 
     if not updates:
         conn.close()
@@ -842,6 +845,17 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             if vessel_id and result.get('status') == 'success':
                 save_vessel_analysis(vessel_id, result)
                 result['saved'] = True
+
+                # Auto-apply field updates from enrichment and AI recommendations
+                field_updates = result.get('field_updates', {})
+                if field_updates:
+                    # Filter to only allowed fields
+                    allowed_fields = ['flag_state', 'vessel_type', 'classification', 'threat_level', 'imo', 'callsign', 'owner', 'length_m', 'beam_m', 'gross_tonnage']
+                    safe_updates = {k: v for k, v in field_updates.items() if k in allowed_fields}
+                    if safe_updates:
+                        update_vessel(vessel_id, safe_updates)
+                        result['fields_updated'] = list(safe_updates.keys())
+                        print(f"[Intel] Auto-updated vessel {vessel_id} fields: {list(safe_updates.keys())}")
 
             return self.send_json(result)
 
