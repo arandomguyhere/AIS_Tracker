@@ -4,10 +4,13 @@ Arsenal Ship Tracker API Server
 Zero external dependencies - uses only Python standard library
 """
 
+import gzip
 import json
 import os
 import sqlite3
 import sys
+import threading
+from contextlib import contextmanager
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from math import radians, sin, cos, sqrt, atan2
@@ -38,13 +41,33 @@ LIVE_VESSELS_PATH = os.path.join(DOCS_DIR, 'live_vessels.json')
 CONFIG_PATH = os.path.join(SCRIPT_DIR, 'ais_config.json')
 PORT = 8080
 
+# Database connection pool (thread-local storage)
+_db_local = threading.local()
+
 
 def get_db():
-    """Get database connection with row factory."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Get database connection with row factory (thread-safe with connection reuse)."""
+    if not hasattr(_db_local, 'conn') or _db_local.conn is None:
+        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")  # Faster writes, still safe
+        conn.execute("PRAGMA cache_size=-64000")   # 64MB cache
+        conn.execute("PRAGMA temp_store=MEMORY")   # Temp tables in memory
+        conn.row_factory = sqlite3.Row
+        _db_local.conn = conn
+    return _db_local.conn
+
+
+@contextmanager
+def db_connection():
+    """Context manager for database operations with automatic error handling."""
+    conn = get_db()
+    try:
+        yield conn
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -670,13 +693,32 @@ class TrackerHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
 
-    def send_json(self, data, status=200):
-        """Send JSON response."""
+    def send_json(self, data, status=200, cache_seconds=0):
+        """Send JSON response with optional gzip compression and caching."""
+        json_data = json.dumps(data, default=str).encode()
+
+        # Check if client accepts gzip
+        accept_encoding = self.headers.get('Accept-Encoding', '')
+        use_gzip = 'gzip' in accept_encoding and len(json_data) > 1000
+
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
+
+        # Cache control headers
+        if cache_seconds > 0:
+            self.send_header('Cache-Control', f'public, max-age={cache_seconds}')
+        else:
+            self.send_header('Cache-Control', 'no-cache')
+
+        # Gzip compression for large responses
+        if use_gzip:
+            json_data = gzip.compress(json_data)
+            self.send_header('Content-Encoding', 'gzip')
+
+        self.send_header('Content-Length', len(json_data))
         self.end_headers()
-        self.wfile.write(json.dumps(data, default=str).encode())
+        self.wfile.write(json_data)
 
     def do_GET(self):
         """Handle GET requests."""
@@ -712,7 +754,7 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             return self.send_json(get_vessel(vessel_id))
 
         elif path == '/api/shipyards':
-            return self.send_json(get_shipyards())
+            return self.send_json(get_shipyards(), cache_seconds=300)  # 5 min cache
 
         elif path == '/api/events':
             severity = params.get('severity', [None])[0]
@@ -733,7 +775,7 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             return self.send_json(get_watchlist())
 
         elif path == '/api/stats':
-            return self.send_json(get_stats())
+            return self.send_json(get_stats(), cache_seconds=10)  # 10 sec cache
 
         elif path == '/api/weather':
             # Get weather for a location
@@ -747,7 +789,7 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 service = get_weather_service()
                 weather = service.get_full_conditions(float(lat), float(lon))
                 if weather:
-                    return self.send_json(weather)
+                    return self.send_json(weather, cache_seconds=300)  # 5 min cache
                 return self.send_json({'error': 'Could not fetch weather'}, 500)
             except Exception as e:
                 return self.send_json({'error': str(e)}, 500)

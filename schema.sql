@@ -138,6 +138,15 @@ CREATE INDEX IF NOT EXISTS idx_events_severity ON events(severity);
 CREATE INDEX IF NOT EXISTS idx_osint_vessel_id ON osint_reports(vessel_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_acknowledged ON alerts(acknowledged);
 
+-- Additional indexes for query optimization
+CREATE INDEX IF NOT EXISTS idx_vessels_mmsi ON vessels(mmsi);
+CREATE INDEX IF NOT EXISTS idx_vessels_imo ON vessels(imo);
+CREATE INDEX IF NOT EXISTS idx_vessels_threat_level ON vessels(threat_level);
+CREATE INDEX IF NOT EXISTS idx_vessels_classification ON vessels(classification);
+CREATE INDEX IF NOT EXISTS idx_watchlist_vessel_id ON watchlist(vessel_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_vessel_id ON alerts(vessel_id);
+CREATE INDEX IF NOT EXISTS idx_positions_composite ON positions(vessel_id, timestamp DESC);
+
 -- ============================================================================
 -- SEED DATA
 -- ============================================================================
