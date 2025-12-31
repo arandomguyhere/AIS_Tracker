@@ -1315,9 +1315,33 @@
 
             // Re-render live vessels when map moves (with debounce)
             let moveTimeout;
+            let boundingBoxTimeout;
+            let autoUpdateBounds = true;  // Enable auto-update by default
+
             map.on('moveend', () => {
                 clearTimeout(moveTimeout);
                 moveTimeout = setTimeout(renderLiveVessels, 100);
+
+                // Auto-update bounding box after user stops panning (2 second delay)
+                if (autoUpdateBounds) {
+                    clearTimeout(boundingBoxTimeout);
+                    boundingBoxTimeout = setTimeout(async () => {
+                        const bounds = map.getBounds();
+                        const data = {
+                            lat_min: bounds.getSouth(),
+                            lat_max: bounds.getNorth(),
+                            lon_min: bounds.getWest(),
+                            lon_max: bounds.getEast(),
+                            description: 'Auto-updated from map viewport'
+                        };
+                        try {
+                            await post('/config/bounding-box', data);
+                            console.log('Bounding box auto-updated to viewport');
+                        } catch (e) {
+                            console.log('Auto-update skipped (server not running)');
+                        }
+                    }, 2000);
+                }
             });
 
             map.on('click', e => {

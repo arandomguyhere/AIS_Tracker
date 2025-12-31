@@ -168,8 +168,36 @@ def main():
     print("Connected! Streaming vessel positions...")
     print("Press Ctrl+C to stop\n")
 
+    # Track current bounding box for change detection
+    current_bbox = (lat_min, lon_min, lat_max, lon_max)
+    config_check_counter = 0
+
     try:
         while True:
+            # Check for config changes every 5 update cycles
+            config_check_counter += 1
+            if config_check_counter >= 5:
+                config_check_counter = 0
+                new_config = load_config()
+                new_area = new_config.get('area_tracking', {}).get('bounding_box', {})
+                new_bbox = (
+                    new_area.get('lat_min', lat_min),
+                    new_area.get('lon_min', lon_min),
+                    new_area.get('lat_max', lat_max),
+                    new_area.get('lon_max', lon_max)
+                )
+                if new_bbox != current_bbox:
+                    print(f"\n[Config] Bounding box changed!")
+                    print(f"[Config] New area: ({new_bbox[0]}, {new_bbox[1]}) to ({new_bbox[2]}, {new_bbox[3]})")
+                    source.set_bounding_box(*new_bbox)
+                    current_bbox = new_bbox
+                    # Reconnect to apply new bounding box
+                    source.disconnect()
+                    if source.connect():
+                        print("[Config] Reconnected with new bounding box\n")
+                    else:
+                        print("[Config] Failed to reconnect!")
+
             # Get all cached positions
             positions = source.get_all_cached_positions()
 
