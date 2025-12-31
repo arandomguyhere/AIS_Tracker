@@ -790,6 +790,11 @@
                 <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
             </svg>
         </button>
+        <button class="control-btn" id="toggle-sar" title="SAR Detections">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+            </svg>
+        </button>
     </div>
 
     <!-- Layer Selection Popup -->
@@ -1570,6 +1575,8 @@
 
             renderVesselPanel(v, events, osint);
             document.getElementById('vessel-panel').classList.add('active');
+            // Load confidence score
+            loadConfidence(v.id);
         }
 
         function renderVesselPanel(v, events, osint) {
@@ -1612,6 +1619,11 @@
                     <div class="info-row"><span class="info-label">IMO</span><span class="info-value">${v.imo || '-'}</span></div>
                     <div class="info-row"><span class="info-label">Classification</span><span class="info-value">${v.classification || '-'}</span></div>
                     <div class="info-row"><span class="info-label">Length</span><span class="info-value">${v.length_m ? v.length_m + 'm' : '-'}</span></div>
+                </div>
+
+                <div class="panel-section" id="confidence-section">
+                    <div class="section-title">Confidence Score <button onclick="refreshConfidence(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Refresh</button></div>
+                    <div id="confidence-display" style="text-align:center;padding:12px;color:#666">Loading...</div>
                 </div>
 
                 ${v.intel_notes ? `
@@ -2298,6 +2310,135 @@
                 setMapClickMode(false);
             }
         });
+
+        // SAR Detection Layer
+        let sarMarkers = [];
+        let showSarDetections = false;
+
+        async function loadSarDetections() {
+            try {
+                const data = await api('/sar-detections');
+                renderSarDetections(data || []);
+            } catch(e) {
+                console.log('SAR detections not available');
+            }
+        }
+
+        function renderSarDetections(detections) {
+            // Clear existing markers
+            sarMarkers.forEach(m => map.removeLayer(m));
+            sarMarkers = [];
+
+            if (!showSarDetections) return;
+
+            detections.forEach(d => {
+                const color = d.matched_mmsi ? '#9b59b6' : '#e74c3c'; // Purple if matched, red if dark vessel
+                const marker = L.circleMarker([d.latitude, d.longitude], {
+                    radius: 8,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    fillOpacity: 0.8
+                }).addTo(map);
+
+                const matchStatus = d.matched_mmsi ? `Matched: MMSI ${d.matched_mmsi}` : '<span style="color:#e74c3c;font-weight:bold">DARK VESSEL</span>';
+                marker.bindPopup(`
+                    <div style="padding:8px;min-width:180px">
+                        <div style="font-weight:600;margin-bottom:8px">SAR Detection</div>
+                        <div style="font-size:12px;color:#666;margin-bottom:4px">
+                            <strong>Time:</strong> ${new Date(d.detection_time).toLocaleString()}
+                        </div>
+                        <div style="font-size:12px;color:#666;margin-bottom:4px">
+                            <strong>Position:</strong> ${d.latitude.toFixed(4)}, ${d.longitude.toFixed(4)}
+                        </div>
+                        ${d.estimated_length ? `<div style="font-size:12px;color:#666;margin-bottom:4px"><strong>Length:</strong> ${d.estimated_length}m</div>` : ''}
+                        <div style="font-size:12px;margin-top:8px">${matchStatus}</div>
+                    </div>
+                `);
+                sarMarkers.push(marker);
+            });
+        }
+
+        document.getElementById('toggle-sar').addEventListener('click', () => {
+            showSarDetections = !showSarDetections;
+            document.getElementById('toggle-sar').classList.toggle('active', showSarDetections);
+            if (showSarDetections) {
+                document.getElementById('toggle-sar').style.background = '#9b59b6';
+                document.getElementById('toggle-sar').style.color = 'white';
+                loadSarDetections();
+            } else {
+                document.getElementById('toggle-sar').style.background = '';
+                document.getElementById('toggle-sar').style.color = '';
+                renderSarDetections([]);
+            }
+        });
+
+        // Confidence Score Functions
+        async function loadConfidence(vesselId) {
+            const display = document.getElementById('confidence-display');
+            if (!display) return;
+
+            try {
+                const score = await api(`/vessels/${vesselId}/confidence`);
+                renderConfidenceScore(score);
+            } catch(e) {
+                display.innerHTML = '<span style="color:#999">Not available</span>';
+            }
+        }
+
+        async function refreshConfidence(vesselId) {
+            const display = document.getElementById('confidence-display');
+            if (display) display.innerHTML = '<span style="color:#666">Calculating...</span>';
+
+            try {
+                const score = await api(`/vessels/${vesselId}/confidence?refresh=true`);
+                renderConfidenceScore(score);
+            } catch(e) {
+                if (display) display.innerHTML = '<span style="color:#e74c3c">Error calculating score</span>';
+            }
+        }
+
+        function renderConfidenceScore(score) {
+            const display = document.getElementById('confidence-display');
+            if (!display || !score) return;
+
+            const overall = (score.overall_confidence * 100).toFixed(0);
+            const deception = (score.deception_likelihood * 100).toFixed(0);
+
+            // Color based on confidence level
+            let confColor = '#27ae60'; // green
+            if (overall < 50) confColor = '#e74c3c'; // red
+            else if (overall < 70) confColor = '#f39c12'; // orange
+
+            // Deception color (inverse - red is bad)
+            let decColor = '#27ae60';
+            if (deception > 50) decColor = '#e74c3c';
+            else if (deception > 25) decColor = '#f39c12';
+
+            display.innerHTML = `
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center">
+                    <div style="background:#f8f9fa;padding:12px;border-radius:8px">
+                        <div style="font-size:24px;font-weight:700;color:${confColor}">${overall}%</div>
+                        <div style="font-size:11px;color:#666;text-transform:uppercase">Confidence</div>
+                    </div>
+                    <div style="background:#f8f9fa;padding:12px;border-radius:8px">
+                        <div style="font-size:24px;font-weight:700;color:${decColor}">${deception}%</div>
+                        <div style="font-size:11px;color:#666;text-transform:uppercase">Deception Risk</div>
+                    </div>
+                </div>
+                <div style="margin-top:12px;font-size:11px;color:#999">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                        <span>AIS Consistency</span><span>${(score.ais_consistency * 100).toFixed(0)}%</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                        <span>Behavioral Normalcy</span><span>${(score.behavioral_normalcy * 100).toFixed(0)}%</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between">
+                        <span>SAR Corroboration</span><span>${(score.sar_corroboration * 100).toFixed(0)}%</span>
+                    </div>
+                </div>
+            `;
+        }
 
         // Init
         document.addEventListener('DOMContentLoaded', () => {

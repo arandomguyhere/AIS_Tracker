@@ -48,6 +48,26 @@ This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese 
 - **Position tracking** - Historical vessel track display
 - **Bounding box configuration** - Define AIS streaming areas via UI
 
+### SAR Ship Detection (NEW)
+- **ESA SNAP integration** - Import ship detections from ESA Sentinel-1 SAR imagery
+- **CSV/XML parsing** - Parse SNAP Ship Detection toolbox output files
+- **AIS correlation** - Match SAR detections with AIS positions (configurable time/distance thresholds)
+- **Dark vessel detection** - Identify vessels visible on SAR but not transmitting AIS
+- **Detection metadata** - Track detection time, coordinates, estimated length, confidence
+
+### Vessel Confidence Scoring (NEW)
+- **AIS consistency score** - Analyze position reporting gaps and jumps
+- **Behavioral normalcy score** - Detect unusual speed/course changes
+- **SAR corroboration score** - Cross-reference with SAR detections
+- **Deception likelihood** - Calculate probability of AIS spoofing/manipulation
+- **Overall confidence** - Weighted composite score (0.0-1.0)
+- **Cached scoring** - Scores cached and refreshable on demand
+
+### Testing
+- **63 unit tests** - Comprehensive test coverage
+- **Test runner** - `python3 run_tests.py` to run all tests
+- **Module tests** - Database, API, SAR import, confidence scoring
+
 ## Quick Start
 
 ```bash
@@ -90,11 +110,15 @@ export AISHUB_USERNAME="your-aishub-username"
 | `schema.sql` | SQLite database schema + seed data |
 | `static/index.html` | VesselFinder-style interactive dashboard |
 | `docs/index.html` | Static GitHub Pages demo version |
-| `requirements.txt` | Python dependencies (openai) |
+| `requirements.txt` | Python dependencies (gnews, openai) |
 | `ais_ingest.py` | AIS data ingestion module |
 | `ais_config.json` | AIS source configuration (auto-created) |
 | `ais_sources/` | Multi-source AIS integration (AISStream, AISHub, Marinesia) |
 | `osint/` | OSINT correlation and monitoring tools |
+| `sar_import.py` | SAR ship detection import and AIS correlation |
+| `confidence.py` | Vessel confidence scoring and deception detection |
+| `run_tests.py` | Test runner script |
+| `tests/` | Unit tests for database, API, SAR, and confidence modules |
 
 ## API Endpoints
 
@@ -130,6 +154,20 @@ export AISHUB_USERNAME="your-aishub-username"
 | GET | `/api/weather?lat=31.2&lon=121.4` | Weather at coordinates |
 | GET | `/api/vessels/:id/weather` | Weather at vessel position |
 
+### SAR Detection Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/sar-detections` | List SAR ship detections |
+| GET | `/api/dark-vessels` | List dark vessels (SAR without AIS match) |
+
+### Confidence Scoring Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/vessels/:id/confidence` | Get cached confidence score |
+| GET | `/api/vessels/:id/confidence?refresh=true` | Calculate fresh confidence score |
+
 ### Other Endpoints
 
 | Method | Endpoint | Description |
@@ -142,8 +180,8 @@ export AISHUB_USERNAME="your-aishub-username"
 | GET | `/api/live-vessels` | Live AIS streaming vessels |
 | GET | `/api/vessels/:id/analysis` | Get saved AI analysis |
 | POST | `/api/alerts/:id/acknowledge` | Acknowledge alert |
-| POST | `/api/save-config` | Save AIS bounding box config |
-| POST | `/api/upload-photo/:id` | Upload vessel photo |
+| POST | `/api/config/bounding-box` | Save AIS bounding box config |
+| POST | `/api/vessels/:id/photo` | Upload vessel photo |
 
 ### Example API Calls
 
@@ -170,6 +208,15 @@ curl -X POST http://localhost:8080/api/vessels/1/position \
 curl -X PUT http://localhost:8080/api/vessels/1 \
   -H "Content-Type: application/json" \
   -d '{"threat_level": "critical", "intel_notes": "Updated intelligence"}'
+
+# Get vessel confidence score
+curl http://localhost:8080/api/vessels/1/confidence
+
+# Get SAR detections
+curl http://localhost:8080/api/sar-detections
+
+# Get dark vessels (SAR without AIS)
+curl http://localhost:8080/api/dark-vessels
 ```
 
 ## AI Intelligence Features
@@ -214,6 +261,86 @@ Full vessel analysis with structured output:
 - BLUF summaries are extracted and stored
 - Retrieve previous analysis via `/api/vessels/:id/analysis`
 
+## SAR Ship Detection
+
+The SAR import module (`sar_import.py`) enables integration with ESA Sentinel-1 SAR imagery:
+
+### Supported Formats
+- **CSV** - SNAP Ship Detection toolbox CSV export
+- **XML** - SNAP detection XML output
+
+### Detection Fields
+| Field | Description |
+|-------|-------------|
+| `detection_time` | Timestamp of SAR image acquisition |
+| `latitude/longitude` | Detection coordinates |
+| `estimated_length` | Estimated vessel length in meters |
+| `detection_confidence` | Algorithm confidence score |
+| `matched_mmsi` | AIS vessel if correlation found |
+
+### AIS Correlation
+Detections are correlated with AIS positions using configurable thresholds:
+- **Time window**: ±30 minutes (default)
+- **Distance threshold**: 5km (default)
+- Unmatched detections flagged as potential "dark vessels"
+
+### Usage
+```python
+from sar_import import import_sar_file, get_dark_vessels
+
+# Import SNAP detection file
+results = import_sar_file('detections.csv', source='sentinel-1')
+
+# Get vessels detected by SAR but not transmitting AIS
+dark_vessels = get_dark_vessels(since='2025-01-01')
+```
+
+## Vessel Confidence Scoring
+
+The confidence module (`confidence.py`) provides trust assessment for vessel data:
+
+### Score Components
+| Component | Weight | Description |
+|-----------|--------|-------------|
+| AIS Consistency | 40% | Position reporting regularity, gap analysis |
+| Behavioral Normalcy | 30% | Speed/course change patterns |
+| SAR Corroboration | 30% | Cross-reference with SAR detections |
+
+### Scoring Algorithm
+- **AIS Consistency**: Penalizes large gaps (>1hr) and position jumps (>50nm)
+- **Behavioral Normalcy**: Flags unusual speed (>30kt) or rapid course changes
+- **SAR Corroboration**: Boosts score when SAR confirms vessel presence
+- **Deception Likelihood**: Combines factors indicating potential AIS manipulation
+
+### API Response
+```json
+{
+  "vessel_id": 1,
+  "overall_confidence": 0.72,
+  "ais_consistency": 0.85,
+  "behavioral_normalcy": 0.65,
+  "sar_corroboration": 0.50,
+  "deception_likelihood": 0.15,
+  "calculated_at": "2025-12-31T00:00:00Z"
+}
+```
+
+## Running Tests
+
+```bash
+# Run all tests
+python3 run_tests.py
+
+# Run with verbose output
+python3 run_tests.py -v
+
+# Run specific test module
+python3 run_tests.py test_confidence
+python3 run_tests.py test_sar_import
+python3 run_tests.py test_database
+python3 run_tests.py test_api
+```
+
 ## Demo Data
 
 The tracker includes comprehensive demo data for ZHONG DA 79:
@@ -239,49 +366,55 @@ The tracker includes comprehensive demo data for ZHONG DA 79:
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                       Arsenal Ship Tracker                            │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│  │ AISStream   │ │   AISHub    │ │  Marinesia  │ │  Open-Meteo │     │
-│  │ (WebSocket) │ │   (REST)    │ │   (REST)    │ │  (Weather)  │     │
-│  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘     │
-│         │               │               │               │            │
-│         └───────────────┼───────────────┼───────────────┘            │
-│                         │               │                            │
-│  ┌──────────────────────▼───────────────▼──────────────────────┐     │
-│  │                  AIS Source Manager                          │     │
-│  │            (Priority-based fallback system)                  │     │
-│  └──────────────────────────┬───────────────────────────────────┘     │
-│                             │                                        │
-│   ┌─────────────────────────┼─────────────────────────┐              │
-│   │                         │                         │              │
-│   ▼                         ▼                         ▼              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐        │
-│  │ Live Vessel  │  │  Geofence    │  │   AI Intelligence    │        │
-│  │  Tracking    │  │  Detection   │  │  (OpenAI + MMSI      │        │
-│  │              │  │              │  │   Lookups)           │        │
-│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘        │
-│         │                 │                     │                    │
-│         └─────────────────┼─────────────────────┘                    │
-│                           │                                          │
-│                    ┌──────▼──────┐                                   │
-│                    │   SQLite    │                                   │
-│                    │  (WAL Mode) │                                   │
-│                    └──────┬──────┘                                   │
-│                           │                                          │
-│                    ┌──────▼──────┐                                   │
-│                    │  REST API   │                                   │
-│                    │   Server    │                                   │
-│                    └──────┬──────┘                                   │
-│                           │                                          │
-│                    ┌──────▼──────┐                                   │
-│                    │  Dashboard  │                                   │
-│                    │    (Web)    │                                   │
-│                    └─────────────┘                                   │
-│                                                                      │
-└──────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Arsenal Ship Tracker                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐        │
+│  │ AISStream   │ │   AISHub    │ │  Marinesia  │ │  Open-Meteo │        │
+│  │ (WebSocket) │ │   (REST)    │ │   (REST)    │ │  (Weather)  │        │
+│  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘        │
+│         │               │               │               │               │
+│         └───────────────┼───────────────┼───────────────┘               │
+│                         │               │                               │
+│  ┌──────────────────────▼───────────────▼──────────────────────┐        │
+│  │                  AIS Source Manager                          │        │
+│  │            (Priority-based fallback system)                  │        │
+│  └──────────────────────────┬───────────────────────────────────┘        │
+│                             │                                           │
+│   ┌─────────────────────────┼─────────────────────────┐                 │
+│   │                         │                         │                 │
+│   ▼                         ▼                         ▼                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐           │
+│  │ Live Vessel  │  │  Geofence    │  │   AI Intelligence    │           │
+│  │  Tracking    │  │  Detection   │  │  (OpenAI + MMSI      │           │
+│  │              │  │              │  │   Lookups)           │           │
+│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘           │
+│         │                 │                     │                       │
+│   ┌─────▼─────┐     ┌─────▼─────┐         ┌─────▼─────┐                 │
+│   │ SAR Ship  │     │ Confidence│         │   OSINT   │                 │
+│   │ Detection │     │  Scoring  │         │ Correlator│                 │
+│   │ (SNAP)    │     │           │         │           │                 │
+│   └─────┬─────┘     └─────┬─────┘         └─────┬─────┘                 │
+│         │                 │                     │                       │
+│         └─────────────────┼─────────────────────┘                       │
+│                           │                                             │
+│                    ┌──────▼──────┐                                      │
+│                    │   SQLite    │                                      │
+│                    │  (WAL Mode) │                                      │
+│                    └──────┬──────┘                                      │
+│                           │                                             │
+│                    ┌──────▼──────┐                                      │
+│                    │  REST API   │                                      │
+│                    │   Server    │                                      │
+│                    └──────┬──────┘                                      │
+│                           │                                             │
+│                    ┌──────▼──────┐                                      │
+│                    │  Dashboard  │                                      │
+│                    │    (Web)    │                                      │
+│                    └─────────────┘                                      │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Key Intelligence: ZHONG DA 79
