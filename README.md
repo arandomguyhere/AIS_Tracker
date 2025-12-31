@@ -54,6 +54,9 @@ This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese 
 - **AIS correlation** - Match SAR detections with AIS positions (configurable time/distance thresholds)
 - **Dark vessel detection** - Identify vessels visible on SAR but not transmitting AIS
 - **Detection metadata** - Track detection time, coordinates, estimated length, confidence
+- **SAR layer toggle** - View SAR detections on map (purple=matched, red=dark vessel)
+- **EO Browser integration** - One-click access to Sentinel-1 SAR imagery for current map view
+- **Satellite overlay** - NASA daily satellite imagery with adjustable opacity
 
 ### Vessel Confidence Scoring (NEW)
 - **AIS consistency score** - Analyze position reporting gaps and jumps
@@ -62,6 +65,7 @@ This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese 
 - **Deception likelihood** - Calculate probability of AIS spoofing/manipulation
 - **Overall confidence** - Weighted composite score (0.0-1.0)
 - **Cached scoring** - Scores cached and refreshable on demand
+- **UI confidence panel** - Visual confidence display in vessel details with refresh button
 
 ### Testing
 - **63 unit tests** - Comprehensive test coverage
