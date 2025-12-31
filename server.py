@@ -58,6 +58,17 @@ try:
 except ImportError:
     INTELLIGENCE_AVAILABLE = False
 
+# Import behavior detection module
+try:
+    from behavior import (
+        validate_mmsi, get_flag_country, analyze_vessel_behavior,
+        detect_encounters, detect_loitering, detect_ais_gaps, detect_spoofing,
+        downsample_track, segment_track
+    )
+    BEHAVIOR_AVAILABLE = True
+except ImportError:
+    BEHAVIOR_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -887,6 +898,45 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             since = params.get('since', [None])[0]
             dark_vessels = get_dark_vessels(since=since)
             return self.send_json(dark_vessels)
+
+        # Behavior analysis endpoints
+        elif path.startswith('/api/vessels/') and path.endswith('/behavior'):
+            if not BEHAVIOR_AVAILABLE:
+                return self.send_json({'error': 'Behavior module not available'}, 500)
+            vessel_id = int(path.split('/')[3])
+            days = int(params.get('days', [30])[0])
+
+            # Get vessel track
+            track = get_vessel_track(vessel_id, days)
+            if not track:
+                return self.send_json({'error': 'No track data available'}, 404)
+
+            # Get vessel MMSI
+            vessel = get_vessel(vessel_id)
+            mmsi = vessel.get('mmsi', '') if vessel else ''
+
+            # Run behavior analysis
+            analysis = analyze_vessel_behavior(track, mmsi)
+            analysis['vessel_id'] = vessel_id
+            analysis['vessel_name'] = vessel.get('name') if vessel else None
+            return self.send_json(analysis)
+
+        elif path == '/api/mmsi/validate':
+            mmsi = params.get('mmsi', [None])[0]
+            if not mmsi:
+                return self.send_json({'error': 'MMSI parameter required'}, 400)
+            if not BEHAVIOR_AVAILABLE:
+                return self.send_json({'error': 'Behavior module not available'}, 500)
+            return self.send_json(validate_mmsi(mmsi))
+
+        elif path == '/api/mmsi/country':
+            mmsi = params.get('mmsi', [None])[0]
+            if not mmsi:
+                return self.send_json({'error': 'MMSI parameter required'}, 400)
+            if not BEHAVIOR_AVAILABLE:
+                return self.send_json({'error': 'Behavior module not available'}, 500)
+            country = get_flag_country(mmsi)
+            return self.send_json({'mmsi': mmsi, 'country': country})
 
         # Static files
         else:
