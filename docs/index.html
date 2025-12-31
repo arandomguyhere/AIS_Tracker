@@ -1322,25 +1322,21 @@
                 clearTimeout(moveTimeout);
                 moveTimeout = setTimeout(renderLiveVessels, 100);
 
-                // Auto-update bounding box after user stops panning (2 second delay)
+                // Auto-update bounding box silently (500ms debounce, with padding)
                 if (autoUpdateBounds) {
                     clearTimeout(boundingBoxTimeout);
                     boundingBoxTimeout = setTimeout(async () => {
                         const bounds = map.getBounds();
+                        const pad = 2;  // Prefetch adjacent areas
                         const data = {
-                            lat_min: bounds.getSouth(),
-                            lat_max: bounds.getNorth(),
-                            lon_min: bounds.getWest(),
-                            lon_max: bounds.getEast(),
-                            description: 'Auto-updated from map viewport'
+                            lat_min: Math.max(-90, bounds.getSouth() - pad),
+                            lat_max: Math.min(90, bounds.getNorth() + pad),
+                            lon_min: Math.max(-180, bounds.getWest() - pad),
+                            lon_max: Math.min(180, bounds.getEast() + pad),
+                            description: 'viewport'
                         };
-                        try {
-                            await post('/config/bounding-box', data);
-                            console.log('Bounding box auto-updated to viewport');
-                        } catch (e) {
-                            console.log('Auto-update skipped (server not running)');
-                        }
-                    }, 2000);
+                        try { await post('/config/bounding-box', data); } catch (e) {}
+                    }, 500);
                 }
             });
 

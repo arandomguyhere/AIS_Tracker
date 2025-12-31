@@ -29,12 +29,13 @@
 
   "area_tracking": {
     "enabled": true,
+    "auto_update": true,
     "bounding_box": {
-      "lat_min": -10,
-      "lon_min": 90,
-      "lat_max": 50,
-      "lon_max": 150,
-      "description": "Asia-Pacific region (Southeast Asia to Japan)"
+      "lat_min": -90,
+      "lon_min": -180,
+      "lat_max": 90,
+      "lon_max": 180,
+      "description": "Global coverage"
     }
   },
 
