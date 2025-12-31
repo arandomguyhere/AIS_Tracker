@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- OSINT data last updated: 2025-12-31T06:26:00.652615Z -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arsenal Ship Tracker</title>
@@ -711,6 +712,22 @@
 
         .map-overlay.active { display: block; }
 
+        
+        .static-banner {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26,26,46,0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 13px;
+            z-index: 1000;
+        }
+
+        .static-banner a { color: #e94560; text-decoration: none; }
+
         @media (max-width: 768px) {
             .stats-bar { display: none; }
             .vessel-panel, .list-panel { width: 100%; }
@@ -736,16 +753,16 @@
 
         <div class="stats-bar">
             <div class="stat stat-critical">
-                <div class="stat-value" id="stat-critical">0</div>
+                <div class="stat-value">1</div>
                 <div class="stat-label">Critical</div>
             </div>
             <div class="stat stat-warning">
-                <div class="stat-value" id="stat-alerts">0</div>
+                <div class="stat-value">1</div>
                 <div class="stat-label">Alerts</div>
             </div>
             <div class="stat stat-info">
-                <div class="stat-value" id="stat-vessels">0</div>
-                <div class="stat-label">Vessels</div>
+                <div class="stat-value" id="live-count">0</div>
+                <div class="stat-label">Live</div>
             </div>
             <div class="stat" style="color:#3498db">
                 <div class="stat-value" id="stat-live">0</div>
@@ -758,11 +775,6 @@
         <button class="control-btn" id="toggle-list" title="Vessel List">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-            </svg>
-        </button>
-        <button class="control-btn" id="add-vessel-btn" title="Add Vessel">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
         </button>
         <button class="control-btn" id="toggle-shipyards" title="Toggle Shipyards">
@@ -845,13 +857,11 @@
         </label>
     </div>
 
-    <div class="map-overlay" id="map-overlay">Click on map to set vessel position</div>
-
     <!-- Vessel List Panel -->
     <div class="list-panel" id="list-panel">
         <div class="list-header">
             <span class="list-title">Tracked Vessels</span>
-            <button class="add-vessel-btn" onclick="openAddVesselModal()">+ Add</button>
+            <span class="static-badge">Static Demo</span>
         </div>
         <div class="vessel-list" id="vessel-list"></div>
     </div>
@@ -861,223 +871,7 @@
         <div id="vessel-panel-content"></div>
     </div>
 
-    <!-- Add Vessel Modal -->
-    <div class="modal-overlay" id="add-vessel-modal">
-        <div class="modal">
-            <div class="modal-header">
-                <span class="modal-title">Add New Vessel</span>
-                <button class="modal-close" onclick="closeModal('add-vessel-modal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">Vessel Name *</label>
-                    <input type="text" class="form-input" id="vessel-name" placeholder="e.g. ZHONG DA 79">
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">MMSI</label>
-                        <input type="text" class="form-input" id="vessel-mmsi" placeholder="9 digits">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">IMO</label>
-                        <input type="text" class="form-input" id="vessel-imo" placeholder="7 digits">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Flag State</label>
-                        <input type="text" class="form-input" id="vessel-flag" placeholder="e.g. China">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Vessel Type</label>
-                        <input type="text" class="form-input" id="vessel-type" placeholder="e.g. Container Feeder">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Classification</label>
-                        <select class="form-select" id="vessel-classification">
-                            <option value="monitoring">Monitoring</option>
-                            <option value="suspected">Suspected</option>
-                            <option value="confirmed">Confirmed</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Threat Level</label>
-                        <select class="form-select" id="vessel-threat">
-                            <option value="unknown">Unknown</option>
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Intel Notes</label>
-                    <textarea class="form-textarea" id="vessel-notes" placeholder="Intelligence notes..."></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('add-vessel-modal')">Cancel</button>
-                <button class="btn btn-primary" onclick="addVessel()">Add Vessel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Draw Area Modal -->
-    <div class="modal-overlay" id="area-modal">
-        <div class="modal">
-            <div class="modal-header">
-                <span class="modal-title">Streaming Area Selected</span>
-                <button class="modal-close" onclick="closeModal('area-modal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div style="background:#f5f5f5;padding:16px;border-radius:8px;font-family:monospace;font-size:13px">
-                    <div>"bounding_box": {</div>
-                    <div style="padding-left:20px">"lat_min": <span id="area-lat-min">0</span>,</div>
-                    <div style="padding-left:20px">"lon_min": <span id="area-lon-min">0</span>,</div>
-                    <div style="padding-left:20px">"lat_max": <span id="area-lat-max">0</span>,</div>
-                    <div style="padding-left:20px">"lon_max": <span id="area-lon-max">0</span></div>
-                    <div>}</div>
-                </div>
-                <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="applyAreaConfig()">Apply & Save Config</button>
-                <button class="btn btn-secondary" style="margin-top:8px;width:100%" onclick="copyAreaConfig()">Copy to Clipboard</button>
-                <p style="margin-top:12px;font-size:12px;color:#666">After applying, restart <code>stream_area.py</code> to use the new area.</p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('area-modal')">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- News Search Results Modal -->
-    <div class="modal-overlay" id="news-modal">
-        <div class="modal" style="width:600px;max-width:95vw">
-            <div class="modal-header">
-                <span class="modal-title" id="news-modal-title">News Results</span>
-                <button class="modal-close" onclick="closeModal('news-modal')">&times;</button>
-            </div>
-            <div class="modal-body" style="max-height:70vh">
-                <div style="margin-bottom:16px;display:flex;gap:8px">
-                    <input type="text" class="form-input" id="news-search-query" placeholder="Search query..." style="flex:1">
-                    <button class="btn btn-primary" onclick="executeNewsSearch()" style="white-space:nowrap">Search</button>
-                </div>
-                <div id="news-results">
-                    <div style="text-align:center;padding:40px;color:#666">Enter vessel name and click Search</div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <a id="mmsi-lookup-link" href="#" target="_blank" class="btn btn-secondary" style="margin-right:auto">Lookup MMSI</a>
-                <button class="btn btn-secondary" onclick="closeModal('news-modal')">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Vessel Modal -->
-    <div class="modal-overlay" id="edit-vessel-modal">
-        <div class="modal">
-            <div class="modal-header">
-                <span class="modal-title">Edit Vessel</span>
-                <button class="modal-close" onclick="closeModal('edit-vessel-modal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="edit-vessel-id">
-                <div class="form-group">
-                    <label class="form-label">Vessel Name *</label>
-                    <input type="text" class="form-input" id="edit-vessel-name" placeholder="e.g. ZHONG DA 79">
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Flag State</label>
-                        <input type="text" class="form-input" id="edit-vessel-flag" placeholder="e.g. China">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Vessel Type</label>
-                        <input type="text" class="form-input" id="edit-vessel-type" placeholder="e.g. Container Feeder">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Classification</label>
-                        <select class="form-select" id="edit-vessel-classification">
-                            <option value="monitoring">Monitoring</option>
-                            <option value="suspected">Suspected</option>
-                            <option value="confirmed">Confirmed</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Threat Level</label>
-                        <select class="form-select" id="edit-vessel-threat">
-                            <option value="unknown">Unknown</option>
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Intel Notes</label>
-                    <textarea class="form-textarea" id="edit-vessel-notes" placeholder="Intelligence notes..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Vessel Photo</label>
-                    <div id="edit-vessel-photo-preview" style="margin-bottom:8px"></div>
-                    <input type="file" id="edit-vessel-photo" accept="image/*" style="display:none" onchange="previewPhoto(this)">
-                    <button type="button" class="btn btn-secondary" style="width:100%" onclick="document.getElementById('edit-vessel-photo').click()">Choose Photo</button>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('edit-vessel-modal')">Cancel</button>
-                <button class="btn btn-primary" onclick="saveVesselEdit()">Save Changes</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Update Position Modal -->
-    <div class="modal-overlay" id="position-modal">
-        <div class="modal">
-            <div class="modal-header">
-                <span class="modal-title">Update Position</span>
-                <button class="modal-close" onclick="closeModal('position-modal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Latitude *</label>
-                        <input type="number" step="0.0001" class="form-input" id="position-lat">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Longitude *</label>
-                        <input type="number" step="0.0001" class="form-input" id="position-lon">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Heading (0-360°)</label>
-                        <input type="number" class="form-input" id="position-heading">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Speed (knots)</label>
-                        <input type="number" step="0.1" class="form-input" id="position-speed">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Source</label>
-                    <select class="form-select" id="position-source">
-                        <option value="manual">Manual</option>
-                        <option value="ais">AIS</option>
-                        <option value="satellite">Satellite</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('position-modal')">Cancel</button>
-                <button class="btn btn-primary" onclick="savePosition()">Save</button>
-            </div>
-        </div>
-    </div>
+    
 
     <!-- Track Live Vessel Modal -->
     <div class="modal-overlay" id="track-vessel-modal">
@@ -1205,1452 +999,305 @@
             </div>
         </div>
     </div>
+    <div class="static-banner">
+        Static GitHub Pages demo - <a href="https://github.com/arandomguyhere/AIS_Tracker">View source</a> for full version
+    </div>
+
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const API = '/api';
-        let map, vessels = [], shipyards = [];
-        let vesselMarkers = {}, shipyardMarkers = [], shipyardCircles = [];
-        let liveVesselMarkers = {}, liveVessels = [];
-        let selectedVessel = null, trackLine = null;
-        let mapClickMode = false, showShipyards = true, showLiveVessels = true;
-        let drawingArea = false, areaStartPoint = null, areaRectangle = null;
-
-        // Color schemes for vessel types (used for live vessels)
-        const VESSEL_TYPE_COLORS = {
-            container: '#9b59b6',  // Purple
-            tanker: '#e67e22',     // Orange
-            cargo: '#3498db',      // Blue
-            passenger: '#1abc9c',  // Teal
-            fishing: '#27ae60',    // Green
-            tug: '#f39c12',        // Yellow
-            military: '#e74c3c',   // Red
-            default: '#95a5a6'     // Gray
-        };
-
-        function getVesselTypeColor(vesselType) {
-            if (!vesselType) return VESSEL_TYPE_COLORS.default;
-            const type = vesselType.toLowerCase();
-            if (type.includes('container') || type.includes('feeder')) return VESSEL_TYPE_COLORS.container;
-            if (type.includes('tanker') || type.includes('oil') || type.includes('chemical') || type.includes('lng') || type.includes('lpg')) return VESSEL_TYPE_COLORS.tanker;
-            if (type.includes('cargo') || type.includes('bulk') || type.includes('general')) return VESSEL_TYPE_COLORS.cargo;
-            if (type.includes('passenger') || type.includes('cruise') || type.includes('ferry') || type.includes('roro')) return VESSEL_TYPE_COLORS.passenger;
-            if (type.includes('fish') || type.includes('trawl')) return VESSEL_TYPE_COLORS.fishing;
-            if (type.includes('tug') || type.includes('pilot') || type.includes('supply')) return VESSEL_TYPE_COLORS.tug;
-            if (type.includes('military') || type.includes('naval') || type.includes('patrol') || type.includes('coast guard')) return VESSEL_TYPE_COLORS.military;
-            return VESSEL_TYPE_COLORS.default;
+        const vessels = [
+        {
+                "id": 1,
+                "name": "ZHONG DA 79",
+                "mmsi": "413000000",
+                "flag_state": "China",
+                "vessel_type": "Container Feeder",
+                "length_m": 97.0,
+                "classification": "confirmed",
+                "threat_level": "critical",
+                "intel_notes": "Commercial container feeder converted to arsenal ship. Observed with containerized VLS, CIWS, and radar systems at Shanghai shipyard. Underwent refit at Longhai shipyard April-August 2025. Currently moored at industrial pier on Huangpu River, Shanghai. NOT listed in PLAN registry - retains civilian designation despite visible military modifications.",
+                "weapons_config": "{\"vls_cells\": 60, \"vls_type\": \"Containerized VLS (4 cells per container)\", \"ciws\": \"Type 1130 30mm\", \"decoys\": \"Type 726\", \"possible_missiles\": [\"CJ-10\", \"YJ-18\", \"YJ-21\"]}",
+                "last_lat": 31.2456,
+                "last_lon": 121.489,
+                "last_heading": 0
         }
+];
 
-        function createShipIcon(color, heading = 0) {
-            const svg = `<svg viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L4 19h16L12 2z" stroke="white" stroke-width="1"/>
-            </svg>`;
-            return L.divIcon({
-                html: `<div class="ship-marker" style="transform: rotate(${heading}deg)">${svg}</div>`,
-                className: '',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
-            });
-        }
-
-        function getThreatColor(level) {
-            return { critical: '#e94560', high: '#f39c12', medium: '#3498db', low: '#27ae60', unknown: '#95a5a6' }[level] || '#95a5a6';
-        }
-
-        // Map layers
-        let currentBasemap = null;
-        const basemaps = {
-            dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19,
-                attribution: '&copy; CartoDB'
-            }),
-            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 19,
-                attribution: '&copy; Esri'
-            }),
-            streets: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap'
-            }),
-            terrain: L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg', {
-                maxZoom: 18,
-                attribution: '&copy; Stamen'
-            })
-        };
-
-        // Weather overlay layers (OpenWeatherMap free tier)
-        const OWM_API_KEY = ''; // Optional - works without key for basic layers
-        const weatherLayers = {
-            clouds: null,
-            precip: null,
-            wind: null,
-            temp: null
-        };
-
-        function createWeatherLayer(type) {
-            // Using OpenWeatherMap free tile layers
-            const layerTypes = {
-                clouds: 'clouds_new',
-                precip: 'precipitation_new',
-                wind: 'wind_new',
-                temp: 'temp_new'
-            };
-            const owmType = layerTypes[type] || type;
-            // Free tier - no API key needed for these
-            return L.tileLayer(`https://tile.openweathermap.org/map/${owmType}/{z}/{x}/{y}.png?appid=9de243494c0b295cca9337e1e96b00e2`, {
-                maxZoom: 19,
-                opacity: 0.6,
-                attribution: '&copy; OpenWeatherMap'
-            });
-        }
-
-        // Initialize map
-        function initMap() {
-            map = L.map('map', { center: [25, 120], zoom: 5, zoomControl: false });
-            L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-            // Set default basemap
-            currentBasemap = basemaps.dark;
-            currentBasemap.addTo(map);
-
-            // Re-render live vessels when map moves (with debounce)
-            let moveTimeout;
-            map.on('moveend', () => {
-                clearTimeout(moveTimeout);
-                moveTimeout = setTimeout(renderLiveVessels, 100);
-            });
-
-            map.on('click', e => {
-                if (mapClickMode && selectedVessel) {
-                    document.getElementById('position-lat').value = e.latlng.lat.toFixed(4);
-                    document.getElementById('position-lon').value = e.latlng.lng.toFixed(4);
-                    openModal('position-modal');
-                    setMapClickMode(false);
-                }
-            });
-
-            // Drawing area handlers
-            map.on('mousedown', e => {
-                if (drawingArea && !areaStartPoint) {
-                    areaStartPoint = e.latlng;
-                    map.dragging.disable();
-                }
-            });
-
-            map.on('mousemove', e => {
-                if (drawingArea && areaStartPoint) {
-                    const bounds = L.latLngBounds(areaStartPoint, e.latlng);
-                    if (areaRectangle) {
-                        areaRectangle.setBounds(bounds);
-                    } else {
-                        areaRectangle = L.rectangle(bounds, {
-                            color: '#e94560',
-                            weight: 2,
-                            fillOpacity: 0.2
-                        }).addTo(map);
-                    }
-                }
-            });
-
-            map.on('mouseup', e => {
-                if (drawingArea && areaStartPoint) {
-                    const bounds = L.latLngBounds(areaStartPoint, e.latlng);
-                    map.dragging.enable();
-                    stopDrawArea();
-                    if (bounds.getNorthEast().lat !== bounds.getSouthWest().lat) {
-                        showAreaModal(bounds);
-                    }
-                }
-            });
-        }
-
-        // API helpers
-        async function api(endpoint, options = {}) {
-            const res = await fetch(API + endpoint, options);
-            return res.json();
-        }
-
-        async function post(endpoint, data) {
-            return api(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-        }
-
-        // Load data
-        async function loadData() {
-            const [stats, vesselsData, shipyardsData] = await Promise.all([
-                api('/stats'),
-                api('/vessels'),
-                api('/shipyards')
-            ]);
-
-            vessels = vesselsData || [];
-            shipyards = shipyardsData || [];
-
-            document.getElementById('stat-critical').textContent = stats?.critical_threats || 0;
-            document.getElementById('stat-alerts').textContent = stats?.active_alerts || 0;
-            document.getElementById('stat-vessels').textContent = stats?.total_vessels || 0;
-
-            renderVesselList();
-            renderVesselMarkers();
-            renderShipyards();
-        }
-
-        function renderVesselList() {
-            const list = document.getElementById('vessel-list');
-            if (!vessels.length) {
-                list.innerHTML = '<div style="padding:40px;text-align:center;color:#999">No vessels tracked</div>';
-                return;
+        const shipyards = [
+            {
+                        "name": "Hudong-Zhonghua Shipbuilding",
+                        "location": "Shanghai",
+                        "latitude": 31.3456,
+                        "longitude": 121.5234,
+                        "geofence_radius_km": 3.0
+            },
+            {
+                        "name": "Longhai Shipyard",
+                        "location": "Fujian",
+                        "latitude": 24.4456,
+                        "longitude": 117.8234,
+                        "geofence_radius_km": 2.0
+            },
+            {
+                        "name": "Jiangnan Shipyard",
+                        "location": "Shanghai",
+                        "latitude": 31.3789,
+                        "longitude": 121.5678,
+                        "geofence_radius_km": 4.0
+            },
+            {
+                        "name": "Dalian Shipbuilding",
+                        "location": "Liaoning",
+                        "latitude": 38.9234,
+                        "longitude": 121.6345,
+                        "geofence_radius_km": 4.0
+            },
+            {
+                        "name": "Shanghai Huangpu River Pier",
+                        "location": "Shanghai",
+                        "latitude": 31.2456,
+                        "longitude": 121.489,
+                        "geofence_radius_km": 1.5
             }
+];
 
-            list.innerHTML = vessels.map(v => `
-                <div class="vessel-list-item ${selectedVessel === v.id ? 'active' : ''}" onclick="selectVessel(${v.id})">
-                    <div class="vessel-list-icon ${v.threat_level}">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2L4 19h16L12 2z"/>
-                        </svg>
-                    </div>
-                    <div class="vessel-list-info">
-                        <div class="vessel-list-name">${v.name}</div>
-                        <div class="vessel-list-meta">${v.flag_state || 'Unknown'} • ${v.vessel_type || 'Unknown'}</div>
-                        <div class="vessel-list-status">${v.last_lat ? `${v.last_lat.toFixed(2)}°, ${v.last_lon.toFixed(2)}°` : 'No position'}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
+        const events = [
+            {
+                        "severity": "critical",
+                        "title": "OSINT: ZHONG DA 79 mentioned in United24 Media",
+                        "description": "Article from United24 Media correlates with ZHONG DA 79. Weapon systems mentioned: VLS, CIWS, cruise missile. Locations: Shanghai. Key terms: missile, weapon, converted, military, CIWS. [Source: United24 Media]",
+                        "event_date": "2025-12-26"
+            },
+            {
+                        "severity": "critical",
+                        "title": "OSINT: ZHONG DA 79 mentioned in Naval News",
+                        "description": "Article from Naval News correlates with ZHONG DA 79. Weapon systems mentioned: VLS, CIWS, containerized missile. Locations: Fujian. Key terms: arsenal ship, missile, converted, CIWS, VLS. [Source: Naval News]",
+                        "event_date": "2025-12-26"
+            },
+            {
+                        "severity": "critical",
+                        "title": "OSINT: ZHONG DA 79 mentioned in Newsweek",
+                        "description": "Article from Newsweek correlates with ZHONG DA 79. Locations: Shanghai. Key terms: missile, weapon, military, launcher, armed. [Source: Newsweek]",
+                        "event_date": "2025-12-26"
+            },
+            {
+                        "severity": "medium",
+                        "title": "OSINT: ZHONG DA 79 mentioned in Lloyd's List",
+                        "description": "Article from Lloyd's List correlates with ZHONG DA 79. Locations: South China Sea. Key terms: military, cargo. [Source: Lloyd's List]",
+                        "event_date": "2025-12-22"
+            }
+];
 
-        function renderVesselMarkers() {
-            Object.values(vesselMarkers).forEach(m => map.removeLayer(m));
-            vesselMarkers = {};
+        const positions = [
+            {
+                        "latitude": 24.4456,
+                        "longitude": 117.8234
+            },
+            {
+                        "latitude": 26.1234,
+                        "longitude": 119.9876
+            },
+            {
+                        "latitude": 28.9876,
+                        "longitude": 121.2345
+            },
+            {
+                        "latitude": 31.2456,
+                        "longitude": 121.489
+            }
+];
 
-            vessels.forEach(v => {
-                if (!v.last_lat || !v.last_lon) return;
+        const osint = [
+            {
+                        "source_name": "United24 Media",
+                        "title": "Cargo Ship or Warship? China Arms Civilian Vessel With 60 Missiles",
+                        "source_url": "https://united24media.com/latest-news/cargo-ship-or-warship-china-arms-civilian-vessel-with-60-missiles-in-plain-sight-14585",
+                        "summary": "China converted a civilian container ship into an arsenal ship with 60 containerized missiles."
+            },
+            {
+                        "source_name": "Naval News",
+                        "title": "Container Ship Turned Missile Battery Spotted in China",
+                        "source_url": "https://www.navalnews.com/naval-news/2025/12/container-ship-turned-missile-battery-spotted-in-china/",
+                        "summary": "Naval News analysis of ZHONG DA 79 conversion."
+            },
+            {
+                        "source_name": "Newsweek",
+                        "title": "Photos Show Chinese Cargo Ship Armed With Missile Launchers",
+                        "source_url": "https://www.newsweek.com/photos-chinese-cargo-ship-missile-launchers-11270114",
+                        "summary": "Newsweek coverage with geopolitical context."
+            },
+            {
+                        "source_name": "The War Zone",
+                        "title": "Chinese Cargo Ship Packed Full Of Modular Missile Launchers",
+                        "source_url": "https://www.twz.com/sea/chinese-cargo-ship-packed-full-of-modular-missile-launchers-emerges",
+                        "summary": "Technical analysis of containerized weapons systems."
+            }
+];
 
-                const color = getThreatColor(v.threat_level);
-                const heading = v.last_heading || 0;
-                const marker = L.marker([v.last_lat, v.last_lon], {
-                    icon: createShipIcon(color, heading)
-                }).addTo(map);
+        let map, vesselMarkers = {}, liveVesselMarkers = {}, shipyardMarkers = [], shipyardCircles = [], trackLine = null, showShipyards = true, showLiveVessels = true;
+        let liveVessels = [];
 
-                marker.bindPopup(() => createPopup(v), { maxWidth: 300 });
-                marker.on('click', () => selectVessel(v.id));
-                vesselMarkers[v.id] = marker;
-            });
-        }
-
-        function createPopup(v) {
-            return `
-                <div class="popup-content">
-                    <div class="popup-header">
-                        <div class="popup-icon" style="background:${getThreatColor(v.threat_level)}20;color:${getThreatColor(v.threat_level)}">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 19h16L12 2z"/></svg>
-                        </div>
-                        <div>
-                            <div class="popup-name">${v.name}</div>
-                            <div class="popup-type">${v.flag_state || ''} ${v.vessel_type || ''}</div>
-                        </div>
-                    </div>
-                    <div class="popup-stats">
-                        <div class="popup-stat">
-                            <div class="popup-stat-value">${v.last_lat?.toFixed(4) || '-'}</div>
-                            <div class="popup-stat-label">Latitude</div>
-                        </div>
-                        <div class="popup-stat">
-                            <div class="popup-stat-value">${v.last_lon?.toFixed(4) || '-'}</div>
-                            <div class="popup-stat-label">Longitude</div>
-                        </div>
-                    </div>
-                    <button class="popup-btn" onclick="selectVessel(${v.id})">View Details</button>
-                </div>
-            `;
-        }
-
-        function renderShipyards() {
-            shipyardMarkers.forEach(m => map.removeLayer(m));
-            shipyardCircles.forEach(c => map.removeLayer(c));
-            shipyardMarkers = [];
-            shipyardCircles = [];
-
-            if (!showShipyards) return;
-
-            shipyards.forEach(s => {
-                const marker = L.circleMarker([s.latitude, s.longitude], {
-                    radius: 6, fillColor: '#f39c12', color: '#fff', weight: 2, fillOpacity: 0.8
-                }).addTo(map);
-                marker.bindPopup(`<b>${s.name}</b><br>${s.location}`);
-                shipyardMarkers.push(marker);
-
-                const circle = L.circle([s.latitude, s.longitude], {
-                    radius: s.geofence_radius_km * 1000,
-                    color: '#f39c12', fillColor: '#f39c12', fillOpacity: 0.1, weight: 1, dashArray: '4'
-                }).addTo(map);
-                shipyardCircles.push(circle);
-            });
-        }
-
-        // Load live vessels from streaming API
+        // Load live vessels from JSON file
         async function loadLiveVessels() {
             try {
-                const data = await api('/live-vessels');
+                const response = await fetch('live_vessels.json?t=' + Date.now());
+                if (!response.ok) return;
+                const data = await response.json();
                 liveVessels = data.vessels || [];
                 renderLiveVessels();
-                const liveCount = document.getElementById('stat-live');
-                if (liveCount) liveCount.textContent = liveVessels.length;
+                document.getElementById('live-count').textContent = liveVessels.length;
             } catch(e) {
                 console.log('No live vessel data available');
             }
         }
 
         // Render live vessels on map
-        const MAX_LIVE_MARKERS = 500; // Limit to prevent browser lag
-
         function renderLiveVessels() {
+            // Clear existing live markers
             Object.values(liveVesselMarkers).forEach(m => map.removeLayer(m));
             liveVesselMarkers = {};
 
             if (!showLiveVessels) return;
 
-            // Filter to only vessels in current viewport
-            const bounds = map.getBounds();
-            const inView = liveVessels.filter(v => {
-                if (!v.lat || !v.lon) return false;
-                return bounds.contains([v.lat, v.lon]);
-            });
-
-            // Limit number of markers to prevent lag
-            const toRender = inView.slice(0, MAX_LIVE_MARKERS);
-
-            // Update live count to show filtered/total
-            const liveCount = document.getElementById('stat-live');
-            if (liveCount) {
-                liveCount.textContent = inView.length > MAX_LIVE_MARKERS
-                    ? `${MAX_LIVE_MARKERS}/${inView.length}`
-                    : `${inView.length}/${liveVessels.length}`;
-            }
-
-            toRender.forEach(v => {
-                const color = getVesselTypeColor(v.ship_type);
+            liveVessels.forEach(v => {
+                if (!v.lat || !v.lon) return;
+                const color = '#3498db'; // Blue for live vessels
                 const marker = L.marker([v.lat, v.lon], {
                     icon: createShipIcon(color, v.heading || v.course || 0)
                 }).addTo(map);
                 marker.bindPopup(`<div class="popup-content">
-                    <div class="popup-header">
-                        <div class="popup-icon" style="background:${color}20;color:${color}">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 19h16L12 2z"/></svg>
-                        </div>
-                        <div>
-                            <div class="popup-name">${v.name || 'MMSI ' + v.mmsi}</div>
-                            <div class="popup-type">${v.ship_type || 'Unknown'} ${v.flag || ''}</div>
-                        </div>
-                    </div>
+                    <div class="popup-name">${v.name || 'MMSI ' + v.mmsi}</div>
+                    <div class="popup-type">${v.ship_type || 'Unknown'} ${v.flag || ''}</div>
                     <div class="popup-stats">
                         <div class="popup-stat"><div class="popup-stat-value">${v.lat.toFixed(4)}</div><div class="popup-stat-label">Lat</div></div>
                         <div class="popup-stat"><div class="popup-stat-value">${v.lon.toFixed(4)}</div><div class="popup-stat-label">Lon</div></div>
                         <div class="popup-stat"><div class="popup-stat-value">${v.speed ? v.speed.toFixed(1) : '-'}</div><div class="popup-stat-label">Knots</div></div>
                     </div>
                     <div style="font-size:11px;color:#666;margin-top:8px">MMSI: ${v.mmsi}</div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
-                        <button class="popup-btn" style="margin:0;background:#3498db" onclick="searchVesselNews('${v.name || ''}', '${v.mmsi}')">Search News</button>
-                        <button class="popup-btn" style="margin:0;background:#27ae60" onclick="trackLiveVessel(${JSON.stringify(v).replace(/"/g, '&quot;')})">Track Vessel</button>
-                    </div>
-                </div>`, { maxWidth: 300 });
+                </div>`, { maxWidth: 280 });
                 liveVesselMarkers[v.mmsi] = marker;
             });
         }
 
-        // Select vessel
-        async function selectVessel(id) {
-            selectedVessel = id;
+        // Delete a tracked vessel
+        function deleteVessel(id) {
+            const idx = vessels.findIndex(v => v.id === id);
+            if (idx > -1) {
+                if (vesselMarkers[id]) {
+                    map.removeLayer(vesselMarkers[id]);
+                    delete vesselMarkers[id];
+                }
+                vessels.splice(idx, 1);
+                renderVesselList();
+                document.getElementById('vessel-panel').classList.remove('active');
+            }
+        }
+
+        function createShipIcon(color, heading = 0) {
+            return L.divIcon({
+                html: `<div class="ship-marker" style="transform: rotate(${heading}deg)"><svg viewBox="0 0 24 24" fill="${color}"><path d="M12 2L4 19h16L12 2z" stroke="white" stroke-width="1"/></svg></div>`,
+                className: '', iconSize: [24, 24], iconAnchor: [12, 12]
+            });
+        }
+
+        function getThreatColor(level) {
+            return { critical: '#e94560', high: '#f39c12', medium: '#3498db', low: '#27ae60' }[level] || '#95a5a6';
+        }
+
+        function initMap() {
+            map = L.map('map', { center: [28, 118], zoom: 5, zoomControl: false });
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+        }
+
+        function renderVesselList() {
+            document.getElementById('vessel-list').innerHTML = vessels.map(v => `
+                <div class="vessel-list-item">
+                    <div class="vessel-list-icon ${v.threat_level}" onclick="selectVessel(${v.id})">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 19h16L12 2z"/></svg>
+                    </div>
+                    <div class="vessel-list-info" onclick="selectVessel(${v.id})">
+                        <div class="vessel-list-name">${v.name}</div>
+                        <div class="vessel-list-meta">${v.flag_state} - ${v.vessel_type}</div>
+                        <div class="vessel-list-status">${v.last_lat.toFixed(2)}, ${v.last_lon.toFixed(2)}</div>
+                    </div>
+                    <button onclick="event.stopPropagation(); deleteVessel(${v.id})" style="background:#e94560;color:white;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:auto;">X</button>
+                </div>
+            `).join('');
+        }
+
+        function renderVesselMarkers() {
+            vessels.forEach(v => {
+                const marker = L.marker([v.last_lat, v.last_lon], { icon: createShipIcon(getThreatColor(v.threat_level), v.last_heading || 0) }).addTo(map);
+                marker.bindPopup(`<div class="popup-content"><div class="popup-header"><div class="popup-icon" style="background:${getThreatColor(v.threat_level)}20;color:${getThreatColor(v.threat_level)}"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 19h16L12 2z"/></svg></div><div><div class="popup-name">${v.name}</div><div class="popup-type">${v.flag_state} ${v.vessel_type}</div></div></div><div class="popup-stats"><div class="popup-stat"><div class="popup-stat-value">${v.last_lat.toFixed(4)}</div><div class="popup-stat-label">Lat</div></div><div class="popup-stat"><div class="popup-stat-value">${v.last_lon.toFixed(4)}</div><div class="popup-stat-label">Lon</div></div></div><button class="popup-btn" onclick="selectVessel(${v.id})">View Details</button></div>`, { maxWidth: 300 });
+                marker.on('click', () => selectVessel(v.id));
+                vesselMarkers[v.id] = marker;
+            });
+        }
+
+        function renderShipyards() {
+            shipyardMarkers.forEach(m => map.removeLayer(m));
+            shipyardCircles.forEach(c => map.removeLayer(c));
+            shipyardMarkers = []; shipyardCircles = [];
+            if (!showShipyards) return;
+            shipyards.forEach(s => {
+                const marker = L.circleMarker([s.latitude, s.longitude], { radius: 6, fillColor: '#f39c12', color: '#fff', weight: 2, fillOpacity: 0.8 }).addTo(map);
+                marker.bindPopup(`<b>${s.name}</b><br>${s.location}`);
+                shipyardMarkers.push(marker);
+                const circle = L.circle([s.latitude, s.longitude], { radius: s.geofence_radius_km * 1000, color: '#f39c12', fillColor: '#f39c12', fillOpacity: 0.1, weight: 1, dashArray: '4' }).addTo(map);
+                shipyardCircles.push(circle);
+            });
+        }
+
+        function selectVessel(id) {
             const v = vessels.find(x => x.id === id);
             if (!v) return;
-
-            // Update list selection
-            document.querySelectorAll('.vessel-list-item').forEach(el => el.classList.remove('active'));
-            document.querySelector(`.vessel-list-item[onclick="selectVessel(${id})"]`)?.classList.add('active');
-
-            // Center map
-            if (v.last_lat && v.last_lon) {
-                map.setView([v.last_lat, v.last_lon], 8);
-            }
-
-            // Load details
-            const [events, track, osint] = await Promise.all([
-                api(`/vessels/${id}/events`),
-                api(`/vessels/${id}/track?days=365`),
-                api(`/osint?vessel_id=${id}`)
-            ]);
-
-            // Draw track
+            map.setView([v.last_lat, v.last_lon], 8);
             if (trackLine) map.removeLayer(trackLine);
-            if (track?.length > 1) {
-                trackLine = L.polyline(track.map(p => [p.latitude, p.longitude]), {
-                    color: getThreatColor(v.threat_level), weight: 2, opacity: 0.7, dashArray: '6'
-                }).addTo(map);
-            }
+            trackLine = L.polyline(positions.map(p => [p.latitude, p.longitude]), { color: getThreatColor(v.threat_level), weight: 2, opacity: 0.7, dashArray: '6' }).addTo(map);
 
-            renderVesselPanel(v, events, osint);
-            document.getElementById('vessel-panel').classList.add('active');
-            // Load intelligence assessment
-            loadIntelligence(v.id);
-        }
-
-        function renderVesselPanel(v, events, osint) {
-            let weapons = {};
-            try { weapons = JSON.parse(v.weapons_config || '{}'); } catch(e) {}
-
+            let weapons = {}; try { weapons = JSON.parse(v.weapons_config || '{}'); } catch(e) {}
             document.getElementById('vessel-panel-content').innerHTML = `
                 <div class="panel-header">
-                    <button class="panel-close" onclick="closeVesselPanel()">&times;</button>
-                    <div class="vessel-icon-large" style="background:${getThreatColor(v.threat_level)}20;color:${getThreatColor(v.threat_level)}">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 19h16L12 2z"/></svg>
-                    </div>
+                    <button class="panel-close" onclick="document.getElementById('vessel-panel').classList.remove('active')">&times;</button>
+                    <div class="vessel-icon-large" style="background:${getThreatColor(v.threat_level)}20;color:${getThreatColor(v.threat_level)}"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 19h16L12 2z"/></svg></div>
                     <div class="vessel-name">${v.name}</div>
-                    <div class="vessel-type">${v.flag_state || ''} • ${v.vessel_type || 'Unknown Type'}</div>
+                    <div class="vessel-type">${v.flag_state} - ${v.vessel_type}</div>
                     <div class="threat-indicator threat-${v.threat_level}">${v.threat_level}</div>
                 </div>
-
-                ${v.photo_url ? `
-                <div class="panel-section" style="padding:0">
-                    <img src="${v.photo_url}" style="width:100%;max-height:200px;object-fit:cover" alt="Vessel photo">
-                </div>` : ''}
-
-                <div class="panel-section">
-                    <div class="section-title">Position</div>
-                    <div class="position-display">
-                        <div class="coord-box">
-                            <div class="coord-label">Latitude</div>
-                            <div class="coord-value">${v.last_lat?.toFixed(4) || '-'}</div>
-                        </div>
-                        <div class="coord-box">
-                            <div class="coord-label">Longitude</div>
-                            <div class="coord-value">${v.last_lon?.toFixed(4) || '-'}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="panel-section">
-                    <div class="section-title">Details</div>
-                    <div class="info-row"><span class="info-label">MMSI</span><span class="info-value">${v.mmsi || '-'}</span></div>
-                    <div class="info-row"><span class="info-label">IMO</span><span class="info-value">${v.imo || '-'}</span></div>
-                    <div class="info-row"><span class="info-label">Classification</span><span class="info-value">${v.classification || '-'}</span></div>
-                    <div class="info-row"><span class="info-label">Length</span><span class="info-value">${v.length_m ? v.length_m + 'm' : '-'}</span></div>
-                </div>
-
-                <div class="panel-section" id="confidence-section">
-                    <div class="section-title">
-                        Intel Assessment
-                        <button onclick="loadIntelligence(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Refresh</button>
-                    </div>
-                    <div id="confidence-display" style="padding:12px;color:#666">Loading...</div>
-                </div>
-
-                ${v.intel_notes ? `
-                <div class="panel-section">
-                    <div class="section-title">Intelligence</div>
-                    <div class="intel-box">${v.intel_notes}</div>
-                </div>` : ''}
-
-                ${Object.keys(weapons).length ? `
-                <div class="panel-section">
-                    <div class="section-title">Weapons</div>
-                    <div class="weapons-grid">
-                        ${weapons.vls_cells ? `<div class="weapon-item"><span class="weapon-name">VLS Cells</span><span class="weapon-value">${weapons.vls_cells}</span></div>` : ''}
-                        ${weapons.ciws ? `<div class="weapon-item"><span class="weapon-name">CIWS</span><span class="weapon-value">${weapons.ciws}</span></div>` : ''}
-                        ${weapons.decoys ? `<div class="weapon-item"><span class="weapon-name">Decoys</span><span class="weapon-value">${weapons.decoys}</span></div>` : ''}
-                        ${weapons.possible_missiles?.length ? `<div class="weapon-item"><span class="weapon-name">Missiles</span><span class="weapon-value">${weapons.possible_missiles.join(', ')}</span></div>` : ''}
-                    </div>
-                </div>` : ''}
-
-                <div class="action-buttons">
-                    <button class="action-btn action-btn-primary" onclick="runVesselIntel(${v.id})">AI Analysis</button>
-                    <button class="action-btn action-btn-secondary" onclick="openPositionModal()">Update Position</button>
-                    <button class="action-btn action-btn-secondary" onclick="openEditVesselModal(${v.id})">Edit Vessel</button>
-                    <button class="action-btn action-btn-secondary" style="color:#e94560" onclick="deleteVessel(${v.id})">Delete</button>
-                </div>
-
-                ${events?.length ? `
-                <div class="panel-section">
-                    <div class="section-title">Timeline</div>
-                    <div class="timeline">
-                        ${events.slice(0, 8).map(e => `
-                            <div class="timeline-item">
-                                <div class="timeline-dot severity-${e.severity === 'critical' ? 'critical' : e.severity === 'high' ? 'high' : e.severity === 'medium' ? 'medium' : 'info'}"></div>
-                                <div class="timeline-date">${new Date(e.event_date).toLocaleDateString()}</div>
-                                <div class="timeline-title">${e.title}</div>
-                                ${e.description ? `<div class="timeline-desc">${e.description}</div>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>` : ''}
-
-                ${osint?.length ? `
-                <div class="panel-section">
-                    <div class="section-title">OSINT Reports</div>
-                    ${osint.map(r => `
-                        <div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px">
-                            <div style="font-size:11px;color:#e94560;text-transform:uppercase;margin-bottom:4px">${r.source_name}</div>
-                            <a href="${r.source_url}" target="_blank" style="font-weight:500;color:#333;text-decoration:none">${r.title}</a>
-                            <div style="font-size:12px;color:#666;margin-top:4px">${r.summary || ''}</div>
-                        </div>
-                    `).join('')}
-                </div>` : ''}
-            `;
+                <div class="panel-section"><div class="section-title">Position</div><div class="position-display"><div class="coord-box"><div class="coord-label">Latitude</div><div class="coord-value">${v.last_lat.toFixed(4)}</div></div><div class="coord-box"><div class="coord-label">Longitude</div><div class="coord-value">${v.last_lon.toFixed(4)}</div></div></div></div>
+                <div class="panel-section"><div class="section-title">Details</div><div class="info-row"><span class="info-label">MMSI</span><span class="info-value">${v.mmsi || '-'}</span></div><div class="info-row"><span class="info-label">Classification</span><span class="info-value">${v.classification}</span></div><div class="info-row"><span class="info-label">Length</span><span class="info-value">${v.length_m}m</span></div></div>
+                <div class="panel-section"><div class="section-title">Intelligence</div><div class="intel-box">${v.intel_notes}</div></div>
+                <div class="panel-section"><div class="section-title">Weapons</div><div class="weapons-grid">${weapons.vls_cells ? `<div class="weapon-item"><span class="weapon-name">VLS Cells</span><span class="weapon-value">${weapons.vls_cells}</span></div>` : ''}${weapons.ciws ? `<div class="weapon-item"><span class="weapon-name">CIWS</span><span class="weapon-value">${weapons.ciws}</span></div>` : ''}${weapons.decoys ? `<div class="weapon-item"><span class="weapon-name">Decoys</span><span class="weapon-value">${weapons.decoys}</span></div>` : ''}${weapons.possible_missiles ? `<div class="weapon-item"><span class="weapon-name">Missiles</span><span class="weapon-value">${weapons.possible_missiles.join(', ')}</span></div>` : ''}</div></div>
+                <div class="panel-section"><div class="section-title">Timeline</div><div class="timeline">${events.slice(0, 8).map(e => `<div class="timeline-item"><div class="timeline-dot severity-${e.severity === 'critical' ? 'critical' : e.severity === 'high' ? 'high' : e.severity === 'medium' ? 'medium' : 'info'}"></div><div class="timeline-date">${new Date(e.event_date).toLocaleDateString()}</div><div class="timeline-title">${e.title}</div><div class="timeline-desc">${e.description}</div></div>`).join('')}</div></div>
+                <div class="panel-section"><div class="section-title">OSINT Reports</div>${osint.map(r => `<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px"><div style="font-size:11px;color:#e94560;text-transform:uppercase;margin-bottom:4px">${r.source_name}</div><a href="${r.source_url}" target="_blank" style="font-weight:500;color:#333;text-decoration:none">${r.title}</a><div style="font-size:12px;color:#666;margin-top:4px">${r.summary}</div></div>`).join('')}</div>`;
+            document.getElementById('vessel-panel').classList.add('active');
         }
 
-        function closeVesselPanel() {
-            document.getElementById('vessel-panel').classList.remove('active');
-            selectedVessel = null;
-        }
-
-        // Search
         const searchInput = document.getElementById('search-input');
         const searchResults = document.getElementById('search-results');
-
         searchInput.addEventListener('input', e => {
             const q = e.target.value.toLowerCase().trim();
             if (!q) { searchResults.classList.remove('active'); return; }
-
-            const matches = vessels.filter(v =>
-                v.name.toLowerCase().includes(q) ||
-                (v.mmsi && v.mmsi.includes(q)) ||
-                (v.imo && v.imo.includes(q))
-            ).slice(0, 5);
-
+            const matches = vessels.filter(v => v.name.toLowerCase().includes(q) || (v.mmsi && v.mmsi.includes(q)));
             if (!matches.length) { searchResults.classList.remove('active'); return; }
-
-            searchResults.innerHTML = matches.map(v => `
-                <div class="search-result-item" onclick="selectVessel(${v.id}); searchResults.classList.remove('active'); searchInput.value = '';">
-                    <div class="result-icon" style="background:${getThreatColor(v.threat_level)}20;color:${getThreatColor(v.threat_level)}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 19h16L12 2z"/></svg>
-                    </div>
-                    <div class="result-info">
-                        <div class="result-name">${v.name}</div>
-                        <div class="result-meta">${v.flag_state || ''} ${v.mmsi ? '• ' + v.mmsi : ''}</div>
-                    </div>
-                </div>
-            `).join('');
+            searchResults.innerHTML = matches.map(v => `<div class="search-result-item" onclick="selectVessel(${v.id}); searchResults.classList.remove('active'); searchInput.value = '';"><div class="result-icon" style="background:${getThreatColor(v.threat_level)}20;color:${getThreatColor(v.threat_level)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 19h16L12 2z"/></svg></div><div class="result-info"><div class="result-name">${v.name}</div><div class="result-meta">${v.flag_state} - ${v.mmsi || ''}</div></div></div>`).join('');
             searchResults.classList.add('active');
         });
 
-        searchInput.addEventListener('blur', () => setTimeout(() => searchResults.classList.remove('active'), 200));
+        document.getElementById('toggle-list').addEventListener('click', () => { document.getElementById('list-panel').classList.toggle('active'); document.getElementById('toggle-list').classList.toggle('active'); });
+        document.getElementById('toggle-shipyards').addEventListener('click', () => { showShipyards = !showShipyards; document.getElementById('toggle-shipyards').classList.toggle('active', showShipyards); renderShipyards(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('vessel-panel').classList.remove('active'); });
 
-        // Modals
-        function openModal(id) { document.getElementById(id).classList.add('active'); }
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        document.getElementById('toggle-live').addEventListener('click', () => { showLiveVessels = !showLiveVessels; document.getElementById('toggle-live').classList.toggle('active', showLiveVessels); renderLiveVessels(); });
 
-        function openAddVesselModal() {
-            ['vessel-name','vessel-mmsi','vessel-imo','vessel-flag','vessel-type','vessel-notes'].forEach(id => document.getElementById(id).value = '');
-            document.getElementById('vessel-classification').value = 'monitoring';
-            document.getElementById('vessel-threat').value = 'unknown';
-            openModal('add-vessel-modal');
-        }
-
-        function openPositionModal() {
-            const v = vessels.find(x => x.id === selectedVessel);
-            document.getElementById('position-lat').value = v?.last_lat || '';
-            document.getElementById('position-lon').value = v?.last_lon || '';
-            document.getElementById('position-heading').value = '';
-            document.getElementById('position-speed').value = '';
-            openModal('position-modal');
-        }
-
-        function setMapClickMode(enabled) {
-            mapClickMode = enabled;
-            document.getElementById('map-overlay').classList.toggle('active', enabled);
-            document.getElementById('map').style.cursor = enabled ? 'crosshair' : '';
-        }
-
-        function pickOnMap() {
-            setMapClickMode(true);
-            document.getElementById('vessel-panel').classList.remove('active');
-        }
-
-        async function addVessel() {
-            const name = document.getElementById('vessel-name').value.trim();
-            if (!name) return alert('Vessel name required');
-
-            await post('/vessels', {
-                name,
-                mmsi: document.getElementById('vessel-mmsi').value.trim() || null,
-                imo: document.getElementById('vessel-imo').value.trim() || null,
-                flag_state: document.getElementById('vessel-flag').value.trim() || null,
-                vessel_type: document.getElementById('vessel-type').value.trim() || null,
-                classification: document.getElementById('vessel-classification').value,
-                threat_level: document.getElementById('vessel-threat').value,
-                intel_notes: document.getElementById('vessel-notes').value.trim() || null
-            });
-
-            closeModal('add-vessel-modal');
-            await loadData();
-        }
-
-        async function savePosition() {
-            const lat = parseFloat(document.getElementById('position-lat').value);
-            const lon = parseFloat(document.getElementById('position-lon').value);
-            if (isNaN(lat) || isNaN(lon)) return alert('Valid coordinates required');
-
-            await post(`/vessels/${selectedVessel}/position`, {
-                latitude: lat,
-                longitude: lon,
-                heading: parseFloat(document.getElementById('position-heading').value) || null,
-                speed_knots: parseFloat(document.getElementById('position-speed').value) || null,
-                source: document.getElementById('position-source').value
-            });
-
-            closeModal('position-modal');
-            await loadData();
-            selectVessel(selectedVessel);
-        }
-
-        // Search news for a vessel
-        async function searchVesselNews(name, mmsi) {
-            const query = name || '';
-            document.getElementById('news-modal-title').textContent = `News Search: ${name || 'MMSI ' + mmsi}`;
-            document.getElementById('news-search-query').value = query;
-            document.getElementById('mmsi-lookup-link').href = `https://www.vesselfinder.com/vessels?name=${mmsi}`;
-            document.getElementById('news-results').innerHTML = name
-                ? '<div style="text-align:center;padding:40px;color:#666">Click Search to find news articles</div>'
-                : '<div style="text-align:center;padding:20px;color:#666"><strong>No vessel name in AIS data</strong><br><br>1. Click <b>"Lookup MMSI"</b> below<br>2. Find the vessel name on VesselFinder<br>3. Copy the name and paste it in the search box above<br>4. Click Search</div>';
-            openModal('news-modal');
-
-            // Auto-search if we have a name
-            if (name) {
-                executeNewsSearch();
-            }
-        }
-
-        // Execute news search with current query
-        async function executeNewsSearch() {
-            const query = document.getElementById('news-search-query').value.trim();
-            if (!query) {
-                document.getElementById('news-results').innerHTML = '<div style="text-align:center;padding:40px;color:#e94560">Please enter a search query</div>';
-                return;
-            }
-
-            document.getElementById('news-results').innerHTML = '<div style="text-align:center;padding:40px;color:#666">Searching Google News...</div>';
-
-            try {
-                const result = await post('/search-news', { query: query + ' ship vessel', max_results: 10 });
-
-                if (result.error) {
-                    document.getElementById('news-results').innerHTML = `<div style="text-align:center;padding:40px;color:#e94560">${result.error}</div>`;
-                    return;
-                }
-
-                if (!result.articles || result.articles.length === 0) {
-                    document.getElementById('news-results').innerHTML = '<div style="text-align:center;padding:40px;color:#666">No news articles found.<br><br>Try a different search term.</div>';
-                    return;
-                }
-
-                document.getElementById('news-results').innerHTML = result.articles.map(a => `
-                    <div style="padding:16px;border-bottom:1px solid #eee">
-                        <a href="${a.url}" target="_blank" style="font-weight:600;color:#333;text-decoration:none;font-size:14px">${a.title}</a>
-                        <div style="font-size:12px;color:#666;margin-top:4px">${a.source} • ${a.published}</div>
-                        ${a.description ? `<div style="font-size:13px;color:#444;margin-top:8px">${a.description}</div>` : ''}
-                    </div>
-                `).join('');
-
-            } catch (e) {
-                document.getElementById('news-results').innerHTML = `<div style="text-align:center;padding:40px;color:#e94560">Search failed: ${e.message}</div>`;
-            }
-        }
-
-        // Draw streaming area
-        function startDrawArea() {
-            drawingArea = true;
-            areaStartPoint = null;
-            if (areaRectangle) {
-                map.removeLayer(areaRectangle);
-                areaRectangle = null;
-            }
-            document.getElementById('draw-area-btn').classList.add('active');
-            document.getElementById('draw-area-btn').style.background = '#e94560';
-            document.getElementById('draw-area-btn').style.color = 'white';
-            document.getElementById('map').style.cursor = 'crosshair';
-            document.getElementById('map-overlay').textContent = 'Click and drag to draw streaming area';
-            document.getElementById('map-overlay').classList.add('active');
-        }
-
-        function stopDrawArea() {
-            drawingArea = false;
-            areaStartPoint = null;
-            document.getElementById('draw-area-btn').classList.remove('active');
-            document.getElementById('draw-area-btn').style.background = '';
-            document.getElementById('draw-area-btn').style.color = '';
-            document.getElementById('map').style.cursor = '';
-            document.getElementById('map-overlay').classList.remove('active');
-        }
-
-        function showAreaModal(bounds) {
-            const sw = bounds.getSouthWest();
-            const ne = bounds.getNorthEast();
-            document.getElementById('area-lat-min').textContent = sw.lat.toFixed(2);
-            document.getElementById('area-lon-min').textContent = sw.lng.toFixed(2);
-            document.getElementById('area-lat-max').textContent = ne.lat.toFixed(2);
-            document.getElementById('area-lon-max').textContent = ne.lng.toFixed(2);
-            openModal('area-modal');
-        }
-
-        function copyAreaConfig() {
-            const config = `"bounding_box": {
-  "lat_min": ${document.getElementById('area-lat-min').textContent},
-  "lon_min": ${document.getElementById('area-lon-min').textContent},
-  "lat_max": ${document.getElementById('area-lat-max').textContent},
-  "lon_max": ${document.getElementById('area-lon-max').textContent}
-}`;
-            navigator.clipboard.writeText(config).then(() => {
-                alert('Copied to clipboard! Paste into ais_config.json');
-            });
-        }
-
-        async function applyAreaConfig() {
-            const data = {
-                lat_min: parseFloat(document.getElementById('area-lat-min').textContent),
-                lon_min: parseFloat(document.getElementById('area-lon-min').textContent),
-                lat_max: parseFloat(document.getElementById('area-lat-max').textContent),
-                lon_max: parseFloat(document.getElementById('area-lon-max').textContent),
-                description: 'Custom area drawn on map'
-            };
-
-            try {
-                const result = await post('/config/bounding-box', data);
-                if (result.error) {
-                    alert('Failed to save: ' + result.error);
-                } else {
-                    alert('Config saved! Restart stream_area.py to apply the new area.');
-                    closeModal('area-modal');
-                }
-            } catch (e) {
-                alert('Failed to save config: ' + e.message);
-            }
-        }
-
-        // Photo preview for edit modal
-        function previewPhoto(input) {
-            const preview = document.getElementById('edit-vessel-photo-preview');
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:150px;border-radius:8px;border:1px solid #ddd">`;
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        // Upload vessel photo
-        async function uploadVesselPhoto(vesselId) {
-            const input = document.getElementById('edit-vessel-photo');
-            if (!input.files || !input.files[0]) return null;
-
-            const file = input.files[0];
-            const reader = new FileReader();
-
-            return new Promise((resolve, reject) => {
-                reader.onload = async function(e) {
-                    try {
-                        const result = await post(`/vessels/${vesselId}/photo`, {
-                            photo: e.target.result,
-                            filename: file.name
-                        });
-                        resolve(result);
-                    } catch (err) {
-                        reject(err);
-                    }
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
-
-        document.getElementById('draw-area-btn').addEventListener('click', () => {
-            if (drawingArea) {
-                stopDrawArea();
-            } else {
-                startDrawArea();
-            }
-        });
-
-        // Track a live vessel - open modal to enter details
-        function trackLiveVessel(vesselData) {
-            const mmsi = vesselData.mmsi;
-            document.getElementById('track-vessel-mmsi').textContent = mmsi;
-            document.getElementById('track-vessel-lookup').href = `https://www.vesselfinder.com/vessels?name=${mmsi}`;
-            // Basic info
-            document.getElementById('track-vessel-name').value = vesselData.name && !vesselData.name.startsWith('MMSI') ? vesselData.name : '';
-            document.getElementById('track-vessel-type').value = vesselData.ship_type || '';
-            document.getElementById('track-vessel-flag').value = vesselData.flag || '';
-            document.getElementById('track-vessel-imo').value = vesselData.imo || '';
-            document.getElementById('track-vessel-length').value = '';
-            document.getElementById('track-vessel-classification').value = 'monitoring';
-            document.getElementById('track-vessel-threat').value = 'unknown';
-            // Weapons
-            document.getElementById('track-vessel-vls').value = '';
-            document.getElementById('track-vessel-vls-type').value = '';
-            document.getElementById('track-vessel-ciws').value = '';
-            document.getElementById('track-vessel-decoys').value = '';
-            document.getElementById('track-vessel-missiles').value = '';
-            // Intel
-            document.getElementById('track-vessel-notes').value = '';
-            document.getElementById('track-vessel-data').value = JSON.stringify(vesselData);
-            openModal('track-vessel-modal');
-        }
-
-        // Confirm tracking after user fills in details
-        async function confirmTrackVessel() {
-            const vesselData = JSON.parse(document.getElementById('track-vessel-data').value);
-            const name = document.getElementById('track-vessel-name').value.trim();
-
-            if (!name) {
-                alert('Please enter the vessel name (look it up on VesselFinder)');
-                return;
-            }
-
-            // Update vessel data with user input
-            vesselData.name = name;
-            vesselData.ship_type = document.getElementById('track-vessel-type').value.trim() || vesselData.ship_type;
-            vesselData.flag = document.getElementById('track-vessel-flag').value.trim() || vesselData.flag;
-            vesselData.imo = document.getElementById('track-vessel-imo').value.trim() || null;
-            vesselData.length_m = parseFloat(document.getElementById('track-vessel-length').value) || null;
-            vesselData.classification = document.getElementById('track-vessel-classification').value;
-            vesselData.threat_level = document.getElementById('track-vessel-threat').value;
-            vesselData.intel_notes = document.getElementById('track-vessel-notes').value.trim() || null;
-
-            // Build weapons config
-            const vls = document.getElementById('track-vessel-vls').value;
-            const vlsType = document.getElementById('track-vessel-vls-type').value.trim();
-            const ciws = document.getElementById('track-vessel-ciws').value.trim();
-            const decoys = document.getElementById('track-vessel-decoys').value.trim();
-            const missiles = document.getElementById('track-vessel-missiles').value.trim();
-
-            if (vls || vlsType || ciws || decoys || missiles) {
-                vesselData.weapons_config = {};
-                if (vls) vesselData.weapons_config.vls_cells = parseInt(vls);
-                if (vlsType) vesselData.weapons_config.vls_type = vlsType;
-                if (ciws) vesselData.weapons_config.ciws = ciws;
-                if (decoys) vesselData.weapons_config.decoys = decoys;
-                if (missiles) vesselData.weapons_config.possible_missiles = missiles.split(',').map(m => m.trim());
-            }
-
-            try {
-                const result = await post('/track-vessel', vesselData);
-
-                if (result.error) {
-                    alert(result.error);
-                    if (result.vessel_id) {
-                        closeModal('track-vessel-modal');
-                        selectVessel(result.vessel_id);
-                    }
-                    return;
-                }
-
-                closeModal('track-vessel-modal');
-                alert(`Vessel "${result.name}" added to tracking!`);
-                await loadData();
-                selectVessel(result.id);
-
-            } catch (e) {
-                alert('Failed to track vessel: ' + e.message);
-            }
-        }
-
-        // Run AI-powered vessel intelligence analysis
-        async function runVesselIntel(vesselId) {
-            const v = vessels.find(x => x.id === vesselId);
-            if (!v) return;
-
-            // Show modal with loading state
-            document.getElementById('intel-loading').style.display = 'block';
-            document.getElementById('intel-error').style.display = 'none';
-            document.getElementById('intel-results').style.display = 'none';
-            openModal('intel-modal');
-
-            try {
-                const vesselData = {
-                    id: v.id,
-                    name: v.name,
-                    mmsi: v.mmsi,
-                    imo: v.imo,
-                    vessel_type: v.vessel_type,
-                    flag_state: v.flag_state,
-                    length_m: v.length_m,
-                    classification: v.classification,
-                    threat_level: v.threat_level,
-                    intel_notes: v.intel_notes
-                };
-
-                const result = await post('/vessel-intel', { vessel: vesselData });
-
-                document.getElementById('intel-loading').style.display = 'none';
-
-                if (result.error) {
-                    document.getElementById('intel-error').textContent = result.error;
-                    document.getElementById('intel-error').style.display = 'block';
-                    return;
-                }
-
-                // Display results
-                document.getElementById('intel-results').style.display = 'block';
-
-                // Extract and display BLUF
-                const analysis = result.analysis?.analysis || '';
-                const blufMatch = analysis.match(/## BLUF\s*([\s\S]*?)(?=##|$)/i);
-                const blufText = blufMatch ? blufMatch[1].trim() : 'Analysis complete';
-
-                // Determine risk color
-                let riskColor = '#3498db';
-                if (analysis.includes('CRITICAL')) riskColor = '#e94560';
-                else if (analysis.includes('HIGH')) riskColor = '#e74c3c';
-                else if (analysis.includes('MODERATE')) riskColor = '#f39c12';
-                else if (analysis.includes('LOW')) riskColor = '#27ae60';
-
-                document.getElementById('intel-bluf').innerHTML = `
-                    <div style="font-weight:600;margin-bottom:8px;color:${riskColor}">BLUF - Bottom Line Up Front</div>
-                    <div style="font-size:14px;line-height:1.6">${blufText}</div>
-                `;
-
-                // Display news results
-                const newsResults = result.news_results || [];
-                if (newsResults.length > 0) {
-                    document.getElementById('intel-news').innerHTML = `
-                        <div style="font-weight:600;margin-bottom:8px">News Coverage (${newsResults.length} articles found)</div>
-                        <div style="background:#f8f9fa;padding:12px;border-radius:8px;max-height:150px;overflow-y:auto">
-                            ${newsResults.slice(0, 5).map(a => `
-                                <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #eee">
-                                    <a href="${a.url}" target="_blank" style="font-weight:500;color:#333;text-decoration:none">${a.title || 'Untitled'}</a>
-                                    <div style="font-size:11px;color:#666">${a.source || ''} • Query: ${a.search_query || ''}</div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    `;
-                } else {
-                    document.getElementById('intel-news').innerHTML = `
-                        <div style="background:#fff3cd;padding:12px;border-radius:8px;color:#856404;font-size:13px">
-                            <strong>No news coverage found</strong> — This is itself intelligence. The vessel has low media visibility.
-                        </div>
-                    `;
-                }
-
-                // Display full analysis
-                document.getElementById('intel-analysis').textContent = analysis;
-
-            } catch (e) {
-                document.getElementById('intel-loading').style.display = 'none';
-                document.getElementById('intel-error').textContent = 'Analysis failed: ' + e.message;
-                document.getElementById('intel-error').style.display = 'block';
-            }
-        }
-
-        // Open edit vessel modal
-        function openEditVesselModal(vesselId) {
-            const v = vessels.find(x => x.id === vesselId);
-            if (!v) return;
-
-            document.getElementById('edit-vessel-id').value = vesselId;
-            document.getElementById('edit-vessel-name').value = v.name || '';
-            document.getElementById('edit-vessel-flag').value = v.flag_state || '';
-            document.getElementById('edit-vessel-type').value = v.vessel_type || '';
-            document.getElementById('edit-vessel-classification').value = v.classification || 'monitoring';
-            document.getElementById('edit-vessel-threat').value = v.threat_level || 'unknown';
-            document.getElementById('edit-vessel-notes').value = v.intel_notes || '';
-
-            // Show existing photo or clear preview
-            const preview = document.getElementById('edit-vessel-photo-preview');
-            if (v.photo_url) {
-                preview.innerHTML = `<img src="${v.photo_url}" style="max-width:100%;max-height:150px;border-radius:8px;border:1px solid #ddd">`;
-            } else {
-                preview.innerHTML = '';
-            }
-            // Clear file input
-            document.getElementById('edit-vessel-photo').value = '';
-
-            openModal('edit-vessel-modal');
-        }
-
-        // Save vessel edits
-        async function saveVesselEdit() {
-            const vesselId = document.getElementById('edit-vessel-id').value;
-            const name = document.getElementById('edit-vessel-name').value.trim();
-
-            if (!name) {
-                alert('Vessel name is required');
-                return;
-            }
-
-            try {
-                // Update vessel info
-                const result = await post(`/vessels/${vesselId}/update`, {
-                    name,
-                    flag_state: document.getElementById('edit-vessel-flag').value.trim() || null,
-                    vessel_type: document.getElementById('edit-vessel-type').value.trim() || null,
-                    classification: document.getElementById('edit-vessel-classification').value,
-                    threat_level: document.getElementById('edit-vessel-threat').value,
-                    intel_notes: document.getElementById('edit-vessel-notes').value.trim() || null
-                });
-
-                if (result.error) {
-                    alert('Failed to update vessel: ' + result.error);
-                    return;
-                }
-
-                // Upload photo if selected
-                const photoInput = document.getElementById('edit-vessel-photo');
-                if (photoInput.files && photoInput.files[0]) {
-                    try {
-                        await uploadVesselPhoto(vesselId);
-                    } catch (photoErr) {
-                        console.error('Photo upload failed:', photoErr);
-                        alert('Vessel updated but photo upload failed.');
-                    }
-                }
-
-                closeModal('edit-vessel-modal');
-                await loadData();
-                selectVessel(parseInt(vesselId));
-                alert('Vessel updated successfully!');
-
-            } catch (e) {
-                alert('Failed to update vessel: ' + e.message);
-            }
-        }
-
-        // Delete a vessel
-        async function deleteVessel(vesselId) {
-            const v = vessels.find(x => x.id === vesselId);
-            if (!v) return;
-
-            if (!confirm(`Delete "${v.name}"?\n\nThis will remove the vessel and all associated data (positions, events, alerts).`)) {
-                return;
-            }
-
-            try {
-                const result = await api(`/vessels/${vesselId}`, { method: 'DELETE' });
-
-                if (result.error) {
-                    alert('Failed to delete vessel: ' + result.error);
-                    return;
-                }
-
-                closeVesselPanel();
-                await loadData();
-                alert('Vessel deleted successfully!');
-
-            } catch (e) {
-                alert('Failed to delete vessel: ' + e.message);
-            }
-        }
-
-        // Toggle buttons
-        document.getElementById('toggle-list').addEventListener('click', () => {
-            document.getElementById('list-panel').classList.toggle('active');
-            document.getElementById('toggle-list').classList.toggle('active');
-        });
-
-        document.getElementById('add-vessel-btn').addEventListener('click', openAddVesselModal);
-
-        document.getElementById('toggle-shipyards').addEventListener('click', () => {
-            showShipyards = !showShipyards;
-            document.getElementById('toggle-shipyards').classList.toggle('active', showShipyards);
-            renderShipyards();
-        });
-
-        document.getElementById('toggle-live').addEventListener('click', () => {
-            showLiveVessels = !showLiveVessels;
-            document.getElementById('toggle-live').classList.toggle('active', showLiveVessels);
-            if (showLiveVessels) {
-                document.getElementById('toggle-live').style.background = '#3498db';
-                document.getElementById('toggle-live').style.color = 'white';
-            } else {
-                document.getElementById('toggle-live').style.background = 'white';
-                document.getElementById('toggle-live').style.color = 'inherit';
-            }
-            renderLiveVessels();
-        });
-
-        // Layer control popup
-        document.getElementById('toggle-layers').addEventListener('click', (e) => {
-            e.stopPropagation();
-            const popup = document.getElementById('layer-popup');
-            popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
-        });
-
-        // Close layer popup when clicking elsewhere
-        document.addEventListener('click', (e) => {
-            const popup = document.getElementById('layer-popup');
-            const btn = document.getElementById('toggle-layers');
-            if (!popup.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-                popup.style.display = 'none';
-            }
-        });
-
-        // Basemap switching
-        document.querySelectorAll('input[name="basemap"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                const newBasemap = e.target.value;
-                if (currentBasemap) {
-                    map.removeLayer(currentBasemap);
-                }
-                currentBasemap = basemaps[newBasemap];
-                currentBasemap.addTo(map);
-                // Ensure basemap is below other layers
-                currentBasemap.bringToBack();
-            });
-        });
-
-        // Weather overlay toggles
-        function toggleWeatherLayer(type, checkbox) {
-            if (checkbox.checked) {
-                if (!weatherLayers[type]) {
-                    weatherLayers[type] = createWeatherLayer(type);
-                }
-                weatherLayers[type].addTo(map);
-            } else if (weatherLayers[type]) {
-                map.removeLayer(weatherLayers[type]);
-            }
-        }
-
-        document.getElementById('weather-clouds').addEventListener('change', (e) => toggleWeatherLayer('clouds', e.target));
-        document.getElementById('weather-precip').addEventListener('change', (e) => toggleWeatherLayer('precip', e.target));
-        document.getElementById('weather-wind').addEventListener('change', (e) => toggleWeatherLayer('wind', e.target));
-        document.getElementById('weather-temp').addEventListener('change', (e) => toggleWeatherLayer('temp', e.target));
-
-        // SAR Imagery Overlay
-        let sarImageryLayer = null;
-
-        function createSarImageryLayer(opacity = 0.5) {
-            // Try multiple SAR imagery sources
-            // 1. NASA GIBS Sentinel-1 (free, may have limited coverage)
-            // 2. Fallback to recent optical satellite for comparison
-            const today = new Date();
-            const dateStr = today.toISOString().split('T')[0];
-
-            // NASA GIBS MODIS Terra (daily global coverage) as reliable base
-            // SAR-specific layers have limited geographic/temporal coverage
-            const layer = L.tileLayer(
-                'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
-                {
-                    maxZoom: 9,
-                    opacity: opacity,
-                    time: dateStr,
-                    attribution: '&copy; NASA GIBS'
-                }
-            );
-
-            // Also try adding Sentinel-1 when zoomed in (limited coverage)
-            layer.on('add', function() {
-                console.log('SAR overlay added - Note: Full Sentinel-1 SAR requires EO Browser for detailed view');
-            });
-
-            return layer;
-        }
-
-        // For detailed SAR, we open EO Browser (handled by the satellite button)
-
-        document.getElementById('sar-overlay').addEventListener('change', (e) => {
-            if (e.target.checked) {
-                const opacity = document.getElementById('sar-opacity').value / 100;
-                sarImageryLayer = createSarImageryLayer(opacity);
-                sarImageryLayer.addTo(map);
-            } else if (sarImageryLayer) {
-                map.removeLayer(sarImageryLayer);
-                sarImageryLayer = null;
-            }
-        });
-
-        document.getElementById('sar-opacity').addEventListener('input', (e) => {
-            if (sarImageryLayer) {
-                sarImageryLayer.setOpacity(e.target.value / 100);
-            }
-            // Update label
-            const label = document.querySelector('label[for="sar-overlay"], label:has(#sar-overlay)');
-            if (label) {
-                const text = label.querySelector('input').nextSibling;
-                if (text) text.textContent = ` Sentinel-1 SAR (${e.target.value}%)`;
-            }
-        });
-
-        // Quick weather toggle button (toggles precipitation)
-        document.getElementById('toggle-weather').addEventListener('click', () => {
-            const checkbox = document.getElementById('weather-precip');
-            checkbox.checked = !checkbox.checked;
-            toggleWeatherLayer('precip', checkbox);
-            document.getElementById('toggle-weather').classList.toggle('active', checkbox.checked);
-        });
-
-        // Escape key
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
-                setMapClickMode(false);
-            }
-        });
-
-        // SAR Detection Layer
-        let sarMarkers = [];
-        let showSarDetections = false;
-
-        async function loadSarDetections() {
-            try {
-                const data = await api('/sar-detections');
-                renderSarDetections(data || []);
-            } catch(e) {
-                console.log('SAR detections not available');
-            }
-        }
-
-        function renderSarDetections(detections) {
-            // Clear existing markers
-            sarMarkers.forEach(m => map.removeLayer(m));
-            sarMarkers = [];
-
-            if (!showSarDetections) return;
-
-            detections.forEach(d => {
-                const color = d.matched_mmsi ? '#9b59b6' : '#e74c3c'; // Purple if matched, red if dark vessel
-                const marker = L.circleMarker([d.latitude, d.longitude], {
-                    radius: 8,
-                    fillColor: color,
-                    color: '#fff',
-                    weight: 2,
-                    fillOpacity: 0.8
-                }).addTo(map);
-
-                const matchStatus = d.matched_mmsi ? `Matched: MMSI ${d.matched_mmsi}` : '<span style="color:#e74c3c;font-weight:bold">DARK VESSEL</span>';
-                marker.bindPopup(`
-                    <div style="padding:8px;min-width:180px">
-                        <div style="font-weight:600;margin-bottom:8px">SAR Detection</div>
-                        <div style="font-size:12px;color:#666;margin-bottom:4px">
-                            <strong>Time:</strong> ${new Date(d.detection_time).toLocaleString()}
-                        </div>
-                        <div style="font-size:12px;color:#666;margin-bottom:4px">
-                            <strong>Position:</strong> ${d.latitude.toFixed(4)}, ${d.longitude.toFixed(4)}
-                        </div>
-                        ${d.estimated_length ? `<div style="font-size:12px;color:#666;margin-bottom:4px"><strong>Length:</strong> ${d.estimated_length}m</div>` : ''}
-                        <div style="font-size:12px;margin-top:8px">${matchStatus}</div>
-                    </div>
-                `);
-                sarMarkers.push(marker);
-            });
-        }
-
-        document.getElementById('toggle-sar').addEventListener('click', () => {
-            showSarDetections = !showSarDetections;
-            document.getElementById('toggle-sar').classList.toggle('active', showSarDetections);
-            if (showSarDetections) {
-                document.getElementById('toggle-sar').style.background = '#9b59b6';
-                document.getElementById('toggle-sar').style.color = 'white';
-                loadSarDetections();
-            } else {
-                document.getElementById('toggle-sar').style.background = '';
-                document.getElementById('toggle-sar').style.color = '';
-                renderSarDetections([]);
-            }
-        });
-
-        // Open EO Browser with current map view for SAR imagery
-        document.getElementById('open-satellite').addEventListener('click', () => {
-            const center = map.getCenter();
-            const zoom = map.getZoom();
-            const lat = center.lat.toFixed(4);
-            const lng = center.lng.toFixed(4);
-
-            // Calculate date range (last 30 days)
-            const endDate = new Date().toISOString().split('T')[0];
-            const startDate = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
-
-            // EO Browser URL with Sentinel-1 SAR layer
-            const eoUrl = `https://apps.sentinel-hub.com/eo-browser/?zoom=${Math.min(zoom, 14)}&lat=${lat}&lng=${lng}&themeId=DEFAULT-THEME&visualizationUrl=https://services.sentinel-hub.com/ogc/wms/c6b3cfef-6ac4-4c1e-86f8-eb4c4c47ab57&datasetId=S1_AWS_IW_VVVH&fromTime=${startDate}T00:00:00.000Z&toTime=${endDate}T23:59:59.999Z&layerId=VV-DECIBEL-GAMMA0-ORTHORECTIFIED`;
-
-            window.open(eoUrl, '_blank', 'width=1200,height=800');
-        });
-
-        // Intelligence Functions
-        async function loadConfidence(vesselId) {
-            // Redirect to intelligence for richer display
-            return loadIntelligence(vesselId);
-        }
-
-        async function loadIntelligence(vesselId) {
-            const display = document.getElementById('confidence-display');
-            if (display) display.innerHTML = '<span style="color:#666">Analyzing...</span>';
-
-            try {
-                const intel = await api(`/vessels/${vesselId}/intel`);
-                renderIntelligence(intel);
-            } catch(e) {
-                // Fallback to confidence score if intel fails
-                try {
-                    const score = await api(`/vessels/${vesselId}/confidence`);
-                    renderConfidenceScore(score);
-                } catch(e2) {
-                    if (display) display.innerHTML = '<span style="color:#e74c3c">Error loading intelligence</span>';
-                }
-            }
-        }
-
-        async function refreshConfidence(vesselId) {
-            const display = document.getElementById('confidence-display');
-            if (display) display.innerHTML = '<span style="color:#666">Calculating...</span>';
-
-            try {
-                const score = await api(`/vessels/${vesselId}/confidence?refresh=true`);
-                renderConfidenceScore(score);
-            } catch(e) {
-                if (display) display.innerHTML = '<span style="color:#e74c3c">Error calculating score</span>';
-            }
-        }
-
-        function renderIntelligence(intel) {
-            const display = document.getElementById('confidence-display');
-            if (!display || !intel) return;
-
-            const confidence = (intel.confidence * 100).toFixed(0);
-            const deception = (intel.deception_likelihood * 100).toFixed(0);
-            const bd = intel.confidence_breakdown || {};
-
-            // Color based on confidence level
-            let confColor = '#27ae60'; // green
-            if (confidence < 50) confColor = '#e74c3c'; // red
-            else if (confidence < 70) confColor = '#f39c12'; // orange
-
-            // Deception color
-            let decColor = '#27ae60';
-            if (deception > 50) decColor = '#e74c3c';
-            else if (deception > 25) decColor = '#f39c12';
-
-            // Level badge color
-            const levelColors = {
-                'confirmed_threat': '#e74c3c',
-                'likely_gray_zone': '#e67e22',
-                'suspicious': '#f39c12',
-                'anomalous': '#9b59b6',
-                'monitoring': '#3498db',
-                'benign': '#27ae60'
-            };
-            const levelColor = levelColors[intel.assessment_level] || '#666';
-
-            // Build breakdown rows
-            let breakdownHtml = '';
-            if (bd.breakdown) {
-                breakdownHtml = bd.breakdown.map(c => `
-                    <div style="display:flex;justify-content:space-between;margin-bottom:2px;font-size:10px">
-                        <span style="color:#666">${c.component}</span>
-                        <span style="color:#333">${(c.score * 100).toFixed(0)}% × ${(c.weight * 100).toFixed(0)}% = <b style="color:#27ae60">${c.contribution}</b></span>
-                    </div>
-                `).join('');
-            }
-
-            // Build adjustments
-            let adjustHtml = '';
-            if (bd.adjustments) {
-                adjustHtml = bd.adjustments.map(a => {
-                    const adj = parseFloat(a.adjustment);
-                    const adjColor = adj < 0 ? '#e74c3c' : (adj > 0 ? '#27ae60' : '#666');
-                    const source = a.source ? ` (${a.source})` : '';
-                    return `<div style="display:flex;justify-content:space-between;font-size:10px">
-                        <span style="color:#666">${a.name}${source}</span>
-                        <span style="color:${adjColor}">${a.adjustment}</span>
-                    </div>`;
-                }).join('');
-            }
-
-            // Build indicators
-            let indicatorsHtml = '';
-            if (intel.indicators && intel.indicators.length > 0) {
-                indicatorsHtml = `
-                    <div style="margin-top:10px;padding-top:8px;border-top:1px solid #eee">
-                        <div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">ACTIVE INDICATORS</div>
-                        ${intel.indicators.slice(0, 5).map(i => `
-                            <div style="display:flex;align-items:start;margin-bottom:4px;font-size:10px">
-                                <span style="color:#e74c3c;margin-right:4px">●</span>
-                                <span style="flex:1;color:#333">${i.description}</span>
-                                <span style="color:#666;font-size:9px">+${(i.weight * 100).toFixed(0)}%</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-            }
-
-            display.innerHTML = `
-                <div style="background:${levelColor}15;border-left:3px solid ${levelColor};padding:8px;margin-bottom:12px;border-radius:0 4px 4px 0">
-                    <div style="font-size:10px;color:${levelColor};font-weight:600;text-transform:uppercase;margin-bottom:4px">${intel.assessment_level?.replace(/_/g, ' ')}</div>
-                    <div style="font-size:12px;color:#333">${intel.assessment}</div>
-                </div>
-
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center;margin-bottom:12px">
-                    <div style="background:#f8f9fa;padding:10px;border-radius:6px">
-                        <div style="font-size:20px;font-weight:700;color:${confColor}">${confidence}%</div>
-                        <div style="font-size:9px;color:#666;text-transform:uppercase">Confidence</div>
-                    </div>
-                    <div style="background:#f8f9fa;padding:10px;border-radius:6px">
-                        <div style="font-size:20px;font-weight:700;color:${decColor}">${deception}%</div>
-                        <div style="font-size:9px;color:#666;text-transform:uppercase">Deception Risk</div>
-                    </div>
-                </div>
-
-                <div style="background:#fafafa;padding:8px;border-radius:4px;margin-bottom:8px">
-                    <div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">CONFIDENCE BREAKDOWN</div>
-                    ${breakdownHtml}
-                    ${adjustHtml ? `<div style="border-top:1px dashed #ddd;margin-top:6px;padding-top:6px">${adjustHtml}</div>` : ''}
-                </div>
-
-                ${indicatorsHtml}
-
-                <div style="margin-top:8px;font-size:9px;color:#999;text-align:right">
-                    ${intel.data_sources?.join(' • ') || ''} • ${new Date(intel.last_updated).toLocaleTimeString()}
-                </div>
-            `;
-        }
-
-        function renderConfidenceScore(score) {
-            const display = document.getElementById('confidence-display');
-            if (!display || !score) return;
-
-            const overall = (score.overall_confidence * 100).toFixed(0);
-            const deception = (score.deception_likelihood * 100).toFixed(0);
-
-            // Color based on confidence level
-            let confColor = '#27ae60'; // green
-            if (overall < 50) confColor = '#e74c3c'; // red
-            else if (overall < 70) confColor = '#f39c12'; // orange
-
-            // Deception color (inverse - red is bad)
-            let decColor = '#27ae60';
-            if (deception > 50) decColor = '#e74c3c';
-            else if (deception > 25) decColor = '#f39c12';
-
-            display.innerHTML = `
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center">
-                    <div style="background:#f8f9fa;padding:12px;border-radius:8px">
-                        <div style="font-size:24px;font-weight:700;color:${confColor}">${overall}%</div>
-                        <div style="font-size:11px;color:#666;text-transform:uppercase">Confidence</div>
-                    </div>
-                    <div style="background:#f8f9fa;padding:12px;border-radius:8px">
-                        <div style="font-size:24px;font-weight:700;color:${decColor}">${deception}%</div>
-                        <div style="font-size:11px;color:#666;text-transform:uppercase">Deception Risk</div>
-                    </div>
-                </div>
-                <div style="margin-top:12px;font-size:11px;color:#999">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                        <span>AIS Consistency</span><span>${(score.ais_consistency * 100).toFixed(0)}%</span>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                        <span>Behavioral Normalcy</span><span>${(score.behavioral_normalcy * 100).toFixed(0)}%</span>
-                    </div>
-                    <div style="display:flex;justify-content:space-between">
-                        <span>SAR Corroboration</span><span>${(score.sar_corroboration * 100).toFixed(0)}%</span>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Init
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
-            loadData();
+            renderVesselList();
+            renderVesselMarkers();
+            renderShipyards();
             loadLiveVessels();
-            document.getElementById('toggle-shipyards').classList.add('active');
             // Auto-refresh live vessels every 10 seconds
             setInterval(loadLiveVessels, 10000);
         });
