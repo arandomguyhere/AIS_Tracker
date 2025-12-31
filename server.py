@@ -50,6 +50,13 @@ try:
 except ImportError:
     CONFIDENCE_AVAILABLE = False
 
+# Import intelligence module
+try:
+    from intelligence import produce_vessel_intelligence, get_intel_summary
+    INTELLIGENCE_AVAILABLE = True
+except ImportError:
+    INTELLIGENCE_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -798,6 +805,20 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                     score = calculate_vessel_confidence(vessel_id, days)
                     save_confidence_to_db(score)
                     return self.send_json(score.to_dict())
+
+        elif path.startswith('/api/vessels/') and path.endswith('/intel'):
+            # Formal intelligence assessment
+            if not INTELLIGENCE_AVAILABLE:
+                return self.send_json({'error': 'Intelligence module not available'}, 500)
+            vessel_id = int(path.split('/')[3])
+            days = int(params.get('days', [30])[0])
+            summary_only = params.get('summary', ['false'])[0].lower() == 'true'
+
+            if summary_only:
+                return self.send_json(get_intel_summary(vessel_id))
+            else:
+                intel = produce_vessel_intelligence(vessel_id, days)
+                return self.send_json(intel.to_dict())
 
         elif path.startswith('/api/vessels/') and len(path.split('/')) == 4:
             # Only match /api/vessels/{id}, not /api/vessels/{id}/something

@@ -1592,8 +1592,8 @@
 
             renderVesselPanel(v, events, osint);
             document.getElementById('vessel-panel').classList.add('active');
-            // Load confidence score
-            loadConfidence(v.id);
+            // Load intelligence assessment
+            loadIntelligence(v.id);
         }
 
         function renderVesselPanel(v, events, osint) {
@@ -1639,8 +1639,11 @@
                 </div>
 
                 <div class="panel-section" id="confidence-section">
-                    <div class="section-title">Confidence Score <button onclick="refreshConfidence(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Refresh</button></div>
-                    <div id="confidence-display" style="text-align:center;padding:12px;color:#666">Loading...</div>
+                    <div class="section-title">
+                        Intel Assessment
+                        <button onclick="loadIntelligence(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Refresh</button>
+                    </div>
+                    <div id="confidence-display" style="padding:12px;color:#666">Loading...</div>
                 </div>
 
                 ${v.intel_notes ? `
@@ -2462,16 +2465,27 @@
             window.open(eoUrl, '_blank', 'width=1200,height=800');
         });
 
-        // Confidence Score Functions
+        // Intelligence Functions
         async function loadConfidence(vesselId) {
+            // Redirect to intelligence for richer display
+            return loadIntelligence(vesselId);
+        }
+
+        async function loadIntelligence(vesselId) {
             const display = document.getElementById('confidence-display');
-            if (!display) return;
+            if (display) display.innerHTML = '<span style="color:#666">Analyzing...</span>';
 
             try {
-                const score = await api(`/vessels/${vesselId}/confidence`);
-                renderConfidenceScore(score);
+                const intel = await api(`/vessels/${vesselId}/intel`);
+                renderIntelligence(intel);
             } catch(e) {
-                display.innerHTML = '<span style="color:#999">Not available</span>';
+                // Fallback to confidence score if intel fails
+                try {
+                    const score = await api(`/vessels/${vesselId}/confidence`);
+                    renderConfidenceScore(score);
+                } catch(e2) {
+                    if (display) display.innerHTML = '<span style="color:#e74c3c">Error loading intelligence</span>';
+                }
             }
         }
 
@@ -2485,6 +2499,108 @@
             } catch(e) {
                 if (display) display.innerHTML = '<span style="color:#e74c3c">Error calculating score</span>';
             }
+        }
+
+        function renderIntelligence(intel) {
+            const display = document.getElementById('confidence-display');
+            if (!display || !intel) return;
+
+            const confidence = (intel.confidence * 100).toFixed(0);
+            const deception = (intel.deception_likelihood * 100).toFixed(0);
+            const bd = intel.confidence_breakdown || {};
+
+            // Color based on confidence level
+            let confColor = '#27ae60'; // green
+            if (confidence < 50) confColor = '#e74c3c'; // red
+            else if (confidence < 70) confColor = '#f39c12'; // orange
+
+            // Deception color
+            let decColor = '#27ae60';
+            if (deception > 50) decColor = '#e74c3c';
+            else if (deception > 25) decColor = '#f39c12';
+
+            // Level badge color
+            const levelColors = {
+                'confirmed_threat': '#e74c3c',
+                'likely_gray_zone': '#e67e22',
+                'suspicious': '#f39c12',
+                'anomalous': '#9b59b6',
+                'monitoring': '#3498db',
+                'benign': '#27ae60'
+            };
+            const levelColor = levelColors[intel.assessment_level] || '#666';
+
+            // Build breakdown rows
+            let breakdownHtml = '';
+            if (bd.breakdown) {
+                breakdownHtml = bd.breakdown.map(c => `
+                    <div style="display:flex;justify-content:space-between;margin-bottom:2px;font-size:10px">
+                        <span style="color:#666">${c.component}</span>
+                        <span style="color:#333">${(c.score * 100).toFixed(0)}% × ${(c.weight * 100).toFixed(0)}% = <b style="color:#27ae60">${c.contribution}</b></span>
+                    </div>
+                `).join('');
+            }
+
+            // Build adjustments
+            let adjustHtml = '';
+            if (bd.adjustments) {
+                adjustHtml = bd.adjustments.map(a => {
+                    const adj = parseFloat(a.adjustment);
+                    const adjColor = adj < 0 ? '#e74c3c' : (adj > 0 ? '#27ae60' : '#666');
+                    const source = a.source ? ` (${a.source})` : '';
+                    return `<div style="display:flex;justify-content:space-between;font-size:10px">
+                        <span style="color:#666">${a.name}${source}</span>
+                        <span style="color:${adjColor}">${a.adjustment}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // Build indicators
+            let indicatorsHtml = '';
+            if (intel.indicators && intel.indicators.length > 0) {
+                indicatorsHtml = `
+                    <div style="margin-top:10px;padding-top:8px;border-top:1px solid #eee">
+                        <div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">ACTIVE INDICATORS</div>
+                        ${intel.indicators.slice(0, 5).map(i => `
+                            <div style="display:flex;align-items:start;margin-bottom:4px;font-size:10px">
+                                <span style="color:#e74c3c;margin-right:4px">●</span>
+                                <span style="flex:1;color:#333">${i.description}</span>
+                                <span style="color:#666;font-size:9px">+${(i.weight * 100).toFixed(0)}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            display.innerHTML = `
+                <div style="background:${levelColor}15;border-left:3px solid ${levelColor};padding:8px;margin-bottom:12px;border-radius:0 4px 4px 0">
+                    <div style="font-size:10px;color:${levelColor};font-weight:600;text-transform:uppercase;margin-bottom:4px">${intel.assessment_level?.replace(/_/g, ' ')}</div>
+                    <div style="font-size:12px;color:#333">${intel.assessment}</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center;margin-bottom:12px">
+                    <div style="background:#f8f9fa;padding:10px;border-radius:6px">
+                        <div style="font-size:20px;font-weight:700;color:${confColor}">${confidence}%</div>
+                        <div style="font-size:9px;color:#666;text-transform:uppercase">Confidence</div>
+                    </div>
+                    <div style="background:#f8f9fa;padding:10px;border-radius:6px">
+                        <div style="font-size:20px;font-weight:700;color:${decColor}">${deception}%</div>
+                        <div style="font-size:9px;color:#666;text-transform:uppercase">Deception Risk</div>
+                    </div>
+                </div>
+
+                <div style="background:#fafafa;padding:8px;border-radius:4px;margin-bottom:8px">
+                    <div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">CONFIDENCE BREAKDOWN</div>
+                    ${breakdownHtml}
+                    ${adjustHtml ? `<div style="border-top:1px dashed #ddd;margin-top:6px;padding-top:6px">${adjustHtml}</div>` : ''}
+                </div>
+
+                ${indicatorsHtml}
+
+                <div style="margin-top:8px;font-size:9px;color:#999;text-align:right">
+                    ${intel.data_sources?.join(' • ') || ''} • ${new Date(intel.last_updated).toLocaleTimeString()}
+                </div>
+            `;
         }
 
         function renderConfidenceScore(score) {
