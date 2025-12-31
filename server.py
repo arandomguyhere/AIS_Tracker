@@ -779,7 +779,28 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 return self.send_json(saved)
             return self.send_json({'error': 'No saved analysis', 'vessel_id': vessel_id}, 404)
 
-        elif path.startswith('/api/vessels/'):
+        elif path.startswith('/api/vessels/') and path.endswith('/confidence'):
+            if not CONFIDENCE_AVAILABLE:
+                return self.send_json({'error': 'Confidence module not available'}, 500)
+            vessel_id = int(path.split('/')[3])
+            recalculate = params.get('recalculate', ['false'])[0].lower() == 'true'
+            days = int(params.get('days', [30])[0])
+
+            if recalculate:
+                score = calculate_vessel_confidence(vessel_id, days)
+                save_confidence_to_db(score)
+                return self.send_json(score.to_dict())
+            else:
+                cached = get_vessel_confidence(vessel_id)
+                if cached:
+                    return self.send_json(cached)
+                else:
+                    score = calculate_vessel_confidence(vessel_id, days)
+                    save_confidence_to_db(score)
+                    return self.send_json(score.to_dict())
+
+        elif path.startswith('/api/vessels/') and len(path.split('/')) == 4:
+            # Only match /api/vessels/{id}, not /api/vessels/{id}/something
             vessel_id = int(path.split('/')[3])
             return self.send_json(get_vessel(vessel_id))
 
@@ -855,29 +876,6 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             since = params.get('since', [None])[0]
             dark_vessels = get_dark_vessels(since=since)
             return self.send_json(dark_vessels)
-
-        # Confidence scoring endpoints
-        elif path.startswith('/api/vessels/') and path.endswith('/confidence'):
-            if not CONFIDENCE_AVAILABLE:
-                return self.send_json({'error': 'Confidence module not available'}, 500)
-            vessel_id = int(path.split('/')[3])
-            recalculate = params.get('recalculate', ['false'])[0].lower() == 'true'
-            days = int(params.get('days', [30])[0])
-
-            if recalculate:
-                # Calculate fresh confidence score
-                score = calculate_vessel_confidence(vessel_id, days)
-                save_confidence_to_db(score)
-                return self.send_json(score.to_dict())
-            else:
-                # Get cached score or calculate if none exists
-                cached = get_vessel_confidence(vessel_id)
-                if cached:
-                    return self.send_json(cached)
-                else:
-                    score = calculate_vessel_confidence(vessel_id, days)
-                    save_confidence_to_db(score)
-                    return self.send_json(score.to_dict())
 
         # Static files
         else:

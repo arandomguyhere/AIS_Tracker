@@ -394,6 +394,14 @@ def get_dark_vessels(
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
 
+    # Check if table exists
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='sar_detections'"
+    )
+    if not cursor.fetchone():
+        conn.close()
+        return []
+
     query = '''
         SELECT * FROM sar_detections
         WHERE is_dark_vessel = 1
@@ -431,6 +439,14 @@ def get_sar_detections(
     """
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
+
+    # Check if table exists
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='sar_detections'"
+    )
+    if not cursor.fetchone():
+        conn.close()
+        return []
 
     query = 'SELECT * FROM sar_detections WHERE 1=1'
     params = []
