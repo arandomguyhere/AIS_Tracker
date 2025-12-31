@@ -488,15 +488,26 @@ Format your response as:
 
         # Parse recommended updates
         recommended_updates = {}
-        updates_match = re.search(r'## Recommended Updates\s*\n.*?```json?\s*(\{[^}]+\})', content, re.DOTALL)
+        # Try to extract JSON from code block first
+        updates_match = re.search(r'## Recommended Updates\s*\n.*?```json?\s*(\{[\s\S]*?\})\s*```', content, re.DOTALL)
         if updates_match:
             try:
                 recommended_updates = json.loads(updates_match.group(1))
             except:
                 pass
-        else:
-            # Try without code block
-            updates_match = re.search(r'## Recommended Updates\s*\n\s*(\{[^}]+\})', content, re.DOTALL)
+
+        if not recommended_updates:
+            # Try without code block - match multi-line JSON
+            updates_match = re.search(r'## Recommended Updates\s*\n\s*(\{[\s\S]*?\})\s*(?:\n##|\n\n|\Z)', content, re.DOTALL)
+            if updates_match:
+                try:
+                    recommended_updates = json.loads(updates_match.group(1))
+                except:
+                    pass
+
+        if not recommended_updates:
+            # Last resort - find any JSON object after Recommended Updates
+            updates_match = re.search(r'## Recommended Updates[\s\S]*?(\{"[^"]+"\s*:\s*"[^"]+(?:"[\s\S]*?"[^"]+"\s*:\s*"[^"]+")*\s*\})', content)
             if updates_match:
                 try:
                     recommended_updates = json.loads(updates_match.group(1))
