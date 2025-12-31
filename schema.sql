@@ -165,6 +165,48 @@ CREATE TABLE IF NOT EXISTS sar_detections (
     FOREIGN KEY (matched_vessel_id) REFERENCES vessels(id) ON DELETE SET NULL
 );
 
+-- ============================================================================
+-- LIVE AIS TRACKING (all vessels in view)
+-- ============================================================================
+
+-- All vessels seen via AIS (lightweight, auto-populated)
+-- This stores basic identity for every vessel seen, not just watchlisted ones
+CREATE TABLE IF NOT EXISTS ais_vessels (
+    mmsi TEXT PRIMARY KEY,
+    imo TEXT,
+    name TEXT,
+    call_sign TEXT,
+    vessel_type INTEGER,  -- AIS ship type code (0-99)
+    vessel_type_text TEXT,  -- Human readable type
+    flag TEXT,  -- ISO country code
+    length_m REAL,
+    beam_m REAL,
+    draught REAL,
+    destination TEXT,
+    eta TEXT,
+    first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    position_count INTEGER DEFAULT 0,
+    -- Link to full vessel record if promoted to watchlist
+    vessel_id INTEGER,
+    FOREIGN KEY (vessel_id) REFERENCES vessels(id) ON DELETE SET NULL
+);
+
+-- Recent positions for all AIS vessels (auto-pruned)
+-- Stores last N days of positions for pattern analysis
+CREATE TABLE IF NOT EXISTS ais_positions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mmsi TEXT NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    speed_knots REAL,
+    course REAL,
+    heading REAL,
+    nav_status INTEGER,  -- AIS navigation status code
+    timestamp TIMESTAMP NOT NULL,
+    FOREIGN KEY (mmsi) REFERENCES ais_vessels(mmsi) ON DELETE CASCADE
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_positions_vessel_id ON positions(vessel_id);
 CREATE INDEX IF NOT EXISTS idx_positions_timestamp ON positions(timestamp);
@@ -188,6 +230,16 @@ CREATE INDEX IF NOT EXISTS idx_sar_detections_timestamp ON sar_detections(timest
 CREATE INDEX IF NOT EXISTS idx_sar_detections_dark ON sar_detections(is_dark_vessel);
 CREATE INDEX IF NOT EXISTS idx_sar_detections_coords ON sar_detections(latitude, longitude);
 CREATE INDEX IF NOT EXISTS idx_sar_detections_vessel ON sar_detections(matched_vessel_id);
+
+-- AIS vessel tracking indexes
+CREATE INDEX IF NOT EXISTS idx_ais_vessels_name ON ais_vessels(name);
+CREATE INDEX IF NOT EXISTS idx_ais_vessels_imo ON ais_vessels(imo);
+CREATE INDEX IF NOT EXISTS idx_ais_vessels_last_seen ON ais_vessels(last_seen);
+CREATE INDEX IF NOT EXISTS idx_ais_vessels_vessel_id ON ais_vessels(vessel_id);
+CREATE INDEX IF NOT EXISTS idx_ais_positions_mmsi ON ais_positions(mmsi);
+CREATE INDEX IF NOT EXISTS idx_ais_positions_timestamp ON ais_positions(timestamp);
+CREATE INDEX IF NOT EXISTS idx_ais_positions_coords ON ais_positions(latitude, longitude);
+CREATE INDEX IF NOT EXISTS idx_ais_positions_composite ON ais_positions(mmsi, timestamp DESC);
 
 -- ============================================================================
 -- SEED DATA
