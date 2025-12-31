@@ -68,9 +68,9 @@ This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese 
 - **UI confidence panel** - Visual confidence display in vessel details with refresh button
 
 ### Testing
-- **63 unit tests** - Comprehensive test coverage
+- **74 unit tests** - Comprehensive test coverage
 - **Test runner** - `python3 run_tests.py` to run all tests
-- **Module tests** - Database, API, SAR import, confidence scoring
+- **Module tests** - Database, API, SAR import, confidence scoring, intelligence
 
 ## Quick Start
 
