@@ -30,6 +30,16 @@ try:
 except ImportError:
     WEATHER_AVAILABLE = False
 
+# Import SAR detection module
+try:
+    from sar_import import (
+        get_sar_detections, get_dark_vessels, import_sar_file,
+        parse_detections, correlate_with_ais, save_detections_to_db
+    )
+    SAR_AVAILABLE = True
+except ImportError:
+    SAR_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -819,6 +829,22 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 weather['vessel_name'] = vessel.get('name')
                 return self.send_json(weather)
             return self.send_json({'error': 'Could not fetch weather'}, 500)
+
+        # SAR detection endpoints
+        elif path == '/api/sar-detections':
+            if not SAR_AVAILABLE:
+                return self.send_json({'error': 'SAR module not available'}, 500)
+            since = params.get('since', [None])[0]
+            include_matched = params.get('include_matched', ['true'])[0].lower() == 'true'
+            detections = get_sar_detections(since=since, include_matched=include_matched)
+            return self.send_json(detections)
+
+        elif path == '/api/dark-vessels':
+            if not SAR_AVAILABLE:
+                return self.send_json({'error': 'SAR module not available'}, 500)
+            since = params.get('since', [None])[0]
+            dark_vessels = get_dark_vessels(since=since)
+            return self.send_json(dark_vessels)
 
         # Static files
         else:
