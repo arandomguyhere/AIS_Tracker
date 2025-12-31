@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS vessels (
     vessel_type TEXT,
     length_m REAL,
     beam_m REAL,
+    draught REAL,  -- Current draught in meters (from AIS)
     gross_tonnage INTEGER,
+    year_built INTEGER,
     owner TEXT,
     classification TEXT CHECK(classification IN ('confirmed', 'suspected', 'monitoring', 'cleared')) DEFAULT 'monitoring',
     threat_level TEXT CHECK(threat_level IN ('critical', 'high', 'medium', 'low', 'unknown')) DEFAULT 'unknown',
@@ -49,6 +51,8 @@ CREATE TABLE IF NOT EXISTS positions (
     speed_knots REAL,
     course REAL,
     nav_status TEXT,
+    destination TEXT,  -- Voyage destination (from AIS Type 5)
+    eta TEXT,  -- Estimated arrival (from AIS Type 5)
     source TEXT DEFAULT 'manual',  -- ais, satellite, manual
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vessel_id) REFERENCES vessels(id) ON DELETE CASCADE
