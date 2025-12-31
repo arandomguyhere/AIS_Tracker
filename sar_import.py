@@ -18,8 +18,9 @@ import os
 import sqlite3
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
-from math import radians, sin, cos, sqrt, atan2
 from typing import Dict, List, Optional, Tuple, Any
+
+from utils import haversine
 
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -28,17 +29,6 @@ DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
 # Correlation thresholds
 DEFAULT_TIME_WINDOW_MINUTES = 30  # Max time difference for SAR-AIS match
 DEFAULT_DISTANCE_THRESHOLD_KM = 2.0  # Max distance for SAR-AIS match
-
-
-def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculate distance between two points in kilometers."""
-    R = 6371  # Earth's radius in km
-    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * atan2(sqrt(a), sqrt(1-a))
-    return R * c
 
 
 class SARDetection:

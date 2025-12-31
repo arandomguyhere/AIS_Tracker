@@ -22,7 +22,21 @@ CREATE TABLE IF NOT EXISTS vessels (
     weapons_config TEXT,  -- JSON description of observed weapons
     first_observed DATE,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Photo storage
+    photo_url TEXT,
+    -- AI analysis results
+    ai_analysis TEXT,
+    ai_bluf TEXT,
+    ai_analyzed_at TIMESTAMP,
+    -- Confidence scoring (from confidence.py)
+    confidence_score REAL,
+    ais_consistency REAL,
+    behavioral_normalcy REAL,
+    sar_corroboration REAL,
+    deception_likelihood REAL,
+    confidence_factors TEXT,  -- JSON breakdown
+    confidence_calculated TEXT  -- ISO timestamp
 );
 
 -- Position history - AIS track data
@@ -129,6 +143,24 @@ CREATE TABLE IF NOT EXISTS alerts (
     FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE SET NULL
 );
 
+-- SAR (Synthetic Aperture Radar) ship detections
+CREATE TABLE IF NOT EXISTS sar_detections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    timestamp TEXT NOT NULL,
+    length_m REAL,
+    width_m REAL,
+    confidence REAL DEFAULT 0.8,
+    source_file TEXT,
+    detection_id TEXT,
+    matched_vessel_id INTEGER,
+    match_distance_km REAL,
+    is_dark_vessel INTEGER DEFAULT 1,  -- 1 = no AIS match (potential dark vessel)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (matched_vessel_id) REFERENCES vessels(id) ON DELETE SET NULL
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_positions_vessel_id ON positions(vessel_id);
 CREATE INDEX IF NOT EXISTS idx_positions_timestamp ON positions(timestamp);
@@ -146,6 +178,12 @@ CREATE INDEX IF NOT EXISTS idx_vessels_classification ON vessels(classification)
 CREATE INDEX IF NOT EXISTS idx_watchlist_vessel_id ON watchlist(vessel_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_vessel_id ON alerts(vessel_id);
 CREATE INDEX IF NOT EXISTS idx_positions_composite ON positions(vessel_id, timestamp DESC);
+
+-- SAR detection indexes
+CREATE INDEX IF NOT EXISTS idx_sar_detections_timestamp ON sar_detections(timestamp);
+CREATE INDEX IF NOT EXISTS idx_sar_detections_dark ON sar_detections(is_dark_vessel);
+CREATE INDEX IF NOT EXISTS idx_sar_detections_coords ON sar_detections(latitude, longitude);
+CREATE INDEX IF NOT EXISTS idx_sar_detections_vessel ON sar_detections(matched_vessel_id);
 
 -- ============================================================================
 -- SEED DATA
