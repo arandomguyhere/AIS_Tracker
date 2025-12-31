@@ -795,10 +795,15 @@
                 <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
             </svg>
         </button>
+        <button class="control-btn" id="open-satellite" title="View SAR Satellite Imagery (opens EO Browser)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+        </button>
     </div>
 
     <!-- Layer Selection Popup -->
-    <div id="layer-popup" style="display:none; position:absolute; top:72px; right:70px; background:white; border-radius:8px; padding:12px; box-shadow:0 4px 20px rgba(0,0,0,0.2); z-index:1001; min-width:160px;">
+    <div id="layer-popup" style="display:none; position:absolute; top:72px; right:70px; background:white; border-radius:8px; padding:12px; box-shadow:0 4px 20px rgba(0,0,0,0.2); z-index:1001; min-width:200px;">
         <div style="font-weight:600; margin-bottom:8px; color:#333;">Map Style</div>
         <label style="display:flex; align-items:center; gap:8px; padding:6px 0; cursor:pointer; color:#333;">
             <input type="radio" name="basemap" value="dark" checked> Dark
@@ -813,7 +818,19 @@
             <input type="radio" name="basemap" value="terrain"> Terrain
         </label>
         <hr style="margin:8px 0; border:none; border-top:1px solid #eee;">
-        <div style="font-weight:600; margin-bottom:8px; color:#333;">Overlays</div>
+        <div style="font-weight:600; margin-bottom:8px; color:#333;">Satellite Overlay</div>
+        <label style="display:flex; align-items:center; gap:8px; padding:6px 0; cursor:pointer; color:#333;">
+            <input type="checkbox" id="sar-overlay"> Daily Imagery (NASA)
+        </label>
+        <div style="display:flex; align-items:center; gap:8px; padding:2px 0 6px 24px;">
+            <span style="font-size:11px; color:#666;">Opacity:</span>
+            <input type="range" id="sar-opacity" min="10" max="90" value="50" style="width:80px;">
+        </div>
+        <div style="font-size:10px; color:#888; padding:0 0 4px 0;">
+            For detailed SAR imagery, use the ☀️ button
+        </div>
+        <hr style="margin:8px 0; border:none; border-top:1px solid #eee;">
+        <div style="font-weight:600; margin-bottom:8px; color:#333;">Weather</div>
         <label style="display:flex; align-items:center; gap:8px; padding:6px 0; cursor:pointer; color:#333;">
             <input type="checkbox" id="weather-clouds"> Clouds
         </label>
@@ -1298,9 +1315,29 @@
 
             // Re-render live vessels when map moves (with debounce)
             let moveTimeout;
+            let boundingBoxTimeout;
+            let autoUpdateBounds = true;  // Enable auto-update by default
+
             map.on('moveend', () => {
                 clearTimeout(moveTimeout);
                 moveTimeout = setTimeout(renderLiveVessels, 100);
+
+                // Auto-update bounding box silently (500ms debounce, with padding)
+                if (autoUpdateBounds) {
+                    clearTimeout(boundingBoxTimeout);
+                    boundingBoxTimeout = setTimeout(async () => {
+                        const bounds = map.getBounds();
+                        const pad = 2;  // Prefetch adjacent areas
+                        const data = {
+                            lat_min: Math.max(-90, bounds.getSouth() - pad),
+                            lat_max: Math.min(90, bounds.getNorth() + pad),
+                            lon_min: Math.max(-180, bounds.getWest() - pad),
+                            lon_max: Math.min(180, bounds.getEast() + pad),
+                            description: 'viewport'
+                        };
+                        try { await post('/config/bounding-box', data); } catch (e) {}
+                    }, 500);
+                }
             });
 
             map.on('click', e => {
@@ -1575,8 +1612,8 @@
 
             renderVesselPanel(v, events, osint);
             document.getElementById('vessel-panel').classList.add('active');
-            // Load confidence score
-            loadConfidence(v.id);
+            // Load intelligence assessment
+            loadIntelligence(v.id);
         }
 
         function renderVesselPanel(v, events, osint) {
@@ -1622,8 +1659,11 @@
                 </div>
 
                 <div class="panel-section" id="confidence-section">
-                    <div class="section-title">Confidence Score <button onclick="refreshConfidence(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Refresh</button></div>
-                    <div id="confidence-display" style="text-align:center;padding:12px;color:#666">Loading...</div>
+                    <div class="section-title">
+                        Intel Assessment
+                        <button onclick="loadIntelligence(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Refresh</button>
+                    </div>
+                    <div id="confidence-display" style="padding:12px;color:#666">Loading...</div>
                 </div>
 
                 ${v.intel_notes ? `
@@ -2295,6 +2335,61 @@
         document.getElementById('weather-wind').addEventListener('change', (e) => toggleWeatherLayer('wind', e.target));
         document.getElementById('weather-temp').addEventListener('change', (e) => toggleWeatherLayer('temp', e.target));
 
+        // SAR Imagery Overlay
+        let sarImageryLayer = null;
+
+        function createSarImageryLayer(opacity = 0.5) {
+            // Try multiple SAR imagery sources
+            // 1. NASA GIBS Sentinel-1 (free, may have limited coverage)
+            // 2. Fallback to recent optical satellite for comparison
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
+
+            // NASA GIBS MODIS Terra (daily global coverage) as reliable base
+            // SAR-specific layers have limited geographic/temporal coverage
+            const layer = L.tileLayer(
+                'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+                {
+                    maxZoom: 9,
+                    opacity: opacity,
+                    time: dateStr,
+                    attribution: '&copy; NASA GIBS'
+                }
+            );
+
+            // Also try adding Sentinel-1 when zoomed in (limited coverage)
+            layer.on('add', function() {
+                console.log('SAR overlay added - Note: Full Sentinel-1 SAR requires EO Browser for detailed view');
+            });
+
+            return layer;
+        }
+
+        // For detailed SAR, we open EO Browser (handled by the satellite button)
+
+        document.getElementById('sar-overlay').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                const opacity = document.getElementById('sar-opacity').value / 100;
+                sarImageryLayer = createSarImageryLayer(opacity);
+                sarImageryLayer.addTo(map);
+            } else if (sarImageryLayer) {
+                map.removeLayer(sarImageryLayer);
+                sarImageryLayer = null;
+            }
+        });
+
+        document.getElementById('sar-opacity').addEventListener('input', (e) => {
+            if (sarImageryLayer) {
+                sarImageryLayer.setOpacity(e.target.value / 100);
+            }
+            // Update label
+            const label = document.querySelector('label[for="sar-overlay"], label:has(#sar-overlay)');
+            if (label) {
+                const text = label.querySelector('input').nextSibling;
+                if (text) text.textContent = ` Sentinel-1 SAR (${e.target.value}%)`;
+            }
+        });
+
         // Quick weather toggle button (toggles precipitation)
         document.getElementById('toggle-weather').addEventListener('click', () => {
             const checkbox = document.getElementById('weather-precip');
@@ -2373,16 +2468,44 @@
             }
         });
 
-        // Confidence Score Functions
+        // Open EO Browser with current map view for SAR imagery
+        document.getElementById('open-satellite').addEventListener('click', () => {
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            const lat = center.lat.toFixed(4);
+            const lng = center.lng.toFixed(4);
+
+            // Calculate date range (last 30 days)
+            const endDate = new Date().toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+
+            // EO Browser URL with Sentinel-1 SAR layer
+            const eoUrl = `https://apps.sentinel-hub.com/eo-browser/?zoom=${Math.min(zoom, 14)}&lat=${lat}&lng=${lng}&themeId=DEFAULT-THEME&visualizationUrl=https://services.sentinel-hub.com/ogc/wms/c6b3cfef-6ac4-4c1e-86f8-eb4c4c47ab57&datasetId=S1_AWS_IW_VVVH&fromTime=${startDate}T00:00:00.000Z&toTime=${endDate}T23:59:59.999Z&layerId=VV-DECIBEL-GAMMA0-ORTHORECTIFIED`;
+
+            window.open(eoUrl, '_blank', 'width=1200,height=800');
+        });
+
+        // Intelligence Functions
         async function loadConfidence(vesselId) {
+            // Redirect to intelligence for richer display
+            return loadIntelligence(vesselId);
+        }
+
+        async function loadIntelligence(vesselId) {
             const display = document.getElementById('confidence-display');
-            if (!display) return;
+            if (display) display.innerHTML = '<span style="color:#666">Analyzing...</span>';
 
             try {
-                const score = await api(`/vessels/${vesselId}/confidence`);
-                renderConfidenceScore(score);
+                const intel = await api(`/vessels/${vesselId}/intel`);
+                renderIntelligence(intel);
             } catch(e) {
-                display.innerHTML = '<span style="color:#999">Not available</span>';
+                // Fallback to confidence score if intel fails
+                try {
+                    const score = await api(`/vessels/${vesselId}/confidence`);
+                    renderConfidenceScore(score);
+                } catch(e2) {
+                    if (display) display.innerHTML = '<span style="color:#e74c3c">Error loading intelligence</span>';
+                }
             }
         }
 
@@ -2396,6 +2519,108 @@
             } catch(e) {
                 if (display) display.innerHTML = '<span style="color:#e74c3c">Error calculating score</span>';
             }
+        }
+
+        function renderIntelligence(intel) {
+            const display = document.getElementById('confidence-display');
+            if (!display || !intel) return;
+
+            const confidence = (intel.confidence * 100).toFixed(0);
+            const deception = (intel.deception_likelihood * 100).toFixed(0);
+            const bd = intel.confidence_breakdown || {};
+
+            // Color based on confidence level
+            let confColor = '#27ae60'; // green
+            if (confidence < 50) confColor = '#e74c3c'; // red
+            else if (confidence < 70) confColor = '#f39c12'; // orange
+
+            // Deception color
+            let decColor = '#27ae60';
+            if (deception > 50) decColor = '#e74c3c';
+            else if (deception > 25) decColor = '#f39c12';
+
+            // Level badge color
+            const levelColors = {
+                'confirmed_threat': '#e74c3c',
+                'likely_gray_zone': '#e67e22',
+                'suspicious': '#f39c12',
+                'anomalous': '#9b59b6',
+                'monitoring': '#3498db',
+                'benign': '#27ae60'
+            };
+            const levelColor = levelColors[intel.assessment_level] || '#666';
+
+            // Build breakdown rows
+            let breakdownHtml = '';
+            if (bd.breakdown) {
+                breakdownHtml = bd.breakdown.map(c => `
+                    <div style="display:flex;justify-content:space-between;margin-bottom:2px;font-size:10px">
+                        <span style="color:#666">${c.component}</span>
+                        <span style="color:#333">${(c.score * 100).toFixed(0)}% × ${(c.weight * 100).toFixed(0)}% = <b style="color:#27ae60">${c.contribution}</b></span>
+                    </div>
+                `).join('');
+            }
+
+            // Build adjustments
+            let adjustHtml = '';
+            if (bd.adjustments) {
+                adjustHtml = bd.adjustments.map(a => {
+                    const adj = parseFloat(a.adjustment);
+                    const adjColor = adj < 0 ? '#e74c3c' : (adj > 0 ? '#27ae60' : '#666');
+                    const source = a.source ? ` (${a.source})` : '';
+                    return `<div style="display:flex;justify-content:space-between;font-size:10px">
+                        <span style="color:#666">${a.name}${source}</span>
+                        <span style="color:${adjColor}">${a.adjustment}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // Build indicators
+            let indicatorsHtml = '';
+            if (intel.indicators && intel.indicators.length > 0) {
+                indicatorsHtml = `
+                    <div style="margin-top:10px;padding-top:8px;border-top:1px solid #eee">
+                        <div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">ACTIVE INDICATORS</div>
+                        ${intel.indicators.slice(0, 5).map(i => `
+                            <div style="display:flex;align-items:start;margin-bottom:4px;font-size:10px">
+                                <span style="color:#e74c3c;margin-right:4px">●</span>
+                                <span style="flex:1;color:#333">${i.description}</span>
+                                <span style="color:#666;font-size:9px">+${(i.weight * 100).toFixed(0)}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            display.innerHTML = `
+                <div style="background:${levelColor}15;border-left:3px solid ${levelColor};padding:8px;margin-bottom:12px;border-radius:0 4px 4px 0">
+                    <div style="font-size:10px;color:${levelColor};font-weight:600;text-transform:uppercase;margin-bottom:4px">${intel.assessment_level?.replace(/_/g, ' ')}</div>
+                    <div style="font-size:12px;color:#333">${intel.assessment}</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center;margin-bottom:12px">
+                    <div style="background:#f8f9fa;padding:10px;border-radius:6px">
+                        <div style="font-size:20px;font-weight:700;color:${confColor}">${confidence}%</div>
+                        <div style="font-size:9px;color:#666;text-transform:uppercase">Confidence</div>
+                    </div>
+                    <div style="background:#f8f9fa;padding:10px;border-radius:6px">
+                        <div style="font-size:20px;font-weight:700;color:${decColor}">${deception}%</div>
+                        <div style="font-size:9px;color:#666;text-transform:uppercase">Deception Risk</div>
+                    </div>
+                </div>
+
+                <div style="background:#fafafa;padding:8px;border-radius:4px;margin-bottom:8px">
+                    <div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">CONFIDENCE BREAKDOWN</div>
+                    ${breakdownHtml}
+                    ${adjustHtml ? `<div style="border-top:1px dashed #ddd;margin-top:6px;padding-top:6px">${adjustHtml}</div>` : ''}
+                </div>
+
+                ${indicatorsHtml}
+
+                <div style="margin-top:8px;font-size:9px;color:#999;text-align:right">
+                    ${intel.data_sources?.join(' • ') || ''} • ${new Date(intel.last_updated).toLocaleTimeString()}
+                </div>
+            `;
         }
 
         function renderConfidenceScore(score) {

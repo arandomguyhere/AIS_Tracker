@@ -14,11 +14,12 @@ No external dependencies - uses only Python standard library.
 """
 
 import json
-import math
 import os
 import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
+
+from utils import haversine
 
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -165,7 +166,7 @@ def calculate_ais_consistency(
             lat2, lon2 = positions[i]['latitude'], positions[i]['longitude']
 
             if lat1 and lon1 and lat2 and lon2:
-                distance = _haversine(lat1, lon1, lat2, lon2)
+                distance = haversine(lat1, lon1, lat2, lon2)
                 speed = positions[i-1]['speed_knots'] or 0
 
                 # Max reasonable distance based on speed and time
@@ -576,17 +577,6 @@ def get_vessel_confidence(
         'factors': json.loads(row['confidence_factors']) if row['confidence_factors'] else {},
         'last_calculated': row['confidence_calculated']
     }
-
-
-def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculate distance between two points in kilometers."""
-    R = 6371
-    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-    return R * c
 
 
 # CLI interface

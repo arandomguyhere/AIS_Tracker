@@ -13,8 +13,9 @@ import threading
 from contextlib import contextmanager
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from math import radians, sin, cos, sqrt, atan2
 from urllib.parse import urlparse, parse_qs
+
+from utils import haversine
 
 # Import vessel intelligence module
 try:
@@ -49,6 +50,13 @@ try:
     CONFIDENCE_AVAILABLE = True
 except ImportError:
     CONFIDENCE_AVAILABLE = False
+
+# Import intelligence module
+try:
+    from intelligence import produce_vessel_intelligence, get_intel_summary
+    INTELLIGENCE_AVAILABLE = True
+except ImportError:
+    INTELLIGENCE_AVAILABLE = False
 
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -98,17 +106,6 @@ def db_connection():
     except Exception as e:
         conn.rollback()
         raise e
-
-
-def haversine(lat1, lon1, lat2, lon2):
-    """Calculate distance between two points in kilometers."""
-    R = 6371  # Earth's radius in km
-    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * atan2(sqrt(a), sqrt(1-a))
-    return R * c
 
 
 def dict_from_row(row):
@@ -798,6 +795,20 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                     score = calculate_vessel_confidence(vessel_id, days)
                     save_confidence_to_db(score)
                     return self.send_json(score.to_dict())
+
+        elif path.startswith('/api/vessels/') and path.endswith('/intel'):
+            # Formal intelligence assessment
+            if not INTELLIGENCE_AVAILABLE:
+                return self.send_json({'error': 'Intelligence module not available'}, 500)
+            vessel_id = int(path.split('/')[3])
+            days = int(params.get('days', [30])[0])
+            summary_only = params.get('summary', ['false'])[0].lower() == 'true'
+
+            if summary_only:
+                return self.send_json(get_intel_summary(vessel_id))
+            else:
+                intel = produce_vessel_intelligence(vessel_id, days)
+                return self.send_json(intel.to_dict())
 
         elif path.startswith('/api/vessels/') and len(path.split('/')) == 4:
             # Only match /api/vessels/{id}, not /api/vessels/{id}/something

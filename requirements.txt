@@ -1,3 +1,8 @@
 # Arsenal Ship Tracker Dependencies
-gnews>=0.3.7
-openai>=1.0.0
+
+# Core dependencies
+websocket-client>=1.6.0  # Live AIS streaming via aisstream.io
+
+# Optional: AI intelligence features
+gnews>=0.3.7             # News search for vessel intelligence
+openai>=1.0.0            # AI-powered vessel analysis
