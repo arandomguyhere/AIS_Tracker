@@ -121,8 +121,9 @@ export AISHUB_USERNAME="your-aishub-username"
 | `osint/` | OSINT correlation and monitoring tools |
 | `sar_import.py` | SAR ship detection import and AIS correlation |
 | `confidence.py` | Vessel confidence scoring and deception detection |
+| `intelligence.py` | Formal intelligence output with analyst-visible breakdown |
 | `run_tests.py` | Test runner script |
-| `tests/` | Unit tests for database, API, SAR, and confidence modules |
+| `tests/` | Unit tests for database, API, SAR, confidence, and intelligence |
 
 ## API Endpoints
 
@@ -145,6 +146,8 @@ export AISHUB_USERNAME="your-aishub-username"
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/vessels/:id/intel` | Formal intelligence assessment with breakdown |
+| GET | `/api/vessels/:id/intel?summary=true` | Quick intel summary |
 | POST | `/api/vessel-intel` | Full AI analysis with news search |
 | POST | `/api/vessel-bluf` | Quick BLUF risk assessment |
 | POST | `/api/search-news` | Search Google News for vessel |
@@ -329,6 +332,56 @@ The confidence module (`confidence.py`) provides trust assessment for vessel dat
 }
 ```
 
+## Intelligence Output
+
+The intelligence module (`intelligence.py`) produces standardized, defensible assessments:
+
+### Intelligence Object
+```json
+{
+  "vessel_id": 1,
+  "assessment": "Likely gray-zone logistics. Key indicators: AIS gap detected, loitering behavior",
+  "assessment_level": "suspicious",
+  "confidence": 0.73,
+  "deception_likelihood": 0.45,
+  "indicators": [
+    {"name": "ais_gap_significant", "weight": 0.15, "description": "Significant AIS gap detected (36 hours)"},
+    {"name": "loitering_detected", "weight": 0.12, "description": "Loitering behavior detected"}
+  ],
+  "confidence_breakdown": {
+    "confidence": 73,
+    "breakdown": [
+      {"component": "AIS Consistency", "score": 0.6, "weight": 0.35, "contribution": "+0.21"},
+      {"component": "Behavioral Normalcy", "score": 0.7, "weight": 0.35, "contribution": "+0.25"},
+      {"component": "SAR Corroboration", "score": 0.5, "weight": 0.30, "contribution": "+0.15"}
+    ],
+    "adjustments": [
+      {"name": "Signal quality", "source": "medium", "adjustment": "-0.03"},
+      {"name": "Data freshness", "adjustment": "-0.05"}
+    ]
+  },
+  "data_sources": ["AIS", "SAR"],
+  "last_updated": "2025-12-31T12:00:00Z"
+}
+```
+
+### Assessment Levels
+| Level | Description |
+|-------|-------------|
+| `benign` | Normal operating pattern |
+| `monitoring` | Insufficient data for assessment |
+| `anomalous` | Single behavioral deviation detected |
+| `suspicious` | Multiple indicators triggered |
+| `likely_gray_zone` | High deception likelihood with technical/behavioral anomalies |
+| `confirmed_threat` | Vessel classified as confirmed threat |
+
+### Indicator Types
+| Type | Examples |
+|------|----------|
+| `behavioral` | AIS gaps, speed anomalies, loitering |
+| `technical` | Position jumps, SAR mismatches |
+| `ownership` | Flag of convenience, ownership opacity |
+
 ## Running Tests
 
 ```bash
@@ -340,6 +393,7 @@ python3 run_tests.py -v
 
 # Run specific test module
 python3 run_tests.py test_confidence
+python3 run_tests.py test_intelligence
 python3 run_tests.py test_sar_import
 python3 run_tests.py test_database
 python3 run_tests.py test_api
