@@ -795,6 +795,11 @@
                 <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
             </svg>
         </button>
+        <button class="control-btn" id="open-satellite" title="View SAR Satellite Imagery (opens EO Browser)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+        </button>
     </div>
 
     <!-- Layer Selection Popup -->
@@ -2371,6 +2376,23 @@
                 document.getElementById('toggle-sar').style.color = '';
                 renderSarDetections([]);
             }
+        });
+
+        // Open EO Browser with current map view for SAR imagery
+        document.getElementById('open-satellite').addEventListener('click', () => {
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            const lat = center.lat.toFixed(4);
+            const lng = center.lng.toFixed(4);
+
+            // Calculate date range (last 30 days)
+            const endDate = new Date().toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+
+            // EO Browser URL with Sentinel-1 SAR layer
+            const eoUrl = `https://apps.sentinel-hub.com/eo-browser/?zoom=${Math.min(zoom, 14)}&lat=${lat}&lng=${lng}&themeId=DEFAULT-THEME&visualizationUrl=https://services.sentinel-hub.com/ogc/wms/c6b3cfef-6ac4-4c1e-86f8-eb4c4c47ab57&datasetId=S1_AWS_IW_VVVH&fromTime=${startDate}T00:00:00.000Z&toTime=${endDate}T23:59:59.999Z&layerId=VV-DECIBEL-GAMMA0-ORTHORECTIFIED`;
+
+            window.open(eoUrl, '_blank', 'width=1200,height=800');
         });
 
         // Confidence Score Functions
