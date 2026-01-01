@@ -509,6 +509,8 @@ alerts = check_venezuela_alerts(mmsi, "Skipper", position, track)
 
 ## Infrastructure Threat Analysis (NEW)
 
+![AI Analysis](docs/screenshots/cables.png)
+
 Situational awareness for undersea cable and pipeline incidents, with anchor drag detection and AIS gap correlation. Developed for the Finland cable incident investigation (December 2025).
 
 ### Baltic Sea Infrastructure
