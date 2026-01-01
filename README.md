@@ -505,7 +505,6 @@ alerts = check_venezuela_alerts(mmsi, "Skipper", position, track)
 Situational awareness for undersea cable and pipeline incidents, with anchor drag detection and AIS gap correlation. Developed for the Finland cable incident investigation (December 2025).
 
 ### Baltic Sea Infrastructure
-![BSpoc](docs/screenshots/bs-poc.png)
 
 | Infrastructure | Type | Route | Protection Zone |
 |----------------|------|-------|-----------------|
@@ -564,6 +563,8 @@ print(analysis.generate_report())  # Human-readable incident report
 ```
 
 ### Baltic Cable Incident POC
+
+![BSpoc](docs/screenshots/bs-poc.png)
 
 Setup script for Finland cable incident analysis:
 
