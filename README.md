@@ -147,6 +147,7 @@ export AISHUB_USERNAME="your-aishub-username"
 | `behavior.py` | Behavior detection: loitering, AIS gaps, STS transfers, dark fleet scoring |
 | `venezuela.py` | Venezuela dark fleet detection: zone monitoring, AIS spoofing, risk scoring |
 | `sanctions.py` | Sanctions database: FleetLeaks API, OFAC SDN, vessel compliance checking |
+| `infra_analysis.py` | Infrastructure threat analysis: anchor drag, cable proximity, incident correlation |
 | `run_tests.py` | Test runner script |
 | `tests/` | Unit tests for database, API, SAR, confidence, intelligence, Venezuela, sanctions |
 
@@ -498,6 +499,81 @@ risk = calculate_venezuela_risk_score(
 alerts = check_venezuela_alerts(mmsi, "Skipper", position, track)
 # Returns: TERMINAL_ARRIVAL, SANCTIONED_VESSEL alerts
 ```
+
+## Infrastructure Threat Analysis (NEW)
+
+Situational awareness for undersea cable and pipeline incidents, with anchor drag detection and AIS gap correlation. Developed for the Finland cable incident investigation (December 2025).
+
+### Baltic Sea Infrastructure
+
+| Infrastructure | Type | Route | Protection Zone |
+|----------------|------|-------|-----------------|
+| C-Lion1 | Telecom Cable | Helsinki-Rostock | 5 nm |
+| Estlink-2 | Power Cable | Estonia-Finland | 3 nm |
+| Estlink-1 | Power Cable | Estonia-Finland | 3 nm |
+| Balticconnector | Gas Pipeline | Estonia-Finland | 5 nm |
+
+### Detection Capabilities
+
+| Detection | Method | Indicators |
+|-----------|--------|------------|
+| **Anchor Drag** | Speed 0.3-4 kts + heading variance >15° | Slow drift with erratic course |
+| **Loitering** | Extended time in protection zone | Circling or stationary patterns |
+| **AIS Suppression** | Signal gaps correlating with zone entry | Deliberate signal loss |
+| **Proximity Alerts** | Distance to infrastructure routes | Close approach warnings |
+
+### Risk Scoring
+
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| Proximity | 30% | Distance to nearest infrastructure |
+| Time in Zone | 20% | Duration within protection radius |
+| Behavioral Indicators | 40% | Anchor drag, loitering, AIS gaps |
+| AIS Gaps | 10% | Signal loss near infrastructure |
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/infrastructure/baltic` | Get Baltic infrastructure for map overlay |
+| GET | `/api/vessels/:id/infra-analysis` | Run infrastructure incident analysis |
+
+### Map Features
+
+- **Infrastructure overlay** - Colored lines for cables/pipelines with labels
+- **Protection zones** - Dashed circles showing exclusion areas
+- **Toggle button** - Enable/disable infrastructure layer
+- **Click for details** - Popup with operator, capacity, incident notes
+
+### Usage Example
+
+```python
+from infra_analysis import analyze_infrastructure_incident
+
+# Analyze vessel track for cable incident correlation
+analysis = analyze_infrastructure_incident(
+    track_history=positions,
+    mmsi="518100989",
+    vessel_name="FITBURG",
+    incident_time="2025-12-31T06:00:00"
+)
+
+# Returns: risk_score, anchor_drag_detected, proximity_events, indicators
+print(analysis.generate_report())  # Human-readable incident report
+```
+
+### Baltic Cable Incident POC
+
+Setup script for Finland cable incident analysis:
+
+```bash
+python scripts/setup_baltic_poc.py
+```
+
+Adds:
+- **FITBURG** (MMSI: 518100989) - C-Lion1 incident vessel
+- **EAGLE S** (MMSI: 215915000) - Estlink-2 incident vessel
+- Infrastructure locations and incident timeline events
 
 ## Sanctions Database Integration (NEW)
 
