@@ -121,13 +121,169 @@ class SanctionedVessel:
 # =============================================================================
 # FleetLeaks Integration
 # =============================================================================
+# FleetLeaks exposes clean, open sanctions data with no auth required.
+# Endpoints identified via network analysis:
+#
+# Primary endpoints:
+#   GET /api/vessels              - All vessels (JSON)
+#   GET /api/vessels/export       - CSV bulk export
+#   GET /export/vessels.csv       - Alternative CSV endpoint
+#   GET /api/vessels/{imo}        - Single vessel detail
+#   GET /api/search?q={string}    - Search by name/IMO
+#   GET /api/sanctions            - Sanctioning authorities reference
+#   GET /api/meta                 - Dataset metadata/stats
+# =============================================================================
 
-FLEETLEAKS_API = "https://fleetleaks.com/wp-json/fleetleaks/v1/vessels/map-data"
-FLEETLEAKS_VESSELS = "https://fleetleaks.com/vessels/"
+FLEETLEAKS_CSV = "https://fleetleaks.com/export/vessels.csv"
+FLEETLEAKS_API = "https://fleetleaks.com/api/vessels"
+FLEETLEAKS_EXPORT = "https://fleetleaks.com/api/vessels/export"
+
+
+def fetch_fleetleaks_csv() -> List[SanctionedVessel]:
+    """
+    Fetch sanctions data from FleetLeaks CSV export.
+
+    This is the most reliable endpoint - same dataset the map uses.
+    No auth, no tokens, no rate limiting (reasonable use).
+
+    Returns:
+        List of SanctionedVessel records
+
+    CSV columns typically include:
+        - imo
+        - vessel_name
+        - vessel_type
+        - flag
+        - sanctioning_authority (comma-separated)
+        - designation_date
+        - last_known_lat/lon
+        - last_seen
+        - ais_status
+    """
+    import csv
+
+    vessels = []
+
+    headers = {
+        "User-Agent": "ArsenalTracker/1.0",
+        "Accept": "text/csv"
+    }
+
+    try:
+        req = urllib.request.Request(FLEETLEAKS_CSV, headers=headers)
+
+        with urllib.request.urlopen(req, timeout=60) as response:
+            content = response.read().decode("utf-8")
+            reader = csv.DictReader(content.splitlines())
+
+            for row in reader:
+                imo = row.get("imo", "").strip()
+                if not imo:
+                    continue
+
+                # Parse comma-separated sanctions authorities
+                sanctions_str = row.get("sanctioning_authority", "")
+                sanctions = [s.strip() for s in sanctions_str.split(",") if s.strip()]
+
+                # Parse designation date
+                date_str = row.get("designation_date", "")
+                sanction_date = None
+                if date_str:
+                    try:
+                        sanction_date = datetime.strptime(date_str, "%Y-%m-%d")
+                    except:
+                        pass
+
+                vessels.append(SanctionedVessel(
+                    imo=imo,
+                    name=row.get("vessel_name", "").strip(),
+                    flag=row.get("flag", "").strip() or None,
+                    vessel_type=row.get("vessel_type", "").strip() or None,
+                    sanctioned_by=sanctions,
+                    sanction_date=sanction_date,
+                    source="fleetleaks",
+                    last_updated=datetime.utcnow()
+                ))
+
+        print(f"FleetLeaks: Fetched {len(vessels)} sanctioned vessels")
+
+    except urllib.error.HTTPError as e:
+        print(f"FleetLeaks CSV error: {e.code}")
+    except Exception as e:
+        print(f"FleetLeaks fetch error: {e}")
+
+    return vessels
+
+
+def fetch_fleetleaks_json() -> List[SanctionedVessel]:
+    """
+    Fetch sanctions data from FleetLeaks JSON API.
+
+    Alternative to CSV - returns same dataset with more fields.
+
+    Expected JSON structure:
+    [
+        {
+            "imo": "9256606",
+            "name": "PABLO",
+            "lat": 1.234,
+            "lon": 103.456,
+            "flag": "Cameroon",
+            "last_seen": "2025-12-28T14:22:00Z",
+            "sanctions": ["OFAC", "EU"],
+            "status": "stale",
+            "vessel_type": "Tanker"
+        }
+    ]
+    """
+    vessels = []
+
+    headers = {
+        "User-Agent": "ArsenalTracker/1.0",
+        "Accept": "application/json"
+    }
+
+    try:
+        req = urllib.request.Request(FLEETLEAKS_API, headers=headers)
+
+        with urllib.request.urlopen(req, timeout=60) as response:
+            data = json.loads(response.read().decode("utf-8"))
+
+            for vessel_data in data:
+                imo = vessel_data.get("imo", "")
+                if not imo:
+                    continue
+
+                # Handle sanctions as list or comma-separated string
+                sanctions = vessel_data.get("sanctions", [])
+                if isinstance(sanctions, str):
+                    sanctions = [s.strip() for s in sanctions.split(",")]
+
+                vessels.append(SanctionedVessel(
+                    imo=imo,
+                    name=vessel_data.get("name", ""),
+                    flag=vessel_data.get("flag"),
+                    vessel_type=vessel_data.get("vessel_type"),
+                    sanctioned_by=sanctions,
+                    source="fleetleaks",
+                    last_updated=datetime.utcnow()
+                ))
+
+        print(f"FleetLeaks: Fetched {len(vessels)} sanctioned vessels (JSON)")
+
+    except urllib.error.HTTPError as e:
+        print(f"FleetLeaks JSON API error: {e.code}")
+    except Exception as e:
+        print(f"FleetLeaks JSON fetch error: {e}")
+
+    return vessels
+
 
 def fetch_fleetleaks(api_key: Optional[str] = None) -> List[SanctionedVessel]:
     """
-    Fetch sanctioned vessels from FleetLeaks API.
+    Fetch sanctioned vessels from FleetLeaks.
+
+    Tries CSV first (most reliable), falls back to JSON API.
 
     FleetLeaks tracks 800+ vessels designated by:
     - OFAC (United States)
@@ -137,50 +293,15 @@ def fetch_fleetleaks(api_key: Optional[str] = None) -> List[SanctionedVessel]:
     - Australia (DFAT)
     - New Zealand (MFAT)
 
-    Args:
-        api_key: Optional API key for authenticated access
-
     Returns:
         List of SanctionedVessel records
-
-    Note:
-        API may require authentication. If 403 received, use manual import
-        or contact FleetLeaks for API access.
     """
-    vessels = []
+    # Try CSV first (most reliable)
+    vessels = fetch_fleetleaks_csv()
 
-    headers = {
-        "User-Agent": "ArsenalTracker/1.0",
-        "Accept": "application/json"
-    }
-
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-
-    try:
-        req = urllib.request.Request(FLEETLEAKS_API, headers=headers)
-
-        with urllib.request.urlopen(req, timeout=30) as response:
-            data = json.loads(response.read().decode("utf-8"))
-
-            for vessel_data in data:
-                vessels.append(SanctionedVessel(
-                    imo=vessel_data.get("imo", ""),
-                    name=vessel_data.get("name", ""),
-                    flag=vessel_data.get("flag"),
-                    vessel_type=vessel_data.get("vessel_type"),
-                    sanctioned_by=vessel_data.get("sanctioners", []),
-                    source="fleetleaks",
-                    last_updated=datetime.utcnow()
-                ))
-
-    except urllib.error.HTTPError as e:
-        if e.code == 403:
-            print(f"FleetLeaks API requires authentication. Visit {FLEETLEAKS_VESSELS}")
-        else:
-            print(f"FleetLeaks API error: {e.code}")
-    except Exception as e:
-        print(f"FleetLeaks fetch error: {e}")
+    # Fall back to JSON if CSV fails
+    if not vessels:
+        vessels = fetch_fleetleaks_json()
 
     return vessels
 
@@ -652,6 +773,138 @@ class SanctionsDatabase:
 
         conn.close()
         return stats
+
+
+# =============================================================================
+# Sanctions Confidence Scoring
+# =============================================================================
+# Sanctions ≠ active behavior. Weight by authority and decay by data freshness.
+
+AUTHORITY_WEIGHTS = {
+    "OFAC": 1.0,      # U.S. Treasury - highest enforcement
+    "EU": 0.95,       # European Union
+    "UK": 0.95,       # UK OFSI
+    "CA": 0.85,       # Canada SEMA
+    "AU": 0.85,       # Australia DFAT
+    "NZ": 0.80,       # New Zealand MFAT
+    "UN": 1.0,        # United Nations
+}
+
+
+def calculate_sanction_confidence(
+    authorities: List[str],
+    designation_date: Optional[datetime] = None,
+    last_seen: Optional[datetime] = None
+) -> Dict[str, Any]:
+    """
+    Calculate confidence-weighted sanction score.
+
+    Sanctions are legal facts, not behavioral predictions.
+    Confidence reflects:
+    - Authority weight (OFAC highest)
+    - Multiple designations increase certainty
+    - Data freshness (AIS position only, not designation)
+
+    Args:
+        authorities: List of sanctioning authorities
+        designation_date: When vessel was designated
+        last_seen: Last AIS position timestamp
+
+    Returns:
+        Dict with confidence score and breakdown
+    """
+    if not authorities:
+        return {
+            "confidence": 0.0,
+            "sanctioned": False,
+            "authority_score": 0.0,
+            "freshness_penalty": 0.0
+        }
+
+    # Calculate authority score (max weight)
+    authority_weights = [
+        AUTHORITY_WEIGHTS.get(auth.upper(), 0.7)
+        for auth in authorities
+    ]
+    authority_score = max(authority_weights) if authority_weights else 0.0
+
+    # Bonus for multiple authorities (cross-jurisdictional)
+    if len(authorities) >= 3:
+        authority_score = min(1.0, authority_score + 0.05)
+    elif len(authorities) >= 2:
+        authority_score = min(1.0, authority_score + 0.02)
+
+    # Calculate freshness penalty (AIS position only)
+    freshness_penalty = 0.0
+    if last_seen:
+        age_days = (datetime.utcnow() - last_seen).days
+        if age_days > 90:
+            freshness_penalty = 0.1  # Position stale
+        elif age_days > 30:
+            freshness_penalty = 0.05
+
+    # Final confidence (sanction designation is legal fact)
+    confidence = authority_score - freshness_penalty
+
+    return {
+        "confidence": round(max(0.0, min(1.0, confidence)), 3),
+        "sanctioned": True,
+        "authority_score": round(authority_score, 3),
+        "freshness_penalty": round(freshness_penalty, 3),
+        "authorities": authorities,
+        "methodology": "Authority-weighted with freshness decay"
+    }
+
+
+def enrich_vessel_with_sanctions(
+    vessel: Dict[str, Any],
+    sanctions_db: "SanctionsDatabase"
+) -> Dict[str, Any]:
+    """
+    Enrich vessel data with sanctions intelligence.
+
+    Merges sanctions database lookup with vessel record.
+    Adds sanctions badge, confidence score, and risk indicators.
+
+    Args:
+        vessel: Vessel dict with IMO, MMSI, or name
+        sanctions_db: SanctionsDatabase instance
+
+    Returns:
+        Enriched vessel dict with sanctions field
+    """
+    # Look up in sanctions database
+    result = sanctions_db.check_vessel(
+        imo=vessel.get("imo"),
+        mmsi=vessel.get("mmsi"),
+        name=vessel.get("name")
+    )
+
+    if result["sanctioned"]:
+        # Calculate confidence
+        confidence = calculate_sanction_confidence(
+            authorities=result.get("authorities", []),
+            designation_date=datetime.fromisoformat(result["sanction_date"]) if result.get("sanction_date") else None
+        )
+
+        vessel["sanctions"] = {
+            "listed": True,
+            "authorities": result.get("authorities", []),
+            "programs": result.get("programs", []),
+            "designation_date": result.get("sanction_date"),
+            "confidence": confidence["confidence"],
+            "authority_score": confidence["authority_score"],
+            "source": result.get("vessel", {}).get("source", "unknown"),
+            "match_type": result.get("match_type"),
+            "former_names": result.get("vessel", {}).get("former_names", [])
+        }
+    else:
+        vessel["sanctions"] = {
+            "listed": False,
+            "confidence": 0.0
+        }
+
+    return vessel
 
 
 # =============================================================================
