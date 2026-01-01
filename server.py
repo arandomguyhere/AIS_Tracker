@@ -156,6 +156,16 @@ try:
 except ImportError:
     GFW_AVAILABLE = False
 
+# Import fallback port database
+try:
+    from ports_database import (
+        get_ports_nearby as fallback_get_ports_nearby,
+        get_database_stats as get_ports_stats
+    )
+    PORTS_DB_AVAILABLE = True
+except ImportError:
+    PORTS_DB_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -1644,7 +1654,7 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 return self.send_json({'error': str(e)}, 500)
 
         elif path == '/api/ports/nearby':
-            # Get ports near a location
+            # Get ports near a location (with fallback to built-in database)
             try:
                 lat_param = params.get('lat', [None])[0]
                 lon_param = params.get('lon', [None])[0]
@@ -1657,39 +1667,52 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             if lat is None or lon is None:
                 return self.send_json({'error': 'lat and lon required'}, 400)
 
+            ports = []
+            source = 'none'
+
+            # Try Marinesia first
             try:
                 manager = get_ais_manager()
                 if manager:
-                    ports = manager.get_ports_nearby(lat, lon, radius)
+                    marinesia_ports = manager.get_ports_nearby(lat, lon, radius)
+                    if marinesia_ports:
+                        # Calculate distance from search center to each port
+                        for port in marinesia_ports:
+                            port_lat = port.get('lat') or port.get('latitude') or port.get('location', {}).get('lat')
+                            port_lon = port.get('lon') or port.get('longitude') or port.get('location', {}).get('lon')
 
-                    # Calculate distance from search center to each port
-                    enriched_ports = []
-                    for port in ports:
-                        # Handle various port data formats
-                        port_lat = port.get('lat') or port.get('latitude') or port.get('location', {}).get('lat')
-                        port_lon = port.get('lon') or port.get('longitude') or port.get('location', {}).get('lon')
+                            if port_lat is not None and port_lon is not None:
+                                distance_km = haversine(lat, lon, float(port_lat), float(port_lon))
+                                port['distance_nm'] = round(distance_km / 1.852, 1)
+                            else:
+                                port['distance_nm'] = None
 
-                        if port_lat is not None and port_lon is not None:
-                            # Calculate distance in nautical miles (haversine returns km)
-                            distance_km = haversine(lat, lon, float(port_lat), float(port_lon))
-                            port['distance_nm'] = round(distance_km / 1.852, 1)
-                        else:
-                            port['distance_nm'] = None
+                            port['source'] = 'marinesia'
+                            ports.append(port)
 
-                        enriched_ports.append(port)
-
-                    # Sort by distance (closest first)
-                    enriched_ports.sort(key=lambda p: p.get('distance_nm') if p.get('distance_nm') is not None else 9999)
-
-                    return self.send_json({
-                        'ports': enriched_ports,
-                        'count': len(enriched_ports),
-                        'search_center': {'lat': lat, 'lon': lon},
-                        'radius_nm': radius
-                    })
-                return self.send_json({'error': 'AIS manager not available'}, 500)
+                        source = 'marinesia'
             except Exception as e:
-                return self.send_json({'error': str(e)}, 500)
+                print(f"[ports] Marinesia failed: {e}")
+
+            # Fallback to built-in database if Marinesia returned nothing
+            if not ports and PORTS_DB_AVAILABLE:
+                try:
+                    fallback_ports = fallback_get_ports_nearby(lat, lon, radius)
+                    ports = fallback_ports
+                    source = 'built-in'
+                except Exception as e:
+                    print(f"[ports] Fallback failed: {e}")
+
+            # Sort by distance (closest first)
+            ports.sort(key=lambda p: p.get('distance_nm') if p.get('distance_nm') is not None else 9999)
+
+            return self.send_json({
+                'ports': ports,
+                'count': len(ports),
+                'search_center': {'lat': lat, 'lon': lon},
+                'radius_nm': radius,
+                'source': source
+            })
 
         elif path.startswith('/api/vessels/') and path.endswith('/image'):
             # Get vessel image URL from Marinesia
