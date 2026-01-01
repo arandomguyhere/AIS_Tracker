@@ -90,7 +90,7 @@ This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese 
 - **UI confidence panel** - Visual confidence display in vessel details with refresh button
 
 ### Testing
-- **117 unit tests** - Comprehensive test coverage
+- **173 unit tests** - Comprehensive test coverage
 - **Test runner** - `python3 run_tests.py` to run all tests
 - **Module tests** - Database, API, SAR import, confidence scoring, intelligence
 
@@ -145,8 +145,10 @@ export AISHUB_USERNAME="your-aishub-username"
 | `confidence.py` | Vessel confidence scoring and deception detection |
 | `intelligence.py` | Formal intelligence output with analyst-visible breakdown |
 | `behavior.py` | Behavior detection: loitering, AIS gaps, STS transfers, dark fleet scoring |
+| `venezuela.py` | Venezuela dark fleet detection: zone monitoring, AIS spoofing, risk scoring |
+| `sanctions.py` | Sanctions database: FleetLeaks API, OFAC SDN, vessel compliance checking |
 | `run_tests.py` | Test runner script |
-| `tests/` | Unit tests for database, API, SAR, confidence, and intelligence |
+| `tests/` | Unit tests for database, API, SAR, confidence, intelligence, Venezuela, sanctions |
 
 ## API Endpoints
 
@@ -198,6 +200,23 @@ export AISHUB_USERNAME="your-aishub-username"
 | GET | `/api/vessels/:id/confidence` | Get cached confidence score |
 | GET | `/api/vessels/:id/confidence?refresh=true` | Calculate fresh confidence score |
 
+### Venezuela Dark Fleet Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/venezuela/config` | Monitoring zone configuration |
+| GET | `/api/venezuela/known-vessels` | Known dark fleet vessels database |
+| GET | `/api/vessels/:id/venezuela` | Full risk analysis (zone, score, alerts) |
+
+### Sanctions Database Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/sanctions/check?imo=X` | Check vessel by IMO |
+| GET | `/api/sanctions/check?name=X` | Check vessel by name |
+| GET | `/api/sanctions/stats` | Database statistics |
+| GET | `/api/vessels/:id/sanctions` | Vessel sanctions status |
+
 ### Other Endpoints
 
 | Method | Endpoint | Description |
@@ -247,6 +266,18 @@ curl http://localhost:8080/api/sar-detections
 
 # Get dark vessels (SAR without AIS)
 curl http://localhost:8080/api/dark-vessels
+
+# Get Venezuela monitoring config
+curl http://localhost:8080/api/venezuela/config
+
+# Get known dark fleet vessels
+curl http://localhost:8080/api/venezuela/known-vessels
+
+# Check vessel sanctions by name
+curl "http://localhost:8080/api/sanctions/check?name=SKIPPER"
+
+# Get sanctions database statistics
+curl http://localhost:8080/api/sanctions/stats
 ```
 
 ## AI Intelligence Features
@@ -437,9 +468,9 @@ Cameroon, Gabon, Palau, Marshall Islands, São Tomé and Príncipe, Equatorial G
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/venezuela/config` | Get monitoring configuration |
-| GET | `/api/venezuela/alerts?mmsi=XXX` | Check vessel alerts |
-| GET | `/api/venezuela/risk?mmsi=XXX` | Calculate risk score |
+| GET | `/api/venezuela/config` | Get monitoring zone configuration |
+| GET | `/api/venezuela/known-vessels` | List known dark fleet vessels |
+| GET | `/api/vessels/:id/venezuela` | Full Venezuela risk analysis for vessel |
 
 ### Example: Skipper Detection
 
@@ -500,13 +531,23 @@ Real-time sanctions data from multiple sources for vessel compliance checking.
 
 +0.05 bonus for 3+ authorities (cross-jurisdictional designation)
 
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/sanctions/check?imo=X` | Check vessel by IMO |
+| GET | `/api/sanctions/check?name=X` | Check vessel by name |
+| GET | `/api/sanctions/check?mmsi=X` | Check vessel by MMSI |
+| GET | `/api/sanctions/stats` | Database statistics |
+| GET | `/api/vessels/:id/sanctions` | Sanctions status for vessel |
+
 ### Usage
 
 ```python
-from sanctions import SanctionsDatabase, fetch_fleetleaks_csv
+from sanctions import SanctionsDatabase, fetch_fleetleaks_map_data
 
-# Fetch all sanctioned vessels from FleetLeaks
-vessels = fetch_fleetleaks_csv()  # Returns 800+ vessels
+# Fetch all sanctioned vessels from FleetLeaks (800+ vessels)
+vessels = fetch_fleetleaks_map_data()
 
 # Initialize database
 db = SanctionsDatabase()
@@ -521,6 +562,27 @@ result = db.check_vessel(imo="9179834")
 # python sanctions.py update  - Fetch from FleetLeaks/OFAC
 # python sanctions.py stats   - Show statistics
 # python sanctions.py check --imo 9328716
+```
+
+### Example API Response
+
+```bash
+curl "http://localhost:8080/api/sanctions/check?name=SKIPPER"
+```
+
+```json
+{
+  "sanctioned": true,
+  "vessel": {
+    "imo": "9179834",
+    "name": "SKIPPER",
+    "flag": "Cameroon",
+    "vessel_type": "Crude Oil Tanker"
+  },
+  "authorities": ["OFAC", "UK"],
+  "venezuela_linked": true,
+  "iran_venezuela_china_route": true
+}
 ```
 
 ### Academic References
