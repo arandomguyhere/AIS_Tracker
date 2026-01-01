@@ -568,6 +568,9 @@ Load via UI (recommended):
 1. Click the purple **POC** button in the vessel list header
 2. Select "Baltic Cable Incident" scenario
 3. Map auto-pans to Gulf of Finland with vessels loaded
+![BSpoc](docs/screenshots/bs-poc.png)
+
+Setup script for Finland cable incident analysis:
 
 Or via command line:
 ```bash
