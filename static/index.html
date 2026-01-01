@@ -1614,6 +1614,10 @@
             document.getElementById('vessel-panel').classList.add('active');
             // Load intelligence assessment
             loadIntelligence(v.id);
+            // Load Marinesia image if no photo exists
+            if (!v.photo_url && v.mmsi) {
+                loadMarinesiaImage(v.id);
+            }
         }
 
         function renderVesselPanel(v, events, osint) {
@@ -1634,7 +1638,10 @@
                 ${v.photo_url ? `
                 <div class="panel-section" style="padding:0">
                     <img src="${v.photo_url}" style="width:100%;max-height:200px;object-fit:cover" alt="Vessel photo">
-                </div>` : ''}
+                </div>` : `
+                <div class="panel-section" style="padding:0;display:none" id="marinesia-image">
+                    <!-- Marinesia image will be loaded here -->
+                </div>`}
 
                 <div class="panel-section">
                     <div class="section-title">Position</div>
@@ -1688,6 +1695,22 @@
                         <button onclick="loadDarkFleetRisk(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Analyze</button>
                     </div>
                     <div id="darkfleet-display" style="padding:12px;color:#666">Click Analyze for multi-region dark fleet assessment (Russia, Iran, Venezuela, China)</div>
+                </div>
+
+                <div class="panel-section" id="ports-section">
+                    <div class="section-title">
+                        Nearby Ports
+                        <button onclick="loadNearbyPorts(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Find</button>
+                    </div>
+                    <div id="ports-display" style="padding:12px;color:#666">Click Find to locate nearby ports (via Marinesia)</div>
+                </div>
+
+                <div class="panel-section" id="combined-section">
+                    <div class="section-title">
+                        All Sources
+                        <button onclick="loadCombinedData(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Load</button>
+                    </div>
+                    <div id="combined-display" style="padding:12px;color:#666">Click Load to fetch data from all AIS sources</div>
                 </div>
 
                 ${v.intel_notes ? `
@@ -2870,6 +2893,132 @@
                 ${factors ? `<div style="margin-bottom:10px"><div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">RISK FACTORS</div>${factors}</div>` : ''}
                 ${alerts ? `<div><div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">ALERTS</div>${alerts}</div>` : ''}
             `;
+        }
+
+        // ========== Marinesia Features ==========
+        // Vessel images, nearby ports, combined data from all sources
+
+        async function loadMarinesiaImage(vesselId) {
+            try {
+                const result = await api(`/vessels/${vesselId}/image`);
+                if (result.image_url) {
+                    const imageSection = document.getElementById('marinesia-image');
+                    if (imageSection) {
+                        imageSection.innerHTML = `<img src="${result.image_url}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px" alt="Vessel photo" onerror="this.parentElement.style.display='none'">`;
+                        imageSection.style.display = 'block';
+                    }
+                }
+            } catch(e) {
+                console.log('Marinesia image not available');
+            }
+        }
+
+        async function loadNearbyPorts(vesselId) {
+            const display = document.getElementById('ports-display');
+            if (!display) return;
+            display.innerHTML = '<span style="color:#666">Finding nearby ports...</span>';
+
+            try {
+                const vessel = vessels.find(v => v.id === vesselId);
+                if (!vessel || !vessel.last_lat || !vessel.last_lon) {
+                    display.innerHTML = '<span style="color:#999">No position data available</span>';
+                    return;
+                }
+
+                const result = await api(`/ports/nearby?lat=${vessel.last_lat}&lon=${vessel.last_lon}&radius=100`);
+                renderNearbyPorts(result);
+            } catch(e) {
+                display.innerHTML = '<span style="color:#e74c3c">Error loading ports</span>';
+            }
+        }
+
+        function renderNearbyPorts(data) {
+            const display = document.getElementById('ports-display');
+            if (!display) return;
+
+            const ports = data.ports || [];
+            if (!ports.length) {
+                display.innerHTML = '<span style="color:#999">No ports found within 100nm</span>';
+                return;
+            }
+
+            display.innerHTML = ports.slice(0, 5).map(p => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee">
+                    <div>
+                        <div style="font-weight:600;font-size:11px;color:#333">${p.name || 'Unknown Port'}</div>
+                        <div style="font-size:9px;color:#666">${p.country || ''}</div>
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-size:10px;color:#3498db;font-weight:600">${p.distance_nm?.toFixed(1) || '?'} nm</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadCombinedData(vesselId) {
+            const display = document.getElementById('combined-display');
+            if (!display) return;
+            display.innerHTML = '<span style="color:#666">Loading from all sources...</span>';
+
+            try {
+                const result = await api(`/vessels/${vesselId}/combined`);
+                renderCombinedData(result);
+            } catch(e) {
+                display.innerHTML = '<span style="color:#e74c3c">Error loading combined data</span>';
+            }
+        }
+
+        function renderCombinedData(data) {
+            const display = document.getElementById('combined-display');
+            if (!display) return;
+
+            const sources = data.sources_used || [];
+            const profile = data.profile || {};
+            const position = data.position || {};
+
+            const sourceColors = {
+                'aisstream': '#2ecc71',
+                'marinesia': '#3498db',
+                'gfw': '#9b59b6',
+                'aishub': '#e67e22'
+            };
+
+            const sourceBadges = sources.map(s =>
+                `<span style="background:${sourceColors[s] || '#666'};color:white;padding:2px 6px;border-radius:3px;font-size:9px;margin-right:4px">${s.toUpperCase()}</span>`
+            ).join('') || '<span style="color:#999;font-size:10px">No sources available</span>';
+
+            let profileHtml = '';
+            if (profile.destination) {
+                profileHtml += `<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px"><span style="color:#666">Destination</span><span style="color:#333;font-weight:600">${profile.destination}</span></div>`;
+            }
+            if (profile.eta) {
+                profileHtml += `<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px"><span style="color:#666">ETA</span><span style="color:#333">${new Date(profile.eta).toLocaleString()}</span></div>`;
+            }
+            if (position.speed !== undefined && position.speed !== null) {
+                profileHtml += `<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px"><span style="color:#666">Speed</span><span style="color:#333">${position.speed?.toFixed(1) || 0} kts</span></div>`;
+            }
+            if (position.course !== undefined && position.course !== null) {
+                profileHtml += `<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px"><span style="color:#666">Course</span><span style="color:#333">${position.course?.toFixed(0) || 0}°</span></div>`;
+            }
+
+            display.innerHTML = `
+                <div style="margin-bottom:10px">
+                    <div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">DATA SOURCES</div>
+                    <div>${sourceBadges}</div>
+                </div>
+                ${profileHtml ? `<div style="margin-top:8px">${profileHtml}</div>` : '<span style="color:#999;font-size:10px">No additional data</span>'}
+            `;
+        }
+
+        async function loadSourcesStatus() {
+            try {
+                const result = await api('/sources/status');
+                console.log('AIS Sources:', result);
+                return result;
+            } catch(e) {
+                console.log('Sources status not available');
+                return null;
+            }
         }
 
         // Init
