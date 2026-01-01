@@ -897,6 +897,14 @@ def analyze_vessel_behavior(
         avg_speed = 0
         max_speed = 0
 
+    # Calculate dark fleet risk score
+    dark_fleet_score = calculate_dark_fleet_score(
+        mmsi=mmsi,
+        ais_gap_count=len(ais_gaps),
+        loitering_count=len(loitering_events),
+        spoofing_count=len(spoofing_events)
+    )
+
     return {
         "mmsi": mmsi,
         "mmsi_validation": mmsi_validation,
@@ -916,5 +924,468 @@ def analyze_vessel_behavior(
             "ais_gap_count": len(ais_gaps),
             "spoofing_count": len(spoofing_events),
             "total_events": len(loitering_events) + len(ais_gaps) + len(spoofing_events)
-        }
+        },
+        "dark_fleet_score": dark_fleet_score
     }
+
+
+# =============================================================================
+# Dark Fleet Detection (Based on Academic Research)
+# =============================================================================
+# References:
+# - "Shadow Fleets: A Growing Challenge" (MDPI Applied Sciences, 2025)
+# - "AIS Data Manipulation in the Illicit Global Oil Trade" (MDPI JMSE, 2023)
+# - Global Fishing Watch Nature Study (2024)
+# =============================================================================
+
+# Flags of Convenience - Countries with lax maritime regulations
+# Used by shadow fleets to obscure ownership and evade oversight
+# Source: ITU, Paris MOU, academic literature on FOC registries
+FLAGS_OF_CONVENIENCE = {
+    # Traditional FOC (Open Registries)
+    "Panama", "Liberia", "Marshall Islands", "Bahamas", "Malta",
+    "Cyprus", "Bermuda", "Antigua and Barbuda", "Saint Vincent and the Grenadines",
+    "Cayman Islands", "Vanuatu", "Comoros", "Moldova", "Mongolia",
+    "Togo", "Tanzania", "Palau", "Belize", "Honduras",
+    "Bolivia", "Cambodia", "Sierra Leone",
+    # Emerging FOC used by shadow fleet (per 2024-2025 research)
+    "Gabon", "Cameroon", "Sao Tome and Principe", "Equatorial Guinea",
+    "Guinea-Bissau", "Djibouti", "Barbados",
+}
+
+# High-risk flags specifically associated with sanctions evasion
+# Based on documented shadow fleet patterns (Russia/Iran/Venezuela)
+SHADOW_FLEET_FLAGS = {
+    "Gabon", "Cameroon", "Palau", "Sao Tome and Principe",
+    "Equatorial Guinea", "Comoros", "Togo", "Tanzania",
+}
+
+
+def is_flag_of_convenience(country: Optional[str]) -> bool:
+    """
+    Check if a flag state is a Flag of Convenience.
+
+    FOC registries have minimal regulations and are frequently
+    used by shadow fleets to obscure vessel ownership.
+
+    Args:
+        country: Flag state name
+
+    Returns:
+        True if country is a known FOC
+    """
+    if not country:
+        return False
+    return country in FLAGS_OF_CONVENIENCE
+
+
+def is_shadow_fleet_flag(country: Optional[str]) -> bool:
+    """
+    Check if a flag is specifically associated with shadow fleet operations.
+
+    These are flags with documented patterns of sanctions evasion,
+    particularly for Russian, Iranian, and Venezuelan oil trade.
+
+    Args:
+        country: Flag state name
+
+    Returns:
+        True if country is a known shadow fleet flag
+    """
+    if not country:
+        return False
+    return country in SHADOW_FLEET_FLAGS
+
+
+def calculate_dark_fleet_score(
+    mmsi: str = "",
+    flag: Optional[str] = None,
+    year_built: Optional[int] = None,
+    owner: Optional[str] = None,
+    ais_gap_count: int = 0,
+    loitering_count: int = 0,
+    spoofing_count: int = 0,
+    sts_transfer_count: int = 0,
+    vessel_type: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Calculate dark fleet risk score based on multiple indicators.
+
+    Based on academic research identifying key shadow fleet characteristics:
+    - Disabled/manipulated AIS
+    - Flags of convenience (especially emerging FOC)
+    - Aging vessels (>15-20 years)
+    - Obscure ownership structures
+    - Ship-to-ship transfers at sea
+
+    References:
+        - "Shadow Fleets: A Growing Challenge" (MDPI, 2025)
+        - "AIS Data Manipulation in Illicit Oil Trade" (MDPI, 2023)
+
+    Args:
+        mmsi: Vessel MMSI
+        flag: Flag state
+        year_built: Year vessel was built
+        owner: Registered owner name
+        ais_gap_count: Number of AIS transmission gaps
+        loitering_count: Number of loitering events
+        spoofing_count: Number of position spoofing events
+        sts_transfer_count: Number of ship-to-ship transfer events
+        vessel_type: Type of vessel
+
+    Returns:
+        Dict with score (0-100), risk level, and breakdown
+    """
+    score = 0
+    factors = []
+
+    # Factor 1: Flag of Convenience (0-25 points)
+    # Shadow fleet flag = 25, general FOC = 15
+    if flag:
+        if is_shadow_fleet_flag(flag):
+            score += 25
+            factors.append({"factor": "shadow_fleet_flag", "points": 25,
+                          "detail": f"{flag} is associated with shadow fleet operations"})
+        elif is_flag_of_convenience(flag):
+            score += 15
+            factors.append({"factor": "flag_of_convenience", "points": 15,
+                          "detail": f"{flag} is a flag of convenience"})
+
+    # Factor 2: Vessel Age (0-20 points)
+    # Shadow fleets use aging tankers (lower insurance, expendable)
+    if year_built:
+        current_year = datetime.now().year
+        age = current_year - year_built
+        if age >= 25:
+            score += 20
+            factors.append({"factor": "vessel_age", "points": 20,
+                          "detail": f"Vessel is {age} years old (high risk)"})
+        elif age >= 20:
+            score += 15
+            factors.append({"factor": "vessel_age", "points": 15,
+                          "detail": f"Vessel is {age} years old (elevated risk)"})
+        elif age >= 15:
+            score += 10
+            factors.append({"factor": "vessel_age", "points": 10,
+                          "detail": f"Vessel is {age} years old (moderate risk)"})
+
+    # Factor 3: Ownership Opacity (0-15 points)
+    # Shell companies and hidden ownership are key indicators
+    if not owner or owner.strip() == "":
+        score += 15
+        factors.append({"factor": "unknown_owner", "points": 15,
+                      "detail": "No registered owner information"})
+    elif any(x in owner.lower() for x in ["unknown", "n/a", "private", "confidential"]):
+        score += 10
+        factors.append({"factor": "obscured_owner", "points": 10,
+                      "detail": "Owner information appears obscured"})
+
+    # Factor 4: AIS Gaps (0-20 points)
+    # Going dark is primary shadow fleet tactic
+    if ais_gap_count >= 5:
+        score += 20
+        factors.append({"factor": "ais_gaps", "points": 20,
+                      "detail": f"{ais_gap_count} AIS transmission gaps detected"})
+    elif ais_gap_count >= 3:
+        score += 15
+        factors.append({"factor": "ais_gaps", "points": 15,
+                      "detail": f"{ais_gap_count} AIS transmission gaps detected"})
+    elif ais_gap_count >= 1:
+        score += 10
+        factors.append({"factor": "ais_gaps", "points": 10,
+                      "detail": f"{ais_gap_count} AIS transmission gap(s) detected"})
+
+    # Factor 5: Position Spoofing (0-15 points)
+    # Falsified positions indicate intentional deception
+    if spoofing_count >= 3:
+        score += 15
+        factors.append({"factor": "spoofing", "points": 15,
+                      "detail": f"{spoofing_count} position anomalies suggest spoofing"})
+    elif spoofing_count >= 1:
+        score += 10
+        factors.append({"factor": "spoofing", "points": 10,
+                      "detail": f"{spoofing_count} position anomaly detected"})
+
+    # Factor 6: Loitering Behavior (0-10 points)
+    # Loitering at sea often indicates STS transfers
+    if loitering_count >= 3:
+        score += 10
+        factors.append({"factor": "loitering", "points": 10,
+                      "detail": f"{loitering_count} loitering events detected"})
+    elif loitering_count >= 1:
+        score += 5
+        factors.append({"factor": "loitering", "points": 5,
+                      "detail": f"{loitering_count} loitering event(s) detected"})
+
+    # Factor 7: STS Transfers (0-15 points)
+    # Direct indicator of sanctions evasion
+    if sts_transfer_count >= 2:
+        score += 15
+        factors.append({"factor": "sts_transfers", "points": 15,
+                      "detail": f"{sts_transfer_count} ship-to-ship transfers detected"})
+    elif sts_transfer_count >= 1:
+        score += 10
+        factors.append({"factor": "sts_transfers", "points": 10,
+                      "detail": f"{sts_transfer_count} ship-to-ship transfer detected"})
+
+    # Factor 8: Vessel Type (0-5 points)
+    # Tankers are primary shadow fleet vessel type
+    if vessel_type:
+        tanker_types = ["tanker", "crude", "oil", "chemical", "lpg", "lng", "product"]
+        if any(t in vessel_type.lower() for t in tanker_types):
+            score += 5
+            factors.append({"factor": "vessel_type", "points": 5,
+                          "detail": f"Tanker vessels are common in shadow fleets"})
+
+    # Cap score at 100
+    score = min(100, score)
+
+    # Determine risk level
+    if score >= 70:
+        risk_level = "critical"
+        assessment = "High probability of shadow fleet involvement"
+    elif score >= 50:
+        risk_level = "high"
+        assessment = "Multiple dark fleet indicators present"
+    elif score >= 30:
+        risk_level = "medium"
+        assessment = "Some concerning indicators detected"
+    elif score >= 15:
+        risk_level = "low"
+        assessment = "Minor risk factors present"
+    else:
+        risk_level = "minimal"
+        assessment = "No significant dark fleet indicators"
+
+    return {
+        "score": score,
+        "risk_level": risk_level,
+        "assessment": assessment,
+        "factors": factors,
+        "methodology": "Based on MDPI shadow fleet research (2023-2025)"
+    }
+
+
+def detect_sts_transfers(
+    tracks: Dict[str, List[dict]],
+    min_distance_km: float = 0.5,
+    max_speed_knots: float = 3.0,
+    min_duration_hours: float = 4.0,
+    max_duration_hours: float = 48.0,
+    min_distance_from_shore_nm: float = 12.0
+) -> List[BehaviorEvent]:
+    """
+    Detect ship-to-ship (STS) transfers at sea.
+
+    STS transfers are a primary method for sanctions evasion, where cargo
+    (typically oil) is transferred between vessels at sea to obscure origin.
+
+    Detection criteria based on research:
+    - Two vessels within 500m for 4-48 hours (oil transfer time)
+    - Both vessels nearly stationary (<3 knots)
+    - Located far from shore (>12nm, outside territorial waters)
+
+    References:
+        - "Automatic Detection of Dark Ship-to-Ship Transfers" (arXiv, 2024)
+        - "AIS Data Manipulation in Illicit Oil Trade" (MDPI, 2023)
+
+    Args:
+        tracks: Dict of MMSI -> list of position dicts
+        min_distance_km: Maximum distance between vessels (0.5km = 500m)
+        max_speed_knots: Maximum speed for both vessels during transfer
+        min_duration_hours: Minimum transfer duration (4h for partial cargo)
+        max_duration_hours: Maximum transfer duration (48h for full cargo)
+        min_distance_from_shore_nm: Minimum distance from coast
+
+    Returns:
+        List of detected STS transfer events
+    """
+    transfers = []
+    mmsi_list = list(tracks.keys())
+
+    for i, mmsi1 in enumerate(mmsi_list):
+        for mmsi2 in mmsi_list[i+1:]:
+            track1 = tracks[mmsi1]
+            track2 = tracks[mmsi2]
+
+            # Find rendezvous events with STS characteristics
+            sts_segments = _find_sts_segments(
+                track1, track2,
+                min_distance_km,
+                max_speed_knots,
+                min_duration_hours,
+                max_duration_hours
+            )
+
+            for segment in sts_segments:
+                duration_hours = segment["duration_hours"]
+
+                # Estimate transfer type based on duration
+                if duration_hours >= 24:
+                    transfer_type = "full_cargo"
+                    confidence = 0.9
+                elif duration_hours >= 12:
+                    transfer_type = "partial_cargo"
+                    confidence = 0.8
+                else:
+                    transfer_type = "possible_transfer"
+                    confidence = 0.6
+
+                transfers.append(BehaviorEvent(
+                    event_type=BehaviorType.ENCOUNTER,
+                    mmsi=f"{mmsi1},{mmsi2}",
+                    start_time=segment["start_time"],
+                    end_time=segment["end_time"],
+                    latitude=segment["lat"],
+                    longitude=segment["lon"],
+                    confidence=confidence,
+                    details={
+                        "event_subtype": "sts_transfer",
+                        "vessel1_mmsi": mmsi1,
+                        "vessel2_mmsi": mmsi2,
+                        "duration_hours": round(duration_hours, 2),
+                        "transfer_type": transfer_type,
+                        "avg_distance_m": round(segment["avg_distance"] * 1000, 0),
+                        "avg_speed_knots": round(segment["avg_speed"], 2),
+                        "methodology": "arXiv 2024 STS detection criteria"
+                    }
+                ))
+
+    return transfers
+
+
+def _find_sts_segments(
+    track1: List[dict],
+    track2: List[dict],
+    min_distance_km: float,
+    max_speed_knots: float,
+    min_duration_hours: float,
+    max_duration_hours: float
+) -> List[dict]:
+    """
+    Find time segments matching STS transfer criteria.
+
+    More stringent than general encounter detection:
+    - Both vessels must be nearly stationary
+    - Duration must be within realistic transfer window
+    """
+    segments = []
+    current_segment = None
+
+    # Create time-indexed lookup for track2
+    track2_by_time = {}
+    for pos in track2:
+        ts = pos.get("timestamp")
+        if ts:
+            track2_by_time[ts] = pos
+
+    for pos1 in sorted(track1, key=lambda x: x.get("timestamp", datetime.min)):
+        ts1 = pos1.get("timestamp")
+        if not ts1:
+            continue
+
+        # Find closest position in track2 (within 10 minutes for STS)
+        pos2 = _find_closest_position_sts(ts1, track2_by_time, max_gap_minutes=10)
+        if not pos2:
+            if current_segment:
+                # Check if segment meets duration criteria
+                duration = _calculate_segment_duration(current_segment)
+                if min_duration_hours <= duration <= max_duration_hours:
+                    current_segment["duration_hours"] = duration
+                    segments.append(current_segment)
+                current_segment = None
+            continue
+
+        # Calculate distance between vessels
+        lat1 = pos1.get("lat", pos1.get("latitude", 0))
+        lon1 = pos1.get("lon", pos1.get("longitude", 0))
+        lat2 = pos2.get("lat", pos2.get("latitude", 0))
+        lon2 = pos2.get("lon", pos2.get("longitude", 0))
+
+        distance = haversine(lat1, lon1, lat2, lon2)
+
+        speed1 = pos1.get("speed", pos1.get("speed_knots", 0)) or 0
+        speed2 = pos2.get("speed", pos2.get("speed_knots", 0)) or 0
+
+        # STS criteria: close, both stationary
+        if distance <= min_distance_km and speed1 <= max_speed_knots and speed2 <= max_speed_knots:
+            if current_segment is None:
+                current_segment = {
+                    "start_time": ts1,
+                    "end_time": ts1,
+                    "lat": lat1,
+                    "lon": lon1,
+                    "distances": [distance],
+                    "speeds": [speed1, speed2]
+                }
+            else:
+                current_segment["end_time"] = ts1
+                current_segment["distances"].append(distance)
+                current_segment["speeds"].extend([speed1, speed2])
+        else:
+            if current_segment:
+                duration = _calculate_segment_duration(current_segment)
+                if min_duration_hours <= duration <= max_duration_hours:
+                    current_segment["duration_hours"] = duration
+                    current_segment["avg_distance"] = sum(current_segment["distances"]) / len(current_segment["distances"])
+                    current_segment["avg_speed"] = sum(current_segment["speeds"]) / len(current_segment["speeds"])
+                    segments.append(current_segment)
+                current_segment = None
+
+    # Check final segment
+    if current_segment:
+        duration = _calculate_segment_duration(current_segment)
+        if min_duration_hours <= duration <= max_duration_hours:
+            current_segment["duration_hours"] = duration
+            current_segment["avg_distance"] = sum(current_segment["distances"]) / len(current_segment["distances"])
+            current_segment["avg_speed"] = sum(current_segment["speeds"]) / len(current_segment["speeds"])
+            segments.append(current_segment)
+
+    return segments
+
+
+def _find_closest_position_sts(target_time: datetime, positions_by_time: dict, max_gap_minutes: int = 10) -> Optional[dict]:
+    """Find closest position for STS detection (stricter time window)."""
+    if not positions_by_time:
+        return None
+
+    best_pos = None
+    best_gap = timedelta(minutes=max_gap_minutes + 1)
+
+    for ts, pos in positions_by_time.items():
+        if isinstance(ts, str):
+            try:
+                ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            except:
+                continue
+
+        if isinstance(target_time, str):
+            try:
+                target_time = datetime.fromisoformat(target_time.replace("Z", "+00:00"))
+            except:
+                continue
+
+        gap = abs(ts - target_time) if isinstance(target_time, datetime) else timedelta(hours=999)
+        if gap < best_gap:
+            best_gap = gap
+            best_pos = pos
+
+    if best_gap <= timedelta(minutes=max_gap_minutes):
+        return best_pos
+    return None
+
+
+def _calculate_segment_duration(segment: dict) -> float:
+    """Calculate duration of a segment in hours."""
+    start = segment.get("start_time")
+    end = segment.get("end_time")
+
+    if not start or not end:
+        return 0
+
+    if isinstance(start, str):
+        start = datetime.fromisoformat(start.replace("Z", "+00:00"))
+    if isinstance(end, str):
+        end = datetime.fromisoformat(end.replace("Z", "+00:00"))
+
+    return (end - start).total_seconds() / 3600

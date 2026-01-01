@@ -12,7 +12,11 @@ from behavior import (
     detect_loitering, detect_ais_gaps, detect_spoofing,
     downsample_track, segment_track, filter_by_distance,
     deduplicate_positions, analyze_vessel_behavior,
-    BehaviorType
+    BehaviorType,
+    # Dark fleet detection
+    is_flag_of_convenience, is_shadow_fleet_flag,
+    calculate_dark_fleet_score, detect_sts_transfers,
+    FLAGS_OF_CONVENIENCE, SHADOW_FLEET_FLAGS
 )
 
 
@@ -269,6 +273,216 @@ class TestStringTimestamps(unittest.TestCase):
 
         events = detect_ais_gaps(track, "413000000", max_gap_minutes=60)
         self.assertEqual(len(events), 1)
+
+
+class TestFlagOfConvenience(unittest.TestCase):
+    """Test Flag of Convenience detection."""
+
+    def test_panama_is_foc(self):
+        """Panama is a well-known FOC."""
+        self.assertTrue(is_flag_of_convenience("Panama"))
+
+    def test_liberia_is_foc(self):
+        """Liberia is a major FOC registry."""
+        self.assertTrue(is_flag_of_convenience("Liberia"))
+
+    def test_usa_not_foc(self):
+        """USA is not a FOC."""
+        self.assertFalse(is_flag_of_convenience("USA"))
+
+    def test_gabon_is_shadow_fleet_flag(self):
+        """Gabon is associated with shadow fleet operations."""
+        self.assertTrue(is_shadow_fleet_flag("Gabon"))
+        self.assertTrue(is_flag_of_convenience("Gabon"))
+
+    def test_cameroon_is_shadow_fleet_flag(self):
+        """Cameroon is associated with shadow fleet operations."""
+        self.assertTrue(is_shadow_fleet_flag("Cameroon"))
+
+    def test_panama_not_shadow_fleet(self):
+        """Panama is FOC but not specifically shadow fleet."""
+        self.assertTrue(is_flag_of_convenience("Panama"))
+        self.assertFalse(is_shadow_fleet_flag("Panama"))
+
+    def test_none_handling(self):
+        """None and empty strings handled gracefully."""
+        self.assertFalse(is_flag_of_convenience(None))
+        self.assertFalse(is_flag_of_convenience(""))
+        self.assertFalse(is_shadow_fleet_flag(None))
+
+
+class TestDarkFleetScore(unittest.TestCase):
+    """Test dark fleet risk scoring."""
+
+    def test_clean_vessel_minimal_risk(self):
+        """Vessel with no risk factors gets minimal score."""
+        result = calculate_dark_fleet_score(
+            mmsi="366000001",
+            flag="USA",
+            year_built=2020,
+            owner="Maersk Line",
+            ais_gap_count=0,
+            loitering_count=0,
+            spoofing_count=0
+        )
+        self.assertEqual(result['risk_level'], 'minimal')
+        self.assertLess(result['score'], 15)
+
+    def test_shadow_fleet_flag_high_score(self):
+        """Shadow fleet flag adds 25 points."""
+        result = calculate_dark_fleet_score(flag="Gabon", owner="Known Owner")
+        self.assertEqual(result['score'], 25)
+        self.assertIn('shadow_fleet_flag', [f['factor'] for f in result['factors']])
+
+    def test_foc_flag_moderate_score(self):
+        """Regular FOC flag adds 15 points."""
+        result = calculate_dark_fleet_score(flag="Panama", owner="Known Owner")
+        self.assertEqual(result['score'], 15)
+        self.assertIn('flag_of_convenience', [f['factor'] for f in result['factors']])
+
+    def test_old_vessel_high_score(self):
+        """Old vessel (25+ years) adds 20 points."""
+        result = calculate_dark_fleet_score(year_built=1995, owner="Known Owner")
+        self.assertEqual(result['score'], 20)
+        self.assertIn('vessel_age', [f['factor'] for f in result['factors']])
+
+    def test_unknown_owner_adds_points(self):
+        """Unknown owner adds 15 points."""
+        result = calculate_dark_fleet_score(owner="")
+        self.assertEqual(result['score'], 15)
+        self.assertIn('unknown_owner', [f['factor'] for f in result['factors']])
+
+    def test_multiple_ais_gaps_high_score(self):
+        """Multiple AIS gaps indicate dark fleet activity."""
+        result = calculate_dark_fleet_score(ais_gap_count=5, owner="Known Owner")
+        self.assertEqual(result['score'], 20)
+        self.assertIn('ais_gaps', [f['factor'] for f in result['factors']])
+
+    def test_combined_factors_critical_risk(self):
+        """Multiple risk factors produce critical score."""
+        result = calculate_dark_fleet_score(
+            flag="Gabon",  # 25 points
+            year_built=1998,  # 20 points (27 years old)
+            owner="",  # 15 points
+            ais_gap_count=5,  # 20 points
+            spoofing_count=3,  # 15 points
+            vessel_type="Crude Oil Tanker"  # 5 points
+        )
+        self.assertEqual(result['risk_level'], 'critical')
+        self.assertGreaterEqual(result['score'], 70)
+
+    def test_tanker_type_adds_points(self):
+        """Tanker vessels get additional risk points."""
+        result = calculate_dark_fleet_score(vessel_type="Crude Oil Tanker", owner="Known Owner")
+        self.assertEqual(result['score'], 5)
+
+    def test_sts_transfers_add_points(self):
+        """STS transfers are high-risk indicator."""
+        result = calculate_dark_fleet_score(sts_transfer_count=2, owner="Known Owner")
+        self.assertEqual(result['score'], 15)
+
+    def test_score_capped_at_100(self):
+        """Score should never exceed 100."""
+        result = calculate_dark_fleet_score(
+            flag="Gabon",
+            year_built=1990,
+            owner="",
+            ais_gap_count=10,
+            spoofing_count=10,
+            loitering_count=10,
+            sts_transfer_count=10,
+            vessel_type="Tanker"
+        )
+        self.assertLessEqual(result['score'], 100)
+
+
+class TestSTSTransferDetection(unittest.TestCase):
+    """Test ship-to-ship transfer detection."""
+
+    def test_detect_sts_long_encounter(self):
+        """Detect STS when two vessels meet for extended period."""
+        base_time = datetime.now()
+
+        # Two vessels stationary together for 6 hours
+        track1 = [
+            {'lat': 10.0, 'lon': 50.0, 'speed': 0.5, 'timestamp': base_time + timedelta(hours=i)}
+            for i in range(7)
+        ]
+        track2 = [
+            {'lat': 10.0001, 'lon': 50.0001, 'speed': 0.3, 'timestamp': base_time + timedelta(hours=i)}
+            for i in range(7)
+        ]
+
+        tracks = {
+            "111111111": track1,
+            "222222222": track2
+        }
+
+        events = detect_sts_transfers(tracks, min_duration_hours=4)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].details['event_subtype'], 'sts_transfer')
+
+    def test_no_sts_short_encounter(self):
+        """Short encounters don't trigger STS detection."""
+        base_time = datetime.now()
+
+        # Only 2 hours together - too short for STS
+        track1 = [
+            {'lat': 10.0, 'lon': 50.0, 'speed': 0.5, 'timestamp': base_time + timedelta(hours=i)}
+            for i in range(3)
+        ]
+        track2 = [
+            {'lat': 10.0001, 'lon': 50.0001, 'speed': 0.3, 'timestamp': base_time + timedelta(hours=i)}
+            for i in range(3)
+        ]
+
+        tracks = {
+            "111111111": track1,
+            "222222222": track2
+        }
+
+        events = detect_sts_transfers(tracks, min_duration_hours=4)
+        self.assertEqual(len(events), 0)
+
+    def test_no_sts_moving_vessels(self):
+        """Moving vessels don't trigger STS detection."""
+        base_time = datetime.now()
+
+        # Vessels moving too fast for STS
+        track1 = [
+            {'lat': 10.0 + i*0.1, 'lon': 50.0, 'speed': 12.0, 'timestamp': base_time + timedelta(hours=i)}
+            for i in range(7)
+        ]
+        track2 = [
+            {'lat': 10.0 + i*0.1, 'lon': 50.001, 'speed': 11.0, 'timestamp': base_time + timedelta(hours=i)}
+            for i in range(7)
+        ]
+
+        tracks = {
+            "111111111": track1,
+            "222222222": track2
+        }
+
+        events = detect_sts_transfers(tracks, min_duration_hours=4)
+        self.assertEqual(len(events), 0)
+
+
+class TestDarkFleetScoreInBehaviorAnalysis(unittest.TestCase):
+    """Test that dark fleet score is included in behavior analysis."""
+
+    def test_behavior_analysis_includes_dark_fleet_score(self):
+        """analyze_vessel_behavior should include dark_fleet_score."""
+        base_time = datetime.now()
+        track = [
+            {'lat': 31.0, 'lon': 121.0, 'speed': 10.0, 'timestamp': base_time},
+            {'lat': 31.1, 'lon': 121.1, 'speed': 12.0, 'timestamp': base_time + timedelta(hours=1)},
+        ]
+
+        result = analyze_vessel_behavior(track, "366000001")
+
+        self.assertIn('dark_fleet_score', result)
+        self.assertIn('score', result['dark_fleet_score'])
+        self.assertIn('risk_level', result['dark_fleet_score'])
 
 
 if __name__ == '__main__':
