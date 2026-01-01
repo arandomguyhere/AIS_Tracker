@@ -10,6 +10,24 @@ Maritime gray zone monitoring system for tracking vessels suspected of civilian-
 
 **[View Static Demo on GitHub Pages](https://arandomguyhere.github.io/AIS_Tracker/)**
 
+## Screenshots
+
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+*Main tracking interface with vessel markers, confidence scoring breakdown, and threat assessment panel*
+
+### Track Live Vessel
+![Track Vessel](docs/screenshots/track-vessel.png)
+*Add any AIS vessel to your tracking database by MMSI*
+
+### AI Intelligence Analysis
+![AI Analysis](docs/screenshots/ai-analysis.png)
+*OpenAI-powered strategic intelligence with MMSI lookups and news correlation*
+
+### Intelligence Results
+![Intel Result](docs/screenshots/intel-result.png)
+*BLUF assessment with risk level, confidence breakdown, and analyst-visible indicators*
+
 ## Overview
 
 This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese container feeder converted to an arsenal ship carrying 60+ containerized missiles, CIWS, and radar while retaining civilian classification.
