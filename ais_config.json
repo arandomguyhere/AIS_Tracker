@@ -17,7 +17,7 @@
       "description": "REST API fallback from marinesia.com (free, no key required for basic access)"
     },
     "gfw": {
-      "enabled": false,
+      "enabled": true,
       "api_key": "${GFW_API_KEY}",
       "rate_limit": 10,
       "description": "Global Fishing Watch enrichment data (requires free API key, enrichment only)"
