@@ -92,6 +92,19 @@ try:
 except ImportError:
     SANCTIONS_AVAILABLE = False
 
+# Import multi-region dark fleet detection module
+try:
+    from dark_fleet import (
+        Region, is_in_region_zone, is_in_any_monitored_zone,
+        get_nearby_key_points, calculate_dark_fleet_risk_score,
+        check_dark_fleet_alerts, get_dark_fleet_config,
+        get_known_vessels_by_region, get_dark_fleet_statistics,
+        KNOWN_DARK_FLEET_VESSELS as DARK_FLEET_VESSELS
+    )
+    DARK_FLEET_AVAILABLE = True
+except ImportError:
+    DARK_FLEET_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -1029,6 +1042,107 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 'risk_score': risk.get('score', 0),
                 'risk_level': risk.get('risk_level', 'unknown'),
                 'risk_factors': risk.get('factors', []),
+                'alerts': [alert.to_dict() if hasattr(alert, 'to_dict') else alert for alert in alerts]
+            })
+
+        # Multi-region dark fleet detection endpoints
+        elif path == '/api/dark-fleet/config':
+            if not DARK_FLEET_AVAILABLE:
+                return self.send_json({'error': 'Dark fleet module not available'}, 500)
+            region_param = params.get('region', [None])[0]
+            region = Region(region_param) if region_param else None
+            return self.send_json(get_dark_fleet_config(region))
+
+        elif path == '/api/dark-fleet/statistics':
+            if not DARK_FLEET_AVAILABLE:
+                return self.send_json({'error': 'Dark fleet module not available'}, 500)
+            return self.send_json(get_dark_fleet_statistics())
+
+        elif path == '/api/dark-fleet/known-vessels':
+            if not DARK_FLEET_AVAILABLE:
+                return self.send_json({'error': 'Dark fleet module not available'}, 500)
+            region_param = params.get('region', [None])[0]
+            region = Region(region_param) if region_param else None
+            vessels = get_known_vessels_by_region(region)
+            return self.send_json({'vessels': vessels, 'count': len(vessels)})
+
+        elif path == '/api/dark-fleet/regions':
+            if not DARK_FLEET_AVAILABLE:
+                return self.send_json({'error': 'Dark fleet module not available'}, 500)
+            return self.send_json({
+                'regions': [r.value for r in Region],
+                'descriptions': {
+                    'russia': 'Shadow fleet evading oil price cap (3,300+ vessels)',
+                    'iran': 'Sanctions evasion via Malaysia STS hub (1.6M bpd)',
+                    'venezuela': 'Caribbean dark fleet operations',
+                    'china': 'Destination ports receiving sanctioned oil'
+                }
+            })
+
+        elif path.startswith('/api/vessels/') and path.endswith('/dark-fleet'):
+            if not DARK_FLEET_AVAILABLE:
+                return self.send_json({'error': 'Dark fleet module not available'}, 500)
+            vessel_id = int(path.split('/')[3])
+            days = int(params.get('days', [30])[0])
+            region_param = params.get('region', [None])[0]
+            target_region = Region(region_param) if region_param else None
+
+            # Get vessel info and track
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            track = get_vessel_track(vessel_id, days)
+
+            # Check which regions the vessel is in
+            active_regions = []
+            if track:
+                latest = track[-1]
+                lat = latest.get('latitude', latest.get('lat', 0))
+                lon = latest.get('longitude', latest.get('lon', 0))
+                active_regions = [r.value for r in is_in_any_monitored_zone(lat, lon)]
+
+            # Calculate risk score
+            risk = calculate_dark_fleet_risk_score(
+                mmsi=vessel.get('mmsi', ''),
+                vessel_info={
+                    'name': vessel.get('name', ''),
+                    'flag_state': vessel.get('flag_state', ''),
+                    'imo': vessel.get('imo', ''),
+                    'year_built': vessel.get('year_built')
+                },
+                track_history=track or [],
+                target_region=target_region
+            )
+
+            # Check alerts
+            alerts = []
+            if track:
+                latest_position = track[-1]
+                alerts = check_dark_fleet_alerts(
+                    mmsi=vessel.get('mmsi', ''),
+                    vessel_name=vessel.get('name', ''),
+                    current_position={
+                        'lat': latest_position.get('latitude', latest_position.get('lat', 0)),
+                        'lon': latest_position.get('longitude', latest_position.get('lon', 0)),
+                        'timestamp': latest_position.get('timestamp')
+                    },
+                    track_history=track,
+                    vessel_info={
+                        'flag_state': vessel.get('flag_state', ''),
+                        'imo': vessel.get('imo', '')
+                    }
+                )
+
+            return self.send_json({
+                'vessel_id': vessel_id,
+                'vessel_name': vessel.get('name'),
+                'active_regions': active_regions,
+                'target_region': target_region.value if target_region else None,
+                'risk_score': risk.get('score', 0),
+                'risk_level': risk.get('risk_level', 'unknown'),
+                'risk_factors': risk.get('factors', []),
+                'region_scores': risk.get('region_scores', {}),
                 'alerts': [alert.to_dict() if hasattr(alert, 'to_dict') else alert for alert in alerts]
             })
 
