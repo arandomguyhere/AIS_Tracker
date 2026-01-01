@@ -160,6 +160,59 @@ def dict_from_row(row):
     return dict(zip(row.keys(), row)) if row else None
 
 
+# =============================================================================
+# AIS Source Manager (parallel API usage)
+# =============================================================================
+
+_ais_manager = None
+_ais_manager_lock = threading.Lock()
+
+
+def get_ais_manager():
+    """
+    Get or create the AIS source manager instance.
+
+    Uses both APIs in parallel:
+    - AISStream for real-time position streaming
+    - Marinesia for ports, area queries, vessel images, history
+    """
+    global _ais_manager
+
+    with _ais_manager_lock:
+        if _ais_manager is not None:
+            return _ais_manager
+
+        try:
+            from ais_sources.manager import create_manager
+            import os
+
+            # Load API keys from environment
+            aisstream_key = os.environ.get('AISSTREAM_API_KEY')
+            marinesia_key = os.environ.get('MARINESIA_API_KEY')
+            gfw_key = os.environ.get('GFW_API_KEY')
+
+            # Create manager with available sources
+            _ais_manager = create_manager(
+                aisstream_key=aisstream_key,
+                marinesia_key=marinesia_key,
+                gfw_key=gfw_key,
+                enable_marinesia=True  # Always enable Marinesia for ports/images
+            )
+
+            # Connect sources
+            _ais_manager.start()
+
+            print(f"[AIS Manager] Initialized with sources: {list(_ais_manager.sources.keys())}")
+            return _ais_manager
+
+        except ImportError as e:
+            print(f"[AIS Manager] Module not available: {e}")
+            return None
+        except Exception as e:
+            print(f"[AIS Manager] Failed to initialize: {e}")
+            return None
+
+
 def init_database():
     """Initialize database with schema."""
     if os.path.exists(DB_PATH):
@@ -1175,6 +1228,169 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             db = SanctionsDatabase()
             enriched = enrich_vessel_with_sanctions(vessel, db)
             return self.send_json(enriched.get('sanctions', {'listed': False}))
+
+        # ========== Marinesia-Enhanced Endpoints ==========
+        # These endpoints leverage Marinesia's unique features (ports, area queries, images)
+
+        elif path == '/api/area/vessels':
+            # Get all vessels in a bounding box area
+            try:
+                min_lat = float(params.get('min_lat', [0])[0])
+                min_lon = float(params.get('min_lon', [0])[0])
+                max_lat = float(params.get('max_lat', [0])[0])
+                max_lon = float(params.get('max_lon', [0])[0])
+            except (ValueError, TypeError):
+                return self.send_json({'error': 'Invalid coordinates'}, 400)
+
+            if not all([min_lat, min_lon, max_lat, max_lon]):
+                return self.send_json({'error': 'min_lat, min_lon, max_lat, max_lon required'}, 400)
+
+            try:
+                from ais_sources.manager import AISSourceManager
+                manager = get_ais_manager()
+                if manager:
+                    positions = manager.get_vessels_in_area(min_lat, min_lon, max_lat, max_lon)
+                    return self.send_json({
+                        'vessels': [
+                            {
+                                'mmsi': p.mmsi,
+                                'lat': p.latitude,
+                                'lon': p.longitude,
+                                'speed': p.speed,
+                                'course': p.course,
+                                'timestamp': p.timestamp.isoformat() if p.timestamp else None
+                            }
+                            for p in positions
+                        ],
+                        'count': len(positions),
+                        'bounds': {'min_lat': min_lat, 'min_lon': min_lon, 'max_lat': max_lat, 'max_lon': max_lon}
+                    })
+                return self.send_json({'error': 'AIS manager not available'}, 500)
+            except Exception as e:
+                return self.send_json({'error': str(e)}, 500)
+
+        elif path == '/api/ports/nearby':
+            # Get ports near a location
+            try:
+                lat = float(params.get('lat', [0])[0])
+                lon = float(params.get('lon', [0])[0])
+                radius = float(params.get('radius', [50])[0])  # nautical miles
+            except (ValueError, TypeError):
+                return self.send_json({'error': 'Invalid coordinates'}, 400)
+
+            if not lat or not lon:
+                return self.send_json({'error': 'lat and lon required'}, 400)
+
+            try:
+                manager = get_ais_manager()
+                if manager:
+                    ports = manager.get_ports_nearby(lat, lon, radius)
+                    return self.send_json({
+                        'ports': ports,
+                        'count': len(ports),
+                        'search_center': {'lat': lat, 'lon': lon},
+                        'radius_nm': radius
+                    })
+                return self.send_json({'error': 'AIS manager not available'}, 500)
+            except Exception as e:
+                return self.send_json({'error': str(e)}, 500)
+
+        elif path.startswith('/api/vessels/') and path.endswith('/image'):
+            # Get vessel image URL from Marinesia
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            mmsi = vessel.get('mmsi', '')
+            if not mmsi:
+                return self.send_json({'error': 'Vessel has no MMSI'}, 400)
+
+            try:
+                manager = get_ais_manager()
+                if manager:
+                    image_url = manager.get_vessel_image(mmsi)
+                    return self.send_json({
+                        'vessel_id': vessel_id,
+                        'mmsi': mmsi,
+                        'image_url': image_url
+                    })
+                return self.send_json({'error': 'AIS manager not available'}, 500)
+            except Exception as e:
+                return self.send_json({'error': str(e)}, 500)
+
+        elif path.startswith('/api/vessels/') and path.endswith('/history'):
+            # Get historical track from Marinesia
+            vessel_id = int(path.split('/')[3])
+            hours = int(params.get('hours', [24])[0])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            mmsi = vessel.get('mmsi', '')
+            if not mmsi:
+                return self.send_json({'error': 'Vessel has no MMSI'}, 400)
+
+            try:
+                manager = get_ais_manager()
+                if manager:
+                    positions = manager.get_vessel_history(mmsi, hours=hours)
+                    return self.send_json({
+                        'vessel_id': vessel_id,
+                        'mmsi': mmsi,
+                        'hours': hours,
+                        'positions': [
+                            {
+                                'lat': p.latitude,
+                                'lon': p.longitude,
+                                'speed': p.speed,
+                                'course': p.course,
+                                'timestamp': p.timestamp.isoformat() if p.timestamp else None
+                            }
+                            for p in positions
+                        ],
+                        'count': len(positions)
+                    })
+                return self.send_json({'error': 'AIS manager not available'}, 500)
+            except Exception as e:
+                return self.send_json({'error': str(e)}, 500)
+
+        elif path.startswith('/api/vessels/') and path.endswith('/combined'):
+            # Get comprehensive vessel info from all sources
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            mmsi = vessel.get('mmsi', '')
+            if not mmsi:
+                return self.send_json({'error': 'Vessel has no MMSI'}, 400)
+
+            try:
+                manager = get_ais_manager()
+                if manager:
+                    combined = manager.get_combined_vessel_info(mmsi)
+                    combined['vessel_id'] = vessel_id
+                    combined['db_info'] = {
+                        'name': vessel.get('name'),
+                        'imo': vessel.get('imo'),
+                        'flag_state': vessel.get('flag_state'),
+                        'ship_type': vessel.get('ship_type')
+                    }
+                    return self.send_json(combined)
+                return self.send_json({'error': 'AIS manager not available'}, 500)
+            except Exception as e:
+                return self.send_json({'error': str(e)}, 500)
+
+        elif path == '/api/sources/status':
+            # Get status of all AIS data sources
+            try:
+                manager = get_ais_manager()
+                if manager:
+                    return self.send_json(manager.get_status())
+                return self.send_json({'error': 'AIS manager not available'}, 500)
+            except Exception as e:
+                return self.send_json({'error': str(e)}, 500)
 
         # Static files
         else:
