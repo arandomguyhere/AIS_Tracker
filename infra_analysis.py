@@ -34,12 +34,18 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import List, Dict, Optional, Tuple, Any
 import math
+import json
+import os
 
 from utils import haversine
 from behavior import (
     detect_loitering, detect_ais_gaps, detect_spoofing,
     analyze_vessel_behavior, BehaviorEvent
 )
+
+# Path to infrastructure data file
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+INFRASTRUCTURE_JSON_PATH = os.path.join(SCRIPT_DIR, 'data', 'infrastructure.json')
 
 
 class InfrastructureType(Enum):
@@ -111,6 +117,116 @@ class InfrastructureAsset:
             return (self.latitude, self.longitude, dist)
         else:
             return (0, 0, float('inf'))
+
+
+# =============================================================================
+# Infrastructure Data Loading
+# =============================================================================
+
+def load_infrastructure_from_json(filepath: str = None) -> List['InfrastructureAsset']:
+    """
+    Load infrastructure data from JSON file.
+
+    Args:
+        filepath: Path to JSON file (defaults to data/infrastructure.json)
+
+    Returns:
+        List of InfrastructureAsset objects
+    """
+    if filepath is None:
+        filepath = INFRASTRUCTURE_JSON_PATH
+
+    if not os.path.exists(filepath):
+        print(f"Infrastructure JSON not found at {filepath}, using fallback data")
+        return []
+
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"Error loading infrastructure JSON: {e}")
+        return []
+
+    assets = []
+
+    # Type mapping
+    type_map = {
+        'telecom': InfrastructureType.TELECOM_CABLE,
+        'fiber_optic': InfrastructureType.FIBER_OPTIC,
+        'power': InfrastructureType.POWER_CABLE,
+        'hvdc': InfrastructureType.POWER_CABLE,
+        'ac': InfrastructureType.POWER_CABLE,
+        'gas': InfrastructureType.GAS_PIPELINE,
+        'oil': InfrastructureType.OIL_PIPELINE,
+    }
+
+    # Load cables
+    for cable in data.get('cables', []):
+        infra_type = type_map.get(cable.get('type'), InfrastructureType.TELECOM_CABLE)
+        if cable.get('subtype') in type_map:
+            infra_type = type_map[cable.get('subtype')]
+
+        waypoints = [tuple(wp) for wp in cable.get('waypoints', [])]
+
+        assets.append(InfrastructureAsset(
+            name=cable.get('name', 'Unknown'),
+            infra_type=infra_type,
+            waypoints=waypoints,
+            protection_radius_nm=cable.get('protection_radius_nm', 3.0),
+            operator=cable.get('operator'),
+            capacity=cable.get('capacity'),
+            notes=cable.get('notes', '')
+        ))
+
+    # Load pipelines
+    for pipeline in data.get('pipelines', []):
+        infra_type = type_map.get(pipeline.get('type'), InfrastructureType.GAS_PIPELINE)
+
+        waypoints = [tuple(wp) for wp in pipeline.get('waypoints', [])]
+
+        assets.append(InfrastructureAsset(
+            name=pipeline.get('name', 'Unknown'),
+            infra_type=infra_type,
+            waypoints=waypoints,
+            protection_radius_nm=pipeline.get('protection_radius_nm', 5.0),
+            operator=pipeline.get('operator'),
+            capacity=pipeline.get('capacity'),
+            notes=pipeline.get('notes', '')
+        ))
+
+    # Load wind farms (as point assets)
+    for farm in data.get('wind_farms', []):
+        center = farm.get('center', [0, 0])
+        assets.append(InfrastructureAsset(
+            name=farm.get('name', 'Unknown'),
+            infra_type=InfrastructureType.POWER_CABLE,  # Treated as power infrastructure
+            latitude=center[0],
+            longitude=center[1],
+            protection_radius_nm=farm.get('protection_radius_nm', 2.0),
+            operator=farm.get('operator'),
+            capacity=f"{farm.get('capacity_mw', 0)} MW ({farm.get('turbines', 0)} turbines)",
+            notes=farm.get('notes', '')
+        ))
+
+    print(f"Loaded {len(assets)} infrastructure assets from {filepath}")
+    return assets
+
+
+def get_all_infrastructure() -> List['InfrastructureAsset']:
+    """
+    Get all infrastructure assets, loading from JSON with fallback to hardcoded.
+
+    Returns:
+        List of all infrastructure assets
+    """
+    # Try loading from JSON first
+    json_assets = load_infrastructure_from_json()
+
+    if json_assets:
+        return json_assets
+
+    # Fallback to hardcoded Baltic infrastructure
+    return BALTIC_INFRASTRUCTURE
 
 
 @dataclass
@@ -402,7 +518,7 @@ def analyze_infrastructure_incident(
         IncidentAnalysis with full assessment
     """
     if infrastructure is None:
-        infrastructure = BALTIC_INFRASTRUCTURE
+        infrastructure = get_all_infrastructure()
 
     if not track_history:
         return IncidentAnalysis(
@@ -836,7 +952,7 @@ def _parse_timestamp(ts) -> datetime:
 # =============================================================================
 
 def get_baltic_infrastructure() -> List[dict]:
-    """Get list of Baltic infrastructure for map display."""
+    """Get list of all infrastructure for map display."""
     return [
         {
             "name": asset.name,
@@ -849,7 +965,7 @@ def get_baltic_infrastructure() -> List[dict]:
             "capacity": asset.capacity,
             "notes": asset.notes
         }
-        for asset in BALTIC_INFRASTRUCTURE
+        for asset in get_all_infrastructure()
     ]
 
 
