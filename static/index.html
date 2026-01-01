@@ -856,7 +856,10 @@
     <div class="list-panel" id="list-panel">
         <div class="list-header">
             <span class="list-title">Tracked Vessels</span>
-            <button class="add-vessel-btn" onclick="openAddVesselModal()">+ Add</button>
+            <div style="display:flex;gap:6px">
+                <button class="add-vessel-btn" onclick="openPocModal()" style="background:#9b59b6" title="Load POC Scenario">POC</button>
+                <button class="add-vessel-btn" onclick="openAddVesselModal()">+ Add</button>
+            </div>
         </div>
         <div class="vessel-list" id="vessel-list"></div>
     </div>
@@ -864,6 +867,33 @@
     <!-- Vessel Detail Panel -->
     <div class="vessel-panel" id="vessel-panel">
         <div id="vessel-panel-content"></div>
+    </div>
+
+    <!-- POC Scenario Modal -->
+    <div class="modal-overlay" id="poc-modal">
+        <div class="modal" style="max-width:500px">
+            <div class="modal-header" style="background:#9b59b6">
+                <span class="modal-title">Load POC Scenario</span>
+                <button class="modal-close" onclick="closeModal('poc-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color:#666;font-size:12px;margin-bottom:16px">Load a pre-configured scenario with vessels, infrastructure, and events for analysis.</p>
+                <div id="poc-list" style="display:flex;flex-direction:column;gap:12px">
+                    <div class="poc-card" onclick="loadPoc('baltic')" style="padding:16px;border:2px solid #9b59b6;border-radius:8px;cursor:pointer;transition:all 0.2s">
+                        <div style="font-weight:600;color:#333;margin-bottom:4px">Baltic Cable Incident</div>
+                        <div style="font-size:11px;color:#666;margin-bottom:8px">Finland undersea cable investigation (December 2025)</div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <span style="background:#e74c3c;color:white;padding:2px 6px;border-radius:3px;font-size:9px">FITBURG</span>
+                            <span style="background:#e74c3c;color:white;padding:2px 6px;border-radius:3px;font-size:9px">EAGLE S</span>
+                            <span style="background:#3498db;color:white;padding:2px 6px;border-radius:3px;font-size:9px">C-Lion1</span>
+                            <span style="background:#f1c40f;color:#333;padding:2px 6px;border-radius:3px;font-size:9px">Estlink-2</span>
+                        </div>
+                        <div style="font-size:10px;color:#999;margin-top:8px">Region: Baltic Sea / Gulf of Finland</div>
+                    </div>
+                </div>
+                <div id="poc-status" style="margin-top:16px;padding:12px;border-radius:6px;display:none"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Add Vessel Modal -->
@@ -1834,6 +1864,48 @@
             document.getElementById('vessel-classification').value = 'monitoring';
             document.getElementById('vessel-threat').value = 'unknown';
             openModal('add-vessel-modal');
+        }
+
+        function openPocModal() {
+            document.getElementById('poc-status').style.display = 'none';
+            openModal('poc-modal');
+        }
+
+        async function loadPoc(pocId) {
+            const statusEl = document.getElementById('poc-status');
+            statusEl.style.display = 'block';
+            statusEl.style.background = '#f0f0f0';
+            statusEl.style.color = '#666';
+            statusEl.innerHTML = '<span>Loading POC scenario...</span>';
+
+            try {
+                const result = await post('/poc/load', { poc: pocId });
+                if (result.status === 'success') {
+                    statusEl.style.background = '#d4edda';
+                    statusEl.style.color = '#155724';
+                    const added = [];
+                    if (result.results.vessels_added?.length) added.push(`${result.results.vessels_added.length} vessels`);
+                    if (result.results.infrastructure_added?.length) added.push(`${result.results.infrastructure_added.length} infrastructure`);
+                    if (result.results.events_added?.length) added.push(`${result.results.events_added.length} events`);
+                    statusEl.innerHTML = `<b>Success!</b> Added: ${added.join(', ') || 'Already loaded'}<br><span style="font-size:11px">Refreshing data...</span>`;
+
+                    // Reload data and close modal
+                    setTimeout(async () => {
+                        await loadData();
+                        closeModal('poc-modal');
+                        // Pan to Baltic Sea
+                        map.setView([59.5, 24.5], 7);
+                    }, 1500);
+                } else {
+                    statusEl.style.background = '#f8d7da';
+                    statusEl.style.color = '#721c24';
+                    statusEl.innerHTML = `<b>Error:</b> ${result.error || 'Unknown error'}`;
+                }
+            } catch (e) {
+                statusEl.style.background = '#f8d7da';
+                statusEl.style.color = '#721c24';
+                statusEl.innerHTML = `<b>Error:</b> ${e.message}`;
+            }
         }
 
         function openPositionModal() {

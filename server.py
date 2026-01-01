@@ -553,6 +553,120 @@ def acknowledge_alert(alert_id):
     return {'status': 'acknowledged'}
 
 
+def load_poc_scenario(poc_name):
+    """Load a POC scenario into the database."""
+    if poc_name == 'baltic':
+        return _load_baltic_poc()
+    else:
+        return {'error': f'Unknown POC: {poc_name}', 'available': ['baltic']}
+
+
+def _load_baltic_poc():
+    """Load Baltic Cable Incident POC data."""
+    conn = get_db()
+    results = {'vessels_added': [], 'infrastructure_added': [], 'events_added': []}
+
+    # Vessel data
+    vessels = [
+        {
+            "name": "FITBURG",
+            "mmsi": "518100989",
+            "imo": "9187629",
+            "flag_state": "Cook Islands",
+            "vessel_type": "Cargo Ship",
+            "classification": "suspected",
+            "threat_level": "high",
+            "intel_notes": "Baltic Cable Incident - Dec 31, 2025. Seized by Finnish authorities after C-Lion1 cable damage. Anchor dragging detected in cable zone."
+        },
+        {
+            "name": "EAGLE S",
+            "mmsi": "255806583",
+            "imo": "9037155",
+            "flag_state": "Malta",
+            "vessel_type": "Oil Tanker",
+            "classification": "suspected",
+            "threat_level": "high",
+            "intel_notes": "Estlink-2 cable incident - Dec 25, 2025. Shadow fleet tanker, anchor dragged damaging Finland-Estonia power cable."
+        }
+    ]
+
+    for v in vessels:
+        cursor = conn.execute("SELECT id FROM vessels WHERE mmsi = ?", (v['mmsi'],))
+        existing = cursor.fetchone()
+        if not existing:
+            conn.execute('''
+                INSERT INTO vessels (name, mmsi, imo, flag_state, vessel_type, classification, threat_level, intel_notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (v['name'], v['mmsi'], v['imo'], v['flag_state'], v['vessel_type'], v['classification'], v['threat_level'], v['intel_notes']))
+            results['vessels_added'].append(v['name'])
+
+    # Infrastructure locations (as shipyards)
+    infrastructure = [
+        {"name": "C-Lion1 Cable Zone", "latitude": 59.45, "longitude": 24.75, "geofence_radius_km": 10.0,
+         "facility_type": "anchorage", "notes": "Finland-Germany telecom cable. Damaged Dec 31, 2025."},
+        {"name": "Estlink-2 Cable Zone", "latitude": 59.55, "longitude": 25.00, "geofence_radius_km": 10.0,
+         "facility_type": "anchorage", "notes": "650MW HVDC power cable. Damaged Dec 25, 2025."},
+        {"name": "Balticconnector Zone", "latitude": 59.60, "longitude": 24.80, "geofence_radius_km": 15.0,
+         "facility_type": "anchorage", "notes": "Finland-Estonia gas pipeline. Damaged Oct 2023."},
+    ]
+
+    for infra in infrastructure:
+        cursor = conn.execute("SELECT id FROM shipyards WHERE name = ?", (infra['name'],))
+        existing = cursor.fetchone()
+        if not existing:
+            conn.execute('''
+                INSERT INTO shipyards (name, latitude, longitude, geofence_radius_km, facility_type, notes)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (infra['name'], infra['latitude'], infra['longitude'], infra['geofence_radius_km'], infra['facility_type'], infra['notes']))
+            results['infrastructure_added'].append(infra['name'])
+
+    # Get vessel IDs for events
+    cursor = conn.execute("SELECT id FROM vessels WHERE name = 'FITBURG'")
+    fitburg = cursor.fetchone()
+    fitburg_id = fitburg['id'] if fitburg else None
+
+    if fitburg_id:
+        events = [
+            {"event_type": "anomaly_detected", "severity": "critical", "title": "C-Lion1 cable damage detected",
+             "description": "Finnish authorities detect damage to undersea telecom cable.", "latitude": 59.45, "longitude": 24.75},
+            {"event_type": "geofence_enter", "severity": "high", "title": "Fitburg enters cable zone",
+             "description": "Vessel enters Gulf of Finland cable protection zone.", "latitude": 59.55, "longitude": 25.00},
+        ]
+        for e in events:
+            conn.execute('''
+                INSERT INTO events (vessel_id, event_type, severity, title, description, latitude, longitude)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (fitburg_id, e['event_type'], e['severity'], e['title'], e['description'], e['latitude'], e['longitude']))
+            results['events_added'].append(e['title'])
+
+    # Update config for Baltic Sea
+    config = {}
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'r') as f:
+            config = json.load(f)
+
+    config['area_tracking'] = {
+        'enabled': True,
+        'bounding_box': {
+            'lat_min': 53.0, 'lon_min': 9.0, 'lat_max': 66.0, 'lon_max': 30.0,
+            'description': 'Baltic Sea - Cable Infrastructure Monitoring Zone'
+        }
+    }
+    with open(CONFIG_PATH, 'w') as f:
+        json.dump(config, f, indent=2)
+
+    conn.commit()
+    conn.close()
+
+    return {
+        'status': 'success',
+        'poc': 'baltic',
+        'name': 'Baltic Cable Incident',
+        'results': results,
+        'message': 'POC loaded. Refresh the page to see vessels and infrastructure.'
+    }
+
+
 def search_news(query, max_results=10):
     """Search Google News for vessel information."""
     try:
@@ -1566,6 +1680,26 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             if not vessel_data:
                 return self.send_json({'error': 'Vessel data required'}, 400)
             return self.send_json(quick_vessel_bluf(vessel_data))
+
+        elif path == '/api/poc/load':
+            # Load a POC scenario
+            poc_name = data.get('poc', 'baltic')
+            return self.send_json(load_poc_scenario(poc_name))
+
+        elif path == '/api/poc/list':
+            # List available POC scenarios
+            return self.send_json({
+                'scenarios': [
+                    {
+                        'id': 'baltic',
+                        'name': 'Baltic Cable Incident',
+                        'description': 'Finland undersea cable incident (Dec 2025) - Fitburg & Eagle S vessels',
+                        'region': 'Baltic Sea / Gulf of Finland',
+                        'vessels': ['FITBURG', 'EAGLE S'],
+                        'infrastructure': ['C-Lion1', 'Estlink-2', 'Balticconnector']
+                    }
+                ]
+            })
 
         else:
             self.send_json({'error': 'Not found'}, 404)
