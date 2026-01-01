@@ -1,5 +1,9 @@
 # Arsenal Ship Tracker
 
+![Tests](https://github.com/arandomguyhere/AIS_Tracker/actions/workflows/tests.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![License](https://img.shields.io/badge/license-internal-red)
+
 Maritime gray zone monitoring system for tracking vessels suspected of civilian-to-military conversion, containerized weapons systems, and dual-use activity.
 
 ## Live Demo
