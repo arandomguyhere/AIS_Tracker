@@ -671,9 +671,41 @@ def get_gfw_client() -> GFWClient:
     return _client
 
 
+def reload_token() -> str:
+    """Reload GFW token from config file."""
+    global GFW_TOKEN
+    token = os.environ.get("GFW_API_TOKEN", "")
+    if not token and os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH) as f:
+                config = json.load(f)
+                token = config.get('api_token', '')
+        except:
+            pass
+    GFW_TOKEN = token
+    return token
+
+
 def is_configured() -> bool:
     """Check if GFW API token is configured."""
+    global GFW_TOKEN
+    # Reload from file if not set (in case config was updated)
+    if not GFW_TOKEN:
+        reload_token()
     return bool(GFW_TOKEN)
+
+
+def save_token(token: str) -> bool:
+    """Save GFW API token to config file."""
+    global GFW_TOKEN
+    try:
+        with open(CONFIG_PATH, 'w') as f:
+            json.dump({'api_token': token}, f)
+        GFW_TOKEN = token
+        return True
+    except Exception as e:
+        print(f"Error saving GFW token: {e}")
+        return False
 
 
 def search_vessel(query: str = None, mmsi: str = None,

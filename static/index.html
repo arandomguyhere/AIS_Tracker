@@ -3659,12 +3659,18 @@
                 const status = await api('/gfw/status');
                 if (!status.configured) {
                     display.innerHTML = `
-                        <div style="text-align:center;padding:12px">
+                        <div style="padding:8px">
                             <div style="font-size:11px;color:#666;margin-bottom:8px">GFW API not configured</div>
-                            <a href="https://globalfishingwatch.org/our-apis/" target="_blank"
-                               style="font-size:10px;color:#1565c0;text-decoration:underline">
-                                Get free API token
-                            </a>
+                            <input type="text" id="gfw-token-input" placeholder="Paste API token here..."
+                                   style="width:100%;padding:6px;font-size:11px;border:1px solid #ddd;border-radius:4px;margin-bottom:8px;box-sizing:border-box">
+                            <div style="display:flex;gap:8px;align-items:center">
+                                <button onclick="saveGFWToken()" style="padding:4px 12px;font-size:10px;background:#1565c0;color:white;border:none;border-radius:4px;cursor:pointer">Save</button>
+                                <a href="https://globalfishingwatch.org/our-apis/" target="_blank"
+                                   style="font-size:10px;color:#1565c0;text-decoration:underline">
+                                    Get free token
+                                </a>
+                            </div>
+                            <div id="gfw-save-status" style="font-size:10px;margin-top:6px"></div>
                         </div>
                     `;
                     return;
@@ -3674,6 +3680,36 @@
                 renderGFWData(result);
             } catch(e) {
                 display.innerHTML = '<span style="color:#e74c3c">Error loading GFW data</span>';
+            }
+        }
+
+        async function saveGFWToken() {
+            const input = document.getElementById('gfw-token-input');
+            const status = document.getElementById('gfw-save-status');
+            const token = input?.value?.trim();
+
+            if (!token) {
+                status.innerHTML = '<span style="color:#e74c3c">Please enter a token</span>';
+                return;
+            }
+
+            status.innerHTML = '<span style="color:#666">Saving...</span>';
+
+            try {
+                const result = await fetch('/api/gfw/configure', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({token: token})
+                }).then(r => r.json());
+
+                if (result.success) {
+                    status.innerHTML = '<span style="color:#27ae60">✓ Token saved! Reload the page to use GFW.</span>';
+                    input.style.borderColor = '#27ae60';
+                } else {
+                    status.innerHTML = `<span style="color:#e74c3c">${result.error || 'Failed to save'}</span>`;
+                }
+            } catch(e) {
+                status.innerHTML = '<span style="color:#e74c3c">Error saving token</span>';
             }
         }
 
