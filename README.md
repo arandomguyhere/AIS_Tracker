@@ -148,6 +148,10 @@ export AISHUB_USERNAME="your-aishub-username"
 | `venezuela.py` | Venezuela dark fleet detection: zone monitoring, AIS spoofing, risk scoring |
 | `sanctions.py` | Sanctions database: FleetLeaks API, OFAC SDN, vessel compliance checking |
 | `infra_analysis.py` | Infrastructure threat analysis: anchor drag, cable proximity, incident correlation |
+| `laden_status.py` | Laden status detection: draft analysis, cargo operations, STS transfer detection |
+| `satellite_intel.py` | Satellite imagery integration: Sentinel-1/2, vessel detection, storage monitoring |
+| `shoreside_photos.py` | Crowdsourced photography: port photos, vessel verification, intel collection |
+| `gfw_integration.py` | Global Fishing Watch API: AIS gaps, encounters, loitering, vessel identity |
 | `run_tests.py` | Test runner script |
 | `tests/` | Unit tests for database, API, SAR, confidence, intelligence, Venezuela, sanctions |
 
@@ -589,6 +593,246 @@ python scripts/setup_baltic_poc.py
 - Infrastructure zones (C-Lion1, Estlink-2, Balticconnector)
 - Incident timeline events
 - Baltic Sea bounding box configuration
+
+## Laden Status Detection (NEW)
+
+Cargo loading/discharge detection through draft change analysis - essential for dark fleet monitoring.
+
+### Detection Methods
+
+| Method | Description | Use Case |
+|--------|-------------|----------|
+| **Draft Changes** | Monitor AIS-reported draft variations | Detect loading/unloading operations |
+| **STS Detection** | Stationary draft changes at sea | Ship-to-ship transfer identification |
+| **AIS/Satellite Discrepancy** | Compare AIS draft with satellite observations | Detect unreported transfers |
+| **Static Draft Anomaly** | No draft change during extended port visits | Identify data manipulation |
+
+### Laden States
+
+| State | Description | Draft Ratio |
+|-------|-------------|-------------|
+| LADEN | Fully loaded | >85% of max draft |
+| PARTIAL | Partially loaded | 55-85% |
+| BALLAST | Empty/light | <55% |
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/vessels/:id/laden-status` | Analyze vessel laden status from draft changes |
+
+### Example Response
+
+```json
+{
+  "current_state": "laden",
+  "current_draft_m": 14.2,
+  "loading_ratio": 88.7,
+  "sts_transfer_count": 2,
+  "high_priority_anomalies": 1,
+  "recent_events": [
+    {"event_type": "loading", "draft_change_m": 6.0, "estimated_cargo_tonnes": 85000}
+  ]
+}
+```
+
+## Satellite Intelligence (NEW)
+
+Framework for satellite imagery integration (optical and SAR) for vessel monitoring.
+
+### Supported Providers
+
+| Provider | Type | Resolution | Access |
+|----------|------|------------|--------|
+| Sentinel-2 | Optical | 10m | Free (Copernicus) |
+| Sentinel-1 | SAR | 20m | Free (Copernicus) |
+| Planet | Optical | 3-5m | Commercial |
+| Maxar | Optical | 0.3m | Commercial |
+| ICEYE | SAR | 1m | Commercial |
+
+### Features
+
+- **Imagery Search** - Find available satellite passes over vessel location
+- **Vessel Detection** - Automated ship detection from SAR imagery
+- **Laden Status** - Freeboard analysis from high-resolution optical
+- **STS Detection** - Identify ship-to-ship transfer operations
+- **Dark Vessel Detection** - SAR vessels without AIS correlation
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/satellite/search?lat=X&lon=Y` | Search for satellite imagery |
+| GET | `/api/vessels/:id/satellite` | Get imagery for vessel location |
+| GET | `/api/storage-facilities` | List monitored tank farms |
+| GET | `/api/storage-facilities/:id/analysis` | Analyze storage levels |
+
+## Shoreside Photography (NEW)
+
+Crowdsourced port photograph collection for vessel verification and intelligence.
+
+### Photo Metadata
+
+| Field | Description |
+|-------|-------------|
+| Location | GPS coordinates or port name |
+| Timestamp | When photo was taken |
+| Vessel ID | Linked vessel MMSI/name |
+| Intel Value | low/medium/high/critical |
+| Status | pending/verified/rejected |
+
+### Photo Types
+
+| Type | Use Case |
+|------|----------|
+| vessel | General vessel identification |
+| sts | Ship-to-ship transfer documentation |
+| cargo | Cargo operation evidence |
+| modification | Vessel alteration detection |
+| facility | Port/terminal documentation |
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/photos` | List recent photos |
+| GET | `/api/photos/:id` | Get photo details |
+| GET | `/api/vessels/:id/photos` | Get photos for vessel |
+| GET | `/api/photos/nearby?lat=X&lon=Y` | Photos near location |
+| POST | `/api/photos/upload` | Upload new photo |
+| POST | `/api/photos/:id/verify` | Update verification status |
+
+### Upload Example
+
+```bash
+curl -X POST http://localhost:8080/api/photos/upload \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image": "base64_encoded_image_data",
+    "filename": "vessel_photo.jpg",
+    "photo_type": "vessel",
+    "vessel_mmsi": "518100989",
+    "vessel_name": "FITBURG",
+    "port_name": "Helsinki",
+    "latitude": 60.15,
+    "longitude": 24.93,
+    "tags": ["dark_fleet", "sanctions"]
+  }'
+```
+
+## Oil Storage Inventory (NEW)
+
+Tank farm monitoring for supply chain intelligence.
+
+### Monitored Facilities
+
+| Facility | Country | Type | Notes |
+|----------|---------|------|-------|
+| Jose Terminal | Venezuela | Terminal | Main crude export |
+| Tanjung Pelepas | Malaysia | Floating Storage | Iran STS hub |
+| Kalamata Anchorage | Greece | Floating Storage | Russia STS hub |
+| Ningbo-Zhoushan | China | Terminal | Major import terminal |
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/storage-facilities` | List monitored facilities |
+| GET | `/api/storage-facilities?region=venezuela` | Filter by region |
+| GET | `/api/storage-facilities/:id/analysis` | Analyze fill levels from satellite |
+
+## Feature Status API
+
+Check which modules are available:
+
+```bash
+curl http://localhost:8080/api/features
+```
+
+```json
+{
+  "laden_status": true,
+  "satellite": true,
+  "photos": true,
+  "dark_fleet": true,
+  "infra_analysis": true,
+  "sanctions": true,
+  "gfw": true,
+  "gfw_configured": true,
+  ...
+}
+```
+
+## Global Fishing Watch Integration (NEW)
+
+Free API integration for vessel event data - AIS gaps, encounters, loitering, port visits.
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **AIS Gaps** | Periods where vessel stopped transmitting |
+| **Encounters** | Ship-to-ship meetings (STS detection) |
+| **Loitering** | Extended time in an area |
+| **Port Visits** | Port call history |
+| **Vessel Identity** | Search by MMSI, IMO, name |
+
+### Setup
+
+1. Register at https://globalfishingwatch.org/our-apis/ (free)
+2. Get API token
+3. Configure via API:
+
+```bash
+curl -X POST http://localhost:8080/api/gfw/configure \
+  -H "Content-Type: application/json" \
+  -d '{"token": "YOUR_GFW_TOKEN"}'
+```
+
+Or set environment variable:
+```bash
+export GFW_API_TOKEN=your_token_here
+```
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/gfw/status` | Check if GFW is configured |
+| GET | `/api/gfw/search?mmsi=X` | Search vessel identity |
+| GET | `/api/vessels/:id/gfw-events` | Get all events for vessel |
+| GET | `/api/vessels/:id/gfw-risk` | Get dark fleet risk indicators |
+| GET | `/api/gfw/sts-zone?min_lat=X&...` | Check STS activity in zone |
+| POST | `/api/gfw/configure` | Configure API token |
+
+### Example: Dark Fleet Risk Analysis
+
+```bash
+curl http://localhost:8080/api/vessels/1/gfw-risk?days=90
+```
+
+```json
+{
+  "risk_score": 65,
+  "risk_level": "high",
+  "risk_factors": [
+    "Extended AIS gaps: 72 hours",
+    "Multiple encounters: 4"
+  ],
+  "ais_gaps": {"count": 3, "total_hours": 72},
+  "encounters": {"count": 4},
+  "loitering": {"count": 2, "total_hours": 48}
+}
+```
+
+### STS Zone Monitoring
+
+Monitor known STS hotspots:
+
+```bash
+# Check Tanjung Pelepas (Malaysia) - Iran oil STS hub
+curl "http://localhost:8080/api/gfw/sts-zone?min_lat=1.2&min_lon=103.4&max_lat=1.5&max_lon=103.7&days=30"
+```
 
 ## Sanctions Database Integration (NEW)
 

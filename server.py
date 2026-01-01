@@ -115,6 +115,47 @@ try:
 except ImportError:
     INFRA_ANALYSIS_AVAILABLE = False
 
+# Import laden status detection module
+try:
+    from laden_status import (
+        analyze_laden_status, get_laden_status_summary,
+        LadenState, CargoEventType
+    )
+    LADEN_STATUS_AVAILABLE = True
+except ImportError:
+    LADEN_STATUS_AVAILABLE = False
+
+# Import satellite intelligence module
+try:
+    from satellite_intel import (
+        get_satellite_service, search_vessel_imagery, get_area_imagery,
+        get_storage_facilities, analyze_storage_levels
+    )
+    SATELLITE_AVAILABLE = True
+except ImportError:
+    SATELLITE_AVAILABLE = False
+
+# Import shoreside photography module
+try:
+    from shoreside_photos import get_photo_service
+    PHOTOS_AVAILABLE = True
+except ImportError:
+    PHOTOS_AVAILABLE = False
+
+# Import Global Fishing Watch integration
+try:
+    from gfw_integration import (
+        is_configured as gfw_is_configured,
+        search_vessel as gfw_search_vessel,
+        get_vessel_events as gfw_get_vessel_events,
+        get_dark_fleet_indicators as gfw_get_dark_fleet_indicators,
+        check_sts_zone as gfw_check_sts_zone,
+        save_token as gfw_save_token
+    )
+    GFW_AVAILABLE = True
+except ImportError:
+    GFW_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -1790,6 +1831,308 @@ class TrackerHandler(SimpleHTTPRequestHandler):
 
             return self.send_json(result)
 
+        # ========== Laden Status Detection Endpoints ==========
+
+        elif path.startswith('/api/vessels/') and path.endswith('/laden-status'):
+            # Analyze vessel laden status from draft changes
+            if not LADEN_STATUS_AVAILABLE:
+                return self.send_json({'error': 'Laden status module not available'}, 500)
+
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            days = int(params.get('days', [30])[0])
+            track = get_vessel_track(vessel_id, days)
+
+            if not track:
+                return self.send_json({'error': 'No track data available'}, 404)
+
+            # Run laden status analysis
+            analysis = analyze_laden_status(
+                vessel_id=vessel_id,
+                mmsi=vessel.get('mmsi', ''),
+                vessel_name=vessel.get('name', ''),
+                track_history=track,
+                vessel_info={
+                    'vessel_type': vessel.get('vessel_type'),
+                    'length_m': vessel.get('length_m'),
+                    'beam_m': vessel.get('beam_m'),
+                    'draught': vessel.get('draught'),
+                    'max_draft': vessel.get('draught')
+                }
+            )
+
+            return self.send_json(get_laden_status_summary(analysis))
+
+        # ========== Satellite Intelligence Endpoints ==========
+
+        elif path == '/api/satellite/search':
+            # Search for satellite imagery in an area
+            if not SATELLITE_AVAILABLE:
+                return self.send_json({'error': 'Satellite module not available'}, 500)
+
+            try:
+                lat = float(params.get('lat', [0])[0])
+                lon = float(params.get('lon', [0])[0])
+                days = int(params.get('days', [7])[0])
+            except (ValueError, TypeError):
+                return self.send_json({'error': 'Invalid parameters'}, 400)
+
+            if not lat or not lon:
+                return self.send_json({'error': 'lat and lon required'}, 400)
+
+            result = get_area_imagery(
+                min_lat=lat - 0.5, min_lon=lon - 0.5,
+                max_lat=lat + 0.5, max_lon=lon + 0.5,
+                days=days
+            )
+            return self.send_json(result)
+
+        elif path.startswith('/api/vessels/') and path.endswith('/satellite'):
+            # Get satellite imagery for a vessel's location
+            if not SATELLITE_AVAILABLE:
+                return self.send_json({'error': 'Satellite module not available'}, 500)
+
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            lat = vessel.get('last_lat')
+            lon = vessel.get('last_lon')
+            if not lat or not lon:
+                return self.send_json({'error': 'Vessel has no position'}, 400)
+
+            days = int(params.get('days', [30])[0])
+            result = search_vessel_imagery(
+                mmsi=vessel.get('mmsi', ''),
+                latitude=lat,
+                longitude=lon,
+                days=days
+            )
+            result['vessel_id'] = vessel_id
+            result['vessel_name'] = vessel.get('name')
+            return self.send_json(result)
+
+        elif path == '/api/storage-facilities':
+            # Get monitored storage facilities
+            if not SATELLITE_AVAILABLE:
+                return self.send_json({'error': 'Satellite module not available'}, 500)
+
+            region = params.get('region', [None])[0]
+            facilities = get_storage_facilities(region)
+            return self.send_json({
+                'facilities': facilities,
+                'count': len(facilities),
+                'region': region or 'all'
+            })
+
+        elif path.startswith('/api/storage-facilities/') and path.endswith('/analysis'):
+            # Analyze storage facility levels
+            if not SATELLITE_AVAILABLE:
+                return self.send_json({'error': 'Satellite module not available'}, 500)
+
+            facility_id = path.split('/')[3]
+            days = int(params.get('days', [30])[0])
+            result = analyze_storage_levels(facility_id, days)
+            return self.send_json(result)
+
+        # ========== Shoreside Photography Endpoints ==========
+
+        elif path == '/api/photos':
+            # Get recent photos
+            if not PHOTOS_AVAILABLE:
+                return self.send_json({'error': 'Photos module not available'}, 500)
+
+            service = get_photo_service()
+            limit = int(params.get('limit', [20])[0])
+            status = params.get('status', [None])[0]
+            photo_type = params.get('type', [None])[0]
+
+            photos = service.get_recent_photos(limit, status, photo_type)
+            return self.send_json({
+                'photos': photos,
+                'count': len(photos)
+            })
+
+        elif path == '/api/photos/stats':
+            # Get photo collection stats
+            if not PHOTOS_AVAILABLE:
+                return self.send_json({'error': 'Photos module not available'}, 500)
+
+            service = get_photo_service()
+            return self.send_json(service.get_stats())
+
+        elif path.startswith('/api/photos/') and len(path.split('/')) == 4:
+            # Get single photo
+            if not PHOTOS_AVAILABLE:
+                return self.send_json({'error': 'Photos module not available'}, 500)
+
+            photo_id = path.split('/')[3]
+            service = get_photo_service()
+            photo = service.get_photo(photo_id)
+            if photo:
+                return self.send_json(photo)
+            return self.send_json({'error': 'Photo not found'}, 404)
+
+        elif path.startswith('/api/vessels/') and path.endswith('/photos'):
+            # Get photos for a vessel
+            if not PHOTOS_AVAILABLE:
+                return self.send_json({'error': 'Photos module not available'}, 500)
+
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            service = get_photo_service()
+            photos = service.get_vessel_photos(
+                vessel_id=vessel_id,
+                mmsi=vessel.get('mmsi'),
+                vessel_name=vessel.get('name')
+            )
+            return self.send_json({
+                'vessel_id': vessel_id,
+                'vessel_name': vessel.get('name'),
+                'photos': photos,
+                'count': len(photos)
+            })
+
+        elif path == '/api/photos/nearby':
+            # Get photos near a location
+            if not PHOTOS_AVAILABLE:
+                return self.send_json({'error': 'Photos module not available'}, 500)
+
+            try:
+                lat = float(params.get('lat', [0])[0])
+                lon = float(params.get('lon', [0])[0])
+                radius = float(params.get('radius', [50])[0])
+            except (ValueError, TypeError):
+                return self.send_json({'error': 'Invalid parameters'}, 400)
+
+            service = get_photo_service()
+            photos = service.get_location_photos(lat, lon, radius)
+            return self.send_json({
+                'center': {'lat': lat, 'lon': lon},
+                'radius_km': radius,
+                'photos': photos,
+                'count': len(photos)
+            })
+
+        # ========== Global Fishing Watch Endpoints ==========
+
+        elif path == '/api/gfw/status':
+            # Check GFW API status
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            return self.send_json({
+                'available': True,
+                'configured': gfw_is_configured(),
+                'register_url': 'https://globalfishingwatch.org/our-apis/'
+            })
+
+        elif path == '/api/gfw/search':
+            # Search for vessel in GFW database
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            if not gfw_is_configured():
+                return self.send_json({'error': 'GFW API token not configured', 'register_url': 'https://globalfishingwatch.org/our-apis/'}, 400)
+
+            query = params.get('q', [None])[0]
+            mmsi = params.get('mmsi', [None])[0]
+            imo = params.get('imo', [None])[0]
+            name = params.get('name', [None])[0]
+
+            result = gfw_search_vessel(query=query, mmsi=mmsi, imo=imo, name=name)
+            return self.send_json(result)
+
+        elif path.startswith('/api/vessels/') and path.endswith('/gfw-events'):
+            # Get GFW events for a vessel
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            if not gfw_is_configured():
+                return self.send_json({'error': 'GFW API token not configured'}, 400)
+
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            mmsi = vessel.get('mmsi')
+            if not mmsi:
+                return self.send_json({'error': 'Vessel has no MMSI'}, 400)
+
+            days = int(params.get('days', [90])[0])
+            result = gfw_get_vessel_events(mmsi, days)
+            result['vessel_id'] = vessel_id
+            result['vessel_name'] = vessel.get('name')
+            return self.send_json(result)
+
+        elif path.startswith('/api/vessels/') and path.endswith('/gfw-risk'):
+            # Get dark fleet risk indicators from GFW
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            if not gfw_is_configured():
+                return self.send_json({'error': 'GFW API token not configured'}, 400)
+
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            mmsi = vessel.get('mmsi')
+            if not mmsi:
+                return self.send_json({'error': 'Vessel has no MMSI'}, 400)
+
+            days = int(params.get('days', [90])[0])
+            result = gfw_get_dark_fleet_indicators(mmsi, days)
+            result['vessel_id'] = vessel_id
+            result['vessel_name'] = vessel.get('name')
+            return self.send_json(result)
+
+        elif path == '/api/gfw/sts-zone':
+            # Check for STS activity in a zone
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            if not gfw_is_configured():
+                return self.send_json({'error': 'GFW API token not configured'}, 400)
+
+            try:
+                min_lat = float(params.get('min_lat', [0])[0])
+                min_lon = float(params.get('min_lon', [0])[0])
+                max_lat = float(params.get('max_lat', [0])[0])
+                max_lon = float(params.get('max_lon', [0])[0])
+                days = int(params.get('days', [30])[0])
+            except (ValueError, TypeError):
+                return self.send_json({'error': 'Invalid coordinates'}, 400)
+
+            result = gfw_check_sts_zone(min_lat, min_lon, max_lat, max_lon, days)
+            return self.send_json(result)
+
+        # ========== Feature Status Endpoint ==========
+
+        elif path == '/api/features':
+            # Return available feature modules
+            return self.send_json({
+                'intel': INTEL_AVAILABLE,
+                'weather': WEATHER_AVAILABLE,
+                'sar': SAR_AVAILABLE,
+                'confidence': CONFIDENCE_AVAILABLE,
+                'intelligence': INTELLIGENCE_AVAILABLE,
+                'behavior': BEHAVIOR_AVAILABLE,
+                'venezuela': VENEZUELA_AVAILABLE,
+                'sanctions': SANCTIONS_AVAILABLE,
+                'dark_fleet': DARK_FLEET_AVAILABLE,
+                'infra_analysis': INFRA_ANALYSIS_AVAILABLE,
+                'laden_status': LADEN_STATUS_AVAILABLE,
+                'satellite': SATELLITE_AVAILABLE,
+                'photos': PHOTOS_AVAILABLE,
+                'gfw': GFW_AVAILABLE,
+                'gfw_configured': GFW_AVAILABLE and gfw_is_configured()
+            })
+
         # Static files
         else:
             super().do_GET()
@@ -1928,6 +2271,82 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                     }
                 ]
             })
+
+        # ========== Shoreside Photography POST Endpoints ==========
+
+        elif path == '/api/photos/upload':
+            # Upload a new shoreside photo
+            if not PHOTOS_AVAILABLE:
+                return self.send_json({'error': 'Photos module not available'}, 500)
+
+            image_data = data.get('image') or data.get('photo')
+            if not image_data:
+                return self.send_json({'error': 'Image data required'}, 400)
+
+            service = get_photo_service()
+            result = service.upload_photo(
+                image_data=image_data,
+                filename=data.get('filename', 'photo.jpg'),
+                photo_type=data.get('photo_type', 'vessel'),
+                uploader_name=data.get('uploader_name'),
+                title=data.get('title', ''),
+                description=data.get('description', ''),
+                latitude=data.get('latitude'),
+                longitude=data.get('longitude'),
+                location_name=data.get('location_name'),
+                port_name=data.get('port_name'),
+                vessel_mmsi=data.get('vessel_mmsi'),
+                vessel_name=data.get('vessel_name'),
+                photo_taken=data.get('photo_taken'),
+                tags=data.get('tags', [])
+            )
+            return self.send_json(result, 201)
+
+        elif path.startswith('/api/photos/') and path.endswith('/verify'):
+            # Verify a photo
+            if not PHOTOS_AVAILABLE:
+                return self.send_json({'error': 'Photos module not available'}, 500)
+
+            photo_id = path.split('/')[3]
+            status = data.get('status', 'verified')
+            notes = data.get('notes')
+
+            service = get_photo_service()
+            result = service.update_photo_status(photo_id, status, notes)
+            if result:
+                return self.send_json(result)
+            return self.send_json({'error': 'Photo not found'}, 404)
+
+        elif path.startswith('/api/photos/') and path.endswith('/link-vessel'):
+            # Link photo to vessel
+            if not PHOTOS_AVAILABLE:
+                return self.send_json({'error': 'Photos module not available'}, 500)
+
+            photo_id = path.split('/')[3]
+            vessel_id = data.get('vessel_id')
+            if not vessel_id:
+                return self.send_json({'error': 'vessel_id required'}, 400)
+
+            service = get_photo_service()
+            result = service.link_vessel(photo_id, vessel_id)
+            if result:
+                return self.send_json(result)
+            return self.send_json({'error': 'Photo not found'}, 404)
+
+        # ========== GFW Configuration POST Endpoints ==========
+
+        elif path == '/api/gfw/configure':
+            # Configure GFW API token
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+
+            token = data.get('token')
+            if not token:
+                return self.send_json({'error': 'Token required'}, 400)
+
+            if gfw_save_token(token):
+                return self.send_json({'success': True, 'message': 'GFW API token configured'})
+            return self.send_json({'error': 'Failed to save token'}, 500)
 
         else:
             self.send_json({'error': 'Not found'}, 404)

@@ -1737,6 +1737,46 @@
                     <div id="sanctions-display" style="padding:12px;color:#666;font-size:11px">Click Check to verify against OFAC/EU sanctions</div>
                 </div>
 
+                <div class="panel-section" id="laden-section" style="background:#e8f4f8">
+                    <div class="section-title">
+                        Laden Status
+                        <button onclick="loadLadenStatus(${v.id})" style="float:right;background:none;border:none;color:#2980b9;cursor:pointer;font-size:11px">↻ Analyze</button>
+                    </div>
+                    <div id="laden-display" style="padding:8px 0;color:#666;font-size:11px">
+                        <span style="color:#999">Analyze draft changes to detect cargo operations & STS transfers</span>
+                    </div>
+                </div>
+
+                <div class="panel-section" id="satellite-section" style="background:#f5f0ff">
+                    <div class="section-title">
+                        Satellite Imagery
+                        <button onclick="loadSatelliteImagery(${v.id})" style="float:right;background:none;border:none;color:#8e44ad;cursor:pointer;font-size:11px">↻ Search</button>
+                    </div>
+                    <div id="satellite-display" style="padding:8px 0;color:#666;font-size:11px">
+                        <span style="color:#999">Search Sentinel-1/2 imagery for vessel location</span>
+                    </div>
+                </div>
+
+                <div class="panel-section" id="photos-section" style="background:#fff8e1">
+                    <div class="section-title">
+                        Shoreside Photos
+                        <button onclick="loadVesselPhotos(${v.id})" style="float:right;background:none;border:none;color:#f39c12;cursor:pointer;font-size:11px">↻ Load</button>
+                    </div>
+                    <div id="photos-display" style="padding:8px 0;color:#666;font-size:11px">
+                        <span style="color:#999">Crowdsourced port photographs</span>
+                    </div>
+                </div>
+
+                <div class="panel-section" id="gfw-section" style="background:#e3f2fd;border:1px solid #2196f3">
+                    <div class="section-title" style="color:#1565c0">
+                        Global Fishing Watch
+                        <button onclick="loadGFWData(${v.id})" style="float:right;background:none;border:none;color:#1565c0;cursor:pointer;font-size:11px">↻ Analyze</button>
+                    </div>
+                    <div id="gfw-display" style="padding:8px 0;color:#666;font-size:11px">
+                        <span style="color:#999">AIS gaps, encounters, loitering events (free API)</span>
+                    </div>
+                </div>
+
                 ${v.intel_notes ? `
                 <div class="panel-section">
                     <div class="section-title">Intelligence Notes</div>
@@ -3266,6 +3306,276 @@
             } catch(e) {
                 display.innerHTML = '<span style="color:#e74c3c">Error running analysis</span>';
             }
+        }
+
+        // ========== Laden Status Analysis ==========
+        async function loadLadenStatus(vesselId) {
+            const display = document.getElementById('laden-display');
+            if (!display) return;
+            display.innerHTML = '<span style="color:#666">Analyzing draft changes...</span>';
+
+            try {
+                const result = await api(`/vessels/${vesselId}/laden-status?days=30`);
+                renderLadenStatus(result);
+            } catch(e) {
+                display.innerHTML = '<span style="color:#e74c3c">Error analyzing laden status</span>';
+            }
+        }
+
+        function renderLadenStatus(data) {
+            const display = document.getElementById('laden-display');
+            if (!display) return;
+
+            const stateColors = {
+                'laden': '#27ae60',
+                'ballast': '#3498db',
+                'partial': '#f39c12',
+                'unknown': '#95a5a6'
+            };
+
+            const riskColors = {
+                'low': '#27ae60',
+                'medium': '#f39c12',
+                'high': '#e74c3c'
+            };
+
+            const state = data.current_state || 'unknown';
+            const stateColor = stateColors[state] || '#95a5a6';
+            const riskColor = riskColors[data.risk_level] || '#95a5a6';
+
+            // Recent cargo events
+            let eventsHtml = '';
+            if (data.recent_events?.length) {
+                eventsHtml = data.recent_events.slice(0, 3).map(e => `
+                    <div style="padding:4px 0;border-bottom:1px solid #eee;font-size:10px">
+                        <span style="color:#333;font-weight:500">${e.event_type}</span>
+                        <span style="color:#666"> | ${e.draft_change_m?.toFixed(1) || '?'}m change</span>
+                        ${e.estimated_cargo_tonnes ? `<span style="color:#2980b9"> | ~${Math.round(e.estimated_cargo_tonnes).toLocaleString()}t</span>` : ''}
+                    </div>
+                `).join('');
+            }
+
+            // Anomalies
+            let anomalyHtml = '';
+            if (data.high_priority_anomalies > 0) {
+                anomalyHtml = `<div style="background:#fee;border:1px solid #e74c3c;padding:6px;border-radius:4px;margin-top:8px;font-size:10px;color:#c0392b">⚠ ${data.high_priority_anomalies} high-priority anomaly${data.high_priority_anomalies > 1 ? 'ies' : 'y'} detected</div>`;
+            }
+
+            display.innerHTML = `
+                <div style="display:flex;gap:12px;margin-bottom:8px">
+                    <div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px">
+                        <div style="font-size:9px;color:#666">STATUS</div>
+                        <div style="font-size:13px;font-weight:bold;color:${stateColor};text-transform:uppercase">${state}</div>
+                    </div>
+                    <div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px">
+                        <div style="font-size:9px;color:#666">DRAFT</div>
+                        <div style="font-size:13px;font-weight:bold;color:#333">${data.current_draft_m?.toFixed(1) || '-'}m</div>
+                    </div>
+                    <div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px">
+                        <div style="font-size:9px;color:#666">LOADING</div>
+                        <div style="font-size:13px;font-weight:bold;color:#333">${data.loading_ratio || '-'}%</div>
+                    </div>
+                </div>
+                ${data.sts_transfer_count > 0 ? `<div style="background:#ffe0b2;border:1px solid #f39c12;padding:6px;border-radius:4px;font-size:10px;color:#e65100">🔄 ${data.sts_transfer_count} STS transfer(s) detected</div>` : ''}
+                ${anomalyHtml}
+                ${eventsHtml ? `<div style="margin-top:8px"><div style="font-size:9px;color:#666;margin-bottom:4px">RECENT CARGO OPERATIONS</div>${eventsHtml}</div>` : ''}
+            `;
+        }
+
+        // ========== Satellite Imagery ==========
+        async function loadSatelliteImagery(vesselId) {
+            const display = document.getElementById('satellite-display');
+            if (!display) return;
+            display.innerHTML = '<span style="color:#666">Searching satellite archives...</span>';
+
+            try {
+                const result = await api(`/vessels/${vesselId}/satellite?days=14`);
+                renderSatelliteImagery(result);
+            } catch(e) {
+                display.innerHTML = '<span style="color:#e74c3c">Error searching imagery</span>';
+            }
+        }
+
+        function renderSatelliteImagery(data) {
+            const display = document.getElementById('satellite-display');
+            if (!display) return;
+
+            const imagery = data.available_imagery || [];
+            const optical = data.optical_images || 0;
+            const sar = data.sar_images || 0;
+
+            let imageryHtml = '';
+            if (imagery.length) {
+                imageryHtml = imagery.slice(0, 4).map(img => `
+                    <div style="padding:4px 0;border-bottom:1px solid #eee;font-size:10px;display:flex;justify-content:space-between">
+                        <span style="color:#333">${img.provider}</span>
+                        <span style="color:#8e44ad">${img.image_type}</span>
+                        <span style="color:#666">${new Date(img.timestamp).toLocaleDateString()}</span>
+                    </div>
+                `).join('');
+            }
+
+            display.innerHTML = `
+                <div style="display:flex;gap:12px;margin-bottom:8px">
+                    <div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px">
+                        <div style="font-size:9px;color:#666">OPTICAL</div>
+                        <div style="font-size:16px;font-weight:bold;color:#27ae60">${optical}</div>
+                    </div>
+                    <div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px">
+                        <div style="font-size:9px;color:#666">SAR</div>
+                        <div style="font-size:16px;font-weight:bold;color:#8e44ad">${sar}</div>
+                    </div>
+                </div>
+                ${imageryHtml ? `<div style="margin-top:8px"><div style="font-size:9px;color:#666;margin-bottom:4px">AVAILABLE IMAGERY</div>${imageryHtml}</div>` : '<div style="color:#999;font-size:10px">No imagery found for vessel location</div>'}
+                <div style="margin-top:8px">
+                    <a href="https://apps.sentinel-hub.com/eo-browser/" target="_blank" style="font-size:10px;color:#8e44ad">Open EO Browser for detailed analysis →</a>
+                </div>
+            `;
+        }
+
+        // ========== Shoreside Photos ==========
+        async function loadVesselPhotos(vesselId) {
+            const display = document.getElementById('photos-display');
+            if (!display) return;
+            display.innerHTML = '<span style="color:#666">Loading photos...</span>';
+
+            try {
+                const result = await api(`/vessels/${vesselId}/photos`);
+                renderVesselPhotos(result);
+            } catch(e) {
+                display.innerHTML = '<span style="color:#e74c3c">Error loading photos</span>';
+            }
+        }
+
+        function renderVesselPhotos(data) {
+            const display = document.getElementById('photos-display');
+            if (!display) return;
+
+            const photos = data.photos || [];
+
+            if (photos.length === 0) {
+                display.innerHTML = `
+                    <div style="text-align:center;padding:12px;color:#666">
+                        <div style="font-size:24px;margin-bottom:8px">📷</div>
+                        <div style="font-size:11px">No shoreside photos available</div>
+                        <div style="font-size:10px;color:#999;margin-top:4px">Photos can be uploaded via API</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let photosHtml = photos.slice(0, 4).map(p => `
+                <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #eee">
+                    <div style="width:48px;height:36px;background:#eee;border-radius:4px;overflow:hidden">
+                        ${p.file_url ? `<img src="${p.file_url}" style="width:100%;height:100%;object-fit:cover">` : ''}
+                    </div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:11px;font-weight:500;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title || 'Untitled'}</div>
+                        <div style="font-size:9px;color:#666">${p.port_name || p.location_name || 'Unknown location'}</div>
+                        <div style="font-size:9px;color:#999">${p.photo_taken ? new Date(p.photo_taken).toLocaleDateString() : 'Unknown date'}</div>
+                    </div>
+                    <div style="font-size:9px;padding:2px 6px;background:${p.intel_value === 'high' ? '#e74c3c' : p.intel_value === 'medium' ? '#f39c12' : '#95a5a6'};color:white;border-radius:3px;height:fit-content">${p.intel_value || 'low'}</div>
+                </div>
+            `).join('');
+
+            display.innerHTML = `
+                <div style="margin-bottom:8px;font-size:11px;color:#333"><strong>${photos.length}</strong> photo${photos.length !== 1 ? 's' : ''} available</div>
+                ${photosHtml}
+            `;
+        }
+
+        // ========== Global Fishing Watch ==========
+        async function loadGFWData(vesselId) {
+            const display = document.getElementById('gfw-display');
+            if (!display) return;
+            display.innerHTML = '<span style="color:#666">Querying Global Fishing Watch...</span>';
+
+            try {
+                // First check if GFW is configured
+                const status = await api('/gfw/status');
+                if (!status.configured) {
+                    display.innerHTML = `
+                        <div style="text-align:center;padding:12px">
+                            <div style="font-size:11px;color:#666;margin-bottom:8px">GFW API not configured</div>
+                            <a href="https://globalfishingwatch.org/our-apis/" target="_blank"
+                               style="font-size:10px;color:#1565c0;text-decoration:underline">
+                                Get free API token
+                            </a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const result = await api(`/vessels/${vesselId}/gfw-risk?days=90`);
+                renderGFWData(result);
+            } catch(e) {
+                display.innerHTML = '<span style="color:#e74c3c">Error loading GFW data</span>';
+            }
+        }
+
+        function renderGFWData(data) {
+            const display = document.getElementById('gfw-display');
+            if (!display) return;
+
+            if (data.error) {
+                display.innerHTML = `<span style="color:#e74c3c">${data.error}</span>`;
+                return;
+            }
+
+            const riskColors = {
+                'low': '#27ae60',
+                'medium': '#f39c12',
+                'high': '#e74c3c'
+            };
+
+            const riskLevel = data.risk_level || 'low';
+            const riskColor = riskColors[riskLevel] || '#95a5a6';
+            const riskScore = data.risk_score || 0;
+
+            // Format events
+            const gaps = data.ais_gaps || {};
+            const encounters = data.encounters || {};
+            const loitering = data.loitering || {};
+
+            // Risk factors
+            let factorsHtml = '';
+            if (data.risk_factors?.length) {
+                factorsHtml = data.risk_factors.map(f =>
+                    `<div style="font-size:10px;color:#c0392b;padding:2px 0">⚠ ${f}</div>`
+                ).join('');
+            }
+
+            display.innerHTML = `
+                <div style="display:flex;gap:8px;margin-bottom:10px">
+                    <div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px">
+                        <div style="font-size:9px;color:#666">RISK</div>
+                        <div style="font-size:14px;font-weight:bold;color:${riskColor};text-transform:uppercase">${riskLevel}</div>
+                    </div>
+                    <div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px">
+                        <div style="font-size:9px;color:#666">SCORE</div>
+                        <div style="font-size:14px;font-weight:bold;color:${riskColor}">${riskScore}/100</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;margin-bottom:10px">
+                    <div style="flex:1;text-align:center;padding:6px;background:#ffebee;border-radius:4px">
+                        <div style="font-size:8px;color:#666">AIS GAPS</div>
+                        <div style="font-size:12px;font-weight:bold;color:#c0392b">${gaps.count || 0}</div>
+                        <div style="font-size:8px;color:#999">${(gaps.total_hours || 0).toFixed(0)}h</div>
+                    </div>
+                    <div style="flex:1;text-align:center;padding:6px;background:#fff3e0;border-radius:4px">
+                        <div style="font-size:8px;color:#666">ENCOUNTERS</div>
+                        <div style="font-size:12px;font-weight:bold;color:#e65100">${encounters.count || 0}</div>
+                        <div style="font-size:8px;color:#999">STS events</div>
+                    </div>
+                    <div style="flex:1;text-align:center;padding:6px;background:#e3f2fd;border-radius:4px">
+                        <div style="font-size:8px;color:#666">LOITERING</div>
+                        <div style="font-size:12px;font-weight:bold;color:#1565c0">${loitering.count || 0}</div>
+                        <div style="font-size:8px;color:#999">${(loitering.total_hours || 0).toFixed(0)}h</div>
+                    </div>
+                </div>
+                ${factorsHtml}
+                <div style="font-size:9px;color:#999;margin-top:6px">Data: Global Fishing Watch (90 days)</div>
+            `;
         }
 
         function renderInfraAnalysis(data) {
