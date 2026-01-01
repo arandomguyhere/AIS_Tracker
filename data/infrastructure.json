@@ -1,0 +1,570 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2026-01-01",
+    "description": "Undersea infrastructure database for maritime monitoring",
+    "sources": [
+      "TeleGeography Submarine Cable Map (submarinecablemap.com)",
+      "EMODnet Human Activities",
+      "HELCOM Baltic Sea data",
+      "Wikipedia infrastructure lists",
+      "Operator websites"
+    ]
+  },
+  "regions": {
+    "baltic_sea": {
+      "name": "Baltic Sea",
+      "bounds": {
+        "min_lat": 53.0,
+        "max_lat": 66.0,
+        "min_lon": 9.0,
+        "max_lon": 30.0
+      }
+    }
+  },
+  "cables": [
+    {
+      "id": "clion1",
+      "name": "C-Lion1",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "damaged",
+      "region": "baltic_sea",
+      "waypoints": [
+        [60.17, 24.94],
+        [60.05, 24.80],
+        [59.70, 24.50],
+        [59.45, 23.50],
+        [58.80, 21.00],
+        [58.00, 18.50],
+        [56.50, 15.50],
+        [55.50, 13.50],
+        [54.50, 12.50],
+        [54.18, 12.09]
+      ],
+      "landing_points": [
+        {"name": "Helsinki", "country": "FI", "lat": 60.17, "lon": 24.94},
+        {"name": "Rostock", "country": "DE", "lat": 54.18, "lon": 12.09}
+      ],
+      "length_km": 1172,
+      "operator": "Cinia",
+      "capacity": "144 Tbps design capacity",
+      "rfs_year": 2016,
+      "protection_radius_nm": 5.0,
+      "notes": "Finland-Germany submarine telecom cable. Damaged Dec 31, 2025.",
+      "incidents": [
+        {"date": "2025-12-31", "type": "damage", "description": "Cable damaged, under investigation"}
+      ]
+    },
+    {
+      "id": "estlink2",
+      "name": "Estlink-2",
+      "type": "power",
+      "subtype": "hvdc",
+      "status": "damaged",
+      "region": "baltic_sea",
+      "waypoints": [
+        [59.35, 27.75],
+        [59.45, 27.00],
+        [59.55, 26.20],
+        [59.70, 25.60],
+        [59.90, 25.30],
+        [60.10, 25.15]
+      ],
+      "landing_points": [
+        {"name": "Purtse", "country": "EE", "lat": 59.35, "lon": 27.75},
+        {"name": "Porvoo", "country": "FI", "lat": 60.10, "lon": 25.15}
+      ],
+      "length_km": 170,
+      "operator": "Elering/Fingrid",
+      "capacity": "650 MW",
+      "voltage_kv": 450,
+      "rfs_year": 2014,
+      "protection_radius_nm": 3.0,
+      "notes": "Estonia-Finland HVDC power interconnector. Damaged Dec 25, 2025 by Eagle S.",
+      "incidents": [
+        {"date": "2025-12-25", "type": "damage", "vessel": "Eagle S", "description": "Anchor drag damage"}
+      ]
+    },
+    {
+      "id": "estlink1",
+      "name": "Estlink-1",
+      "type": "power",
+      "subtype": "hvdc",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [59.42, 24.52],
+        [59.50, 24.70],
+        [59.65, 24.90],
+        [59.85, 25.10],
+        [60.05, 25.35]
+      ],
+      "landing_points": [
+        {"name": "Harku", "country": "EE", "lat": 59.42, "lon": 24.52},
+        {"name": "Espoo", "country": "FI", "lat": 60.05, "lon": 25.35}
+      ],
+      "length_km": 105,
+      "operator": "Elering/Fingrid",
+      "capacity": "350 MW",
+      "voltage_kv": 150,
+      "rfs_year": 2006,
+      "protection_radius_nm": 3.0,
+      "notes": "First Estonia-Finland power interconnector."
+    },
+    {
+      "id": "nordbalt",
+      "name": "NordBalt",
+      "type": "power",
+      "subtype": "hvdc",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [55.52, 12.90],
+        [55.30, 13.50],
+        [55.20, 14.50],
+        [55.30, 15.50],
+        [55.50, 16.50],
+        [55.75, 17.50],
+        [55.92, 18.20]
+      ],
+      "landing_points": [
+        {"name": "Klaipeda", "country": "LT", "lat": 55.92, "lon": 18.20},
+        {"name": "Nybro", "country": "SE", "lat": 55.52, "lon": 12.90}
+      ],
+      "length_km": 450,
+      "operator": "Litgrid/Svenska Kraftnät",
+      "capacity": "700 MW",
+      "voltage_kv": 300,
+      "rfs_year": 2015,
+      "protection_radius_nm": 3.0,
+      "notes": "Lithuania-Sweden HVDC power interconnector."
+    },
+    {
+      "id": "swepol",
+      "name": "SwePol Link",
+      "type": "power",
+      "subtype": "hvdc",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [55.38, 12.85],
+        [55.20, 13.50],
+        [55.00, 14.50],
+        [54.70, 15.50],
+        [54.50, 16.50],
+        [54.40, 17.00],
+        [54.35, 18.67]
+      ],
+      "landing_points": [
+        {"name": "Karlshamn", "country": "SE", "lat": 55.38, "lon": 12.85},
+        {"name": "Slupsk", "country": "PL", "lat": 54.35, "lon": 18.67}
+      ],
+      "length_km": 245,
+      "operator": "Svenska Kraftnät/PSE",
+      "capacity": "600 MW",
+      "voltage_kv": 450,
+      "rfs_year": 2000,
+      "protection_radius_nm": 3.0,
+      "notes": "Sweden-Poland HVDC power interconnector."
+    },
+    {
+      "id": "kontek",
+      "name": "Kontek",
+      "type": "power",
+      "subtype": "hvdc",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [54.57, 11.25],
+        [54.55, 11.50],
+        [54.50, 11.80],
+        [54.45, 12.10],
+        [54.50, 12.30]
+      ],
+      "landing_points": [
+        {"name": "Bentwisch", "country": "DE", "lat": 54.57, "lon": 11.25},
+        {"name": "Bjaeverskov", "country": "DK", "lat": 54.50, "lon": 12.30}
+      ],
+      "length_km": 52,
+      "operator": "50Hertz/Energinet",
+      "capacity": "600 MW",
+      "voltage_kv": 400,
+      "rfs_year": 1995,
+      "protection_radius_nm": 2.0,
+      "notes": "Germany-Denmark power interconnector."
+    },
+    {
+      "id": "baltickonnekt",
+      "name": "Baltic Cable",
+      "type": "power",
+      "subtype": "hvdc",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [54.13, 12.12],
+        [54.50, 12.50],
+        [55.00, 12.80],
+        [55.40, 12.65]
+      ],
+      "landing_points": [
+        {"name": "Lübeck-Herrenwyk", "country": "DE", "lat": 54.13, "lon": 12.12},
+        {"name": "Trelleborg", "country": "SE", "lat": 55.40, "lon": 12.65}
+      ],
+      "length_km": 250,
+      "operator": "Baltic Cable AB",
+      "capacity": "600 MW",
+      "voltage_kv": 450,
+      "rfs_year": 1994,
+      "protection_radius_nm": 3.0,
+      "notes": "Germany-Sweden HVDC power interconnector."
+    },
+    {
+      "id": "fennoskan1",
+      "name": "Fenno-Skan 1",
+      "type": "power",
+      "subtype": "hvdc",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [60.45, 22.20],
+        [60.20, 20.50],
+        [59.80, 19.50],
+        [59.50, 18.80]
+      ],
+      "landing_points": [
+        {"name": "Rauma", "country": "FI", "lat": 60.45, "lon": 22.20},
+        {"name": "Dannebo", "country": "SE", "lat": 59.50, "lon": 18.80}
+      ],
+      "length_km": 200,
+      "operator": "Fingrid/Svenska Kraftnät",
+      "capacity": "500 MW",
+      "voltage_kv": 400,
+      "rfs_year": 1989,
+      "protection_radius_nm": 3.0,
+      "notes": "Finland-Sweden HVDC power interconnector."
+    },
+    {
+      "id": "fennoskan2",
+      "name": "Fenno-Skan 2",
+      "type": "power",
+      "subtype": "hvdc",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [60.45, 22.25],
+        [60.15, 20.40],
+        [59.75, 19.40],
+        [59.45, 18.75]
+      ],
+      "landing_points": [
+        {"name": "Rauma", "country": "FI", "lat": 60.45, "lon": 22.25},
+        {"name": "Finnböle", "country": "SE", "lat": 59.45, "lon": 18.75}
+      ],
+      "length_km": 200,
+      "operator": "Fingrid/Svenska Kraftnät",
+      "capacity": "800 MW",
+      "voltage_kv": 500,
+      "rfs_year": 2011,
+      "protection_radius_nm": 3.0,
+      "notes": "Second Finland-Sweden HVDC interconnector."
+    },
+    {
+      "id": "gotlandlink",
+      "name": "Gotland HVDC Link",
+      "type": "power",
+      "subtype": "hvdc",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [57.65, 18.35],
+        [57.50, 17.80],
+        [57.40, 17.20],
+        [57.30, 16.70]
+      ],
+      "landing_points": [
+        {"name": "Visby", "country": "SE", "lat": 57.65, "lon": 18.35},
+        {"name": "Västervik", "country": "SE", "lat": 57.30, "lon": 16.70}
+      ],
+      "length_km": 96,
+      "operator": "Svenska Kraftnät",
+      "capacity": "130 MW",
+      "voltage_kv": 150,
+      "rfs_year": 1999,
+      "protection_radius_nm": 2.0,
+      "notes": "Mainland Sweden to Gotland island power link."
+    },
+    {
+      "id": "aland_cable",
+      "name": "Åland Cable",
+      "type": "power",
+      "subtype": "ac",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [60.10, 19.95],
+        [60.05, 20.30],
+        [60.00, 20.80],
+        [59.95, 21.20]
+      ],
+      "landing_points": [
+        {"name": "Mariehamn", "country": "AX", "lat": 60.10, "lon": 19.95},
+        {"name": "Naantali", "country": "FI", "lat": 59.95, "lon": 21.20}
+      ],
+      "length_km": 80,
+      "operator": "Kraftnät Åland",
+      "capacity": "100 MW",
+      "rfs_year": 2015,
+      "protection_radius_nm": 2.0,
+      "notes": "Åland islands to Finland mainland."
+    },
+    {
+      "id": "segw",
+      "name": "SE-GW (Scandinavian-German Offshore Wind)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [55.60, 12.95],
+        [55.20, 13.40],
+        [54.70, 13.00],
+        [54.20, 12.50]
+      ],
+      "landing_points": [
+        {"name": "Trelleborg", "country": "SE", "lat": 55.60, "lon": 12.95},
+        {"name": "Sassnitz", "country": "DE", "lat": 54.20, "lon": 12.50}
+      ],
+      "length_km": 180,
+      "operator": "GlobalConnect",
+      "capacity": "Multi-Tbps",
+      "rfs_year": 2020,
+      "protection_radius_nm": 3.0,
+      "notes": "Sweden-Germany fiber cable via offshore wind farm area."
+    }
+  ],
+  "pipelines": [
+    {
+      "id": "balticconnector",
+      "name": "Balticconnector",
+      "type": "gas",
+      "status": "damaged",
+      "region": "baltic_sea",
+      "waypoints": [
+        [59.35, 24.05],
+        [59.50, 24.30],
+        [59.70, 24.60],
+        [59.90, 24.85],
+        [60.05, 25.00]
+      ],
+      "landing_points": [
+        {"name": "Paldiski", "country": "EE", "lat": 59.35, "lon": 24.05},
+        {"name": "Inkoo", "country": "FI", "lat": 60.05, "lon": 25.00}
+      ],
+      "length_km": 77,
+      "diameter_mm": 500,
+      "operator": "Gasgrid Finland/Elering",
+      "capacity": "7.2 bcm/year",
+      "rfs_year": 2019,
+      "protection_radius_nm": 5.0,
+      "notes": "Finland-Estonia bi-directional gas pipeline. Damaged Oct 2023 by anchor drag.",
+      "incidents": [
+        {"date": "2023-10-08", "type": "damage", "vessel": "Newnew Polar Bear", "description": "Anchor drag damage"}
+      ]
+    },
+    {
+      "id": "nordstream1",
+      "name": "Nord Stream 1",
+      "type": "gas",
+      "status": "destroyed",
+      "region": "baltic_sea",
+      "waypoints": [
+        [59.95, 29.10],
+        [59.80, 27.00],
+        [59.60, 24.50],
+        [59.30, 21.00],
+        [58.50, 18.00],
+        [56.50, 14.50],
+        [55.00, 12.50],
+        [54.15, 12.10]
+      ],
+      "landing_points": [
+        {"name": "Vyborg", "country": "RU", "lat": 59.95, "lon": 29.10},
+        {"name": "Lubmin", "country": "DE", "lat": 54.15, "lon": 12.10}
+      ],
+      "length_km": 1224,
+      "diameter_mm": 1220,
+      "operator": "Nord Stream AG",
+      "capacity": "55 bcm/year",
+      "rfs_year": 2011,
+      "protection_radius_nm": 5.0,
+      "notes": "Russia-Germany gas pipeline. Destroyed by sabotage Sep 2022.",
+      "incidents": [
+        {"date": "2022-09-26", "type": "sabotage", "description": "Multiple explosions, pipeline destroyed"}
+      ]
+    },
+    {
+      "id": "nordstream2",
+      "name": "Nord Stream 2",
+      "type": "gas",
+      "status": "destroyed",
+      "region": "baltic_sea",
+      "waypoints": [
+        [59.93, 29.15],
+        [59.75, 27.10],
+        [59.55, 24.60],
+        [59.25, 21.10],
+        [58.45, 18.10],
+        [56.45, 14.60],
+        [54.95, 12.55],
+        [54.12, 12.15]
+      ],
+      "landing_points": [
+        {"name": "Ust-Luga", "country": "RU", "lat": 59.93, "lon": 29.15},
+        {"name": "Lubmin", "country": "DE", "lat": 54.12, "lon": 12.15}
+      ],
+      "length_km": 1230,
+      "diameter_mm": 1220,
+      "operator": "Nord Stream 2 AG",
+      "capacity": "55 bcm/year",
+      "rfs_year": 2021,
+      "protection_radius_nm": 5.0,
+      "notes": "Never operated commercially. Destroyed by sabotage Sep 2022.",
+      "incidents": [
+        {"date": "2022-09-26", "type": "sabotage", "description": "Multiple explosions, pipeline destroyed"}
+      ]
+    },
+    {
+      "id": "europipe2",
+      "name": "Europipe II",
+      "type": "gas",
+      "status": "operational",
+      "region": "north_sea",
+      "waypoints": [
+        [58.45, 1.75],
+        [57.00, 4.50],
+        [55.50, 6.50],
+        [54.00, 8.00],
+        [53.60, 8.55]
+      ],
+      "landing_points": [
+        {"name": "Kårstø", "country": "NO", "lat": 58.45, "lon": 1.75},
+        {"name": "Dornum", "country": "DE", "lat": 53.60, "lon": 8.55}
+      ],
+      "length_km": 658,
+      "diameter_mm": 1067,
+      "operator": "Gassco",
+      "capacity": "71 bcm/year",
+      "rfs_year": 1999,
+      "protection_radius_nm": 5.0,
+      "notes": "Norway-Germany gas pipeline."
+    }
+  ],
+  "wind_farms": [
+    {
+      "id": "kriegers_flak",
+      "name": "Kriegers Flak",
+      "status": "operational",
+      "region": "baltic_sea",
+      "center": [55.15, 13.10],
+      "country": "DK",
+      "turbines": 72,
+      "capacity_mw": 605,
+      "operator": "Vattenfall",
+      "rfs_year": 2021,
+      "area_km2": 132,
+      "protection_radius_nm": 3.0,
+      "notes": "Combined Danish/German offshore wind farm in Baltic Sea."
+    },
+    {
+      "id": "anholt",
+      "name": "Anholt Offshore Wind Farm",
+      "status": "operational",
+      "region": "baltic_sea",
+      "center": [56.60, 11.20],
+      "country": "DK",
+      "turbines": 111,
+      "capacity_mw": 400,
+      "operator": "Ørsted",
+      "rfs_year": 2013,
+      "area_km2": 88,
+      "protection_radius_nm": 2.0,
+      "notes": "Denmark's largest offshore wind farm in Kattegat."
+    },
+    {
+      "id": "arkona",
+      "name": "Arkona Basin Southeast",
+      "status": "operational",
+      "region": "baltic_sea",
+      "center": [54.68, 14.10],
+      "country": "DE",
+      "turbines": 60,
+      "capacity_mw": 385,
+      "operator": "E.ON/Equinor",
+      "rfs_year": 2019,
+      "area_km2": 39,
+      "protection_radius_nm": 2.0,
+      "notes": "German offshore wind farm in Baltic Sea."
+    },
+    {
+      "id": "wikinger",
+      "name": "Wikinger",
+      "status": "operational",
+      "region": "baltic_sea",
+      "center": [54.83, 14.07],
+      "country": "DE",
+      "turbines": 70,
+      "capacity_mw": 350,
+      "operator": "Iberdrola",
+      "rfs_year": 2017,
+      "area_km2": 34,
+      "protection_radius_nm": 2.0,
+      "notes": "German offshore wind farm northeast of Rügen."
+    },
+    {
+      "id": "baltic2",
+      "name": "Baltic 2 (EnBW)",
+      "status": "operational",
+      "region": "baltic_sea",
+      "center": [54.98, 13.17],
+      "country": "DE",
+      "turbines": 80,
+      "capacity_mw": 288,
+      "operator": "EnBW",
+      "rfs_year": 2015,
+      "area_km2": 27,
+      "protection_radius_nm": 2.0,
+      "notes": "German offshore wind farm north of Rügen."
+    },
+    {
+      "id": "lillgrund",
+      "name": "Lillgrund",
+      "status": "operational",
+      "region": "baltic_sea",
+      "center": [55.52, 12.77],
+      "country": "SE",
+      "turbines": 48,
+      "capacity_mw": 110,
+      "operator": "Vattenfall",
+      "rfs_year": 2007,
+      "area_km2": 18,
+      "protection_radius_nm": 1.5,
+      "notes": "Swedish offshore wind farm in Öresund strait."
+    },
+    {
+      "id": "tahkoluoto",
+      "name": "Tahkoluoto",
+      "status": "operational",
+      "region": "baltic_sea",
+      "center": [61.63, 21.35],
+      "country": "FI",
+      "turbines": 10,
+      "capacity_mw": 42,
+      "operator": "Suomen Hyötytuuli",
+      "rfs_year": 2017,
+      "area_km2": 5,
+      "protection_radius_nm": 1.0,
+      "notes": "Finland's first offshore wind farm, ice-resistant design."
+    }
+  ]
+}
