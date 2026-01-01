@@ -1,27 +1,35 @@
 """
 AIS Source Manager
 
-Orchestrates multiple AIS data sources with priority-based fallback.
-Ensures consistent data flow even when primary sources are unavailable.
+Orchestrates multiple AIS data sources in parallel mode.
+Combines real-time streaming with REST API features for comprehensive coverage.
 
-Priority Order:
-1. AISStream.io (real-time WebSocket) - Primary
-2. Marinesia (REST API) - Fallback
-3. Global Fishing Watch (REST API) - Enrichment only
+Source Roles:
+1. AISStream.io (real-time WebSocket) - Real-time position streaming
+2. Marinesia (REST API) - Vessel info, ports, area queries, images
+3. Global Fishing Watch (REST API) - Behavioral events enrichment
 
 Design Principles:
+- Use sources in parallel, not just as fallback
+- Combine data from multiple sources for richer information
+- Marinesia provides unique features: ports, area queries, vessel images
 - Fail gracefully (never crash on source failure)
-- Prefer real-time data over cached
 - Deduplicate positions across sources
 - Log source health for monitoring
 """
 
 import json
+import math
 import os
 import threading
 import time
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any, Callable
+
+
+def cos_approx(degrees: float) -> float:
+    """Approximate cosine for latitude-based distance calculations."""
+    return math.cos(math.radians(degrees))
 
 from .base import (
     AISSource, AISPosition, AISVesselInfo, AISEvent,
@@ -399,6 +407,221 @@ class AISSourceManager:
                 self._log(f"Error fetching events from {name}: {e}", level="error")
 
         return events
+
+    # ========== Marinesia-Specific Features ==========
+    # These methods leverage Marinesia's unique capabilities
+
+    def get_marinesia_source(self) -> Optional[MarinesiaSource]:
+        """Get the Marinesia source instance if available."""
+        if "marinesia" in self.sources:
+            source = self.sources["marinesia"]
+            if source.is_available():
+                return source
+        return None
+
+    def get_vessels_in_area(
+        self,
+        min_lat: float,
+        min_lon: float,
+        max_lat: float,
+        max_lon: float
+    ) -> List[AISPosition]:
+        """
+        Get all vessels within a bounding box area.
+
+        Uses Marinesia's area query feature. This is useful for
+        monitoring specific regions (ports, STS zones, etc.)
+
+        Args:
+            min_lat: Minimum latitude
+            min_lon: Minimum longitude
+            max_lat: Maximum latitude
+            max_lon: Maximum longitude
+
+        Returns:
+            List of vessel positions in the area
+        """
+        source = self.get_marinesia_source()
+        if not source:
+            self._log("Marinesia not available for area query", level="warning")
+            return []
+
+        try:
+            positions = source.fetch_vessels_nearby(min_lat, min_lon, max_lat, max_lon)
+            # Update cache with these positions
+            with self._cache_lock:
+                for pos in positions:
+                    self._update_cache(pos)
+            return positions
+        except Exception as e:
+            self._log(f"Area query failed: {e}", level="error")
+            return []
+
+    def get_ports_nearby(
+        self,
+        lat: float,
+        lon: float,
+        radius_nm: float = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Get ports near a specific location.
+
+        Uses Marinesia's port database. Useful for identifying
+        where a vessel might be heading or which port it's near.
+
+        Args:
+            lat: Latitude of center point
+            lon: Longitude of center point
+            radius_nm: Search radius in nautical miles
+
+        Returns:
+            List of port information dictionaries
+        """
+        source = self.get_marinesia_source()
+        if not source:
+            self._log("Marinesia not available for port query", level="warning")
+            return []
+
+        try:
+            # Convert radius to approximate bounding box
+            # 1 degree latitude ≈ 60 nautical miles
+            lat_delta = radius_nm / 60
+            lon_delta = radius_nm / (60 * abs(cos_approx(lat)))
+
+            return source.fetch_ports_nearby(
+                lat - lat_delta, lon - lon_delta,
+                lat + lat_delta, lon + lon_delta
+            )
+        except Exception as e:
+            self._log(f"Port query failed: {e}", level="error")
+            return []
+
+    def get_vessel_image(self, mmsi: str) -> Optional[str]:
+        """
+        Get vessel image URL from Marinesia.
+
+        Args:
+            mmsi: Vessel MMSI number
+
+        Returns:
+            Image URL or None if not available
+        """
+        source = self.get_marinesia_source()
+        if not source:
+            return None
+
+        try:
+            return source.fetch_vessel_image(mmsi)
+        except Exception as e:
+            self._log(f"Image fetch failed: {e}", level="warning")
+            return None
+
+    def get_vessel_history(
+        self,
+        mmsi: str,
+        hours: int = 24
+    ) -> List[AISPosition]:
+        """
+        Get historical positions for a vessel.
+
+        Uses Marinesia's historical data. Complements real-time
+        data with past track history.
+
+        Args:
+            mmsi: Vessel MMSI number
+            hours: Hours of history to retrieve (max 168 = 7 days)
+
+        Returns:
+            List of historical positions
+        """
+        source = self.get_marinesia_source()
+        if not source:
+            self._log("Marinesia not available for history query", level="warning")
+            return []
+
+        try:
+            return source.fetch_vessel_history(mmsi, hours=hours)
+        except Exception as e:
+            self._log(f"History fetch failed: {e}", level="error")
+            return []
+
+    def get_combined_vessel_info(self, mmsi: str) -> Dict[str, Any]:
+        """
+        Get comprehensive vessel information from all sources.
+
+        Combines data from:
+        - Real-time sources (latest position)
+        - Marinesia (profile, image)
+        - GFW (behavioral events)
+
+        Returns a merged information dictionary.
+        """
+        result = {
+            "mmsi": mmsi,
+            "position": None,
+            "profile": None,
+            "image_url": None,
+            "recent_events": [],
+            "sources_used": []
+        }
+
+        # Get latest position from any source
+        positions = self.get_positions([mmsi])
+        if positions:
+            pos = positions[0]
+            result["position"] = {
+                "lat": pos.latitude,
+                "lon": pos.longitude,
+                "speed": pos.speed,
+                "course": pos.course,
+                "heading": pos.heading,
+                "timestamp": pos.timestamp.isoformat() if pos.timestamp else None,
+                "source": pos.source
+            }
+            result["sources_used"].append(pos.source)
+
+        # Get vessel profile
+        info = self.get_vessel_info(mmsi)
+        if info:
+            result["profile"] = {
+                "name": info.name,
+                "imo": info.imo,
+                "callsign": info.callsign,
+                "ship_type": info.ship_type,
+                "flag": info.flag,
+                "length": info.length,
+                "width": info.width,
+                "draught": info.draught,
+                "destination": info.destination,
+                "eta": info.eta.isoformat() if info.eta else None
+            }
+            if info.source and info.source not in result["sources_used"]:
+                result["sources_used"].append(info.source)
+
+        # Get vessel image from Marinesia
+        image_url = self.get_vessel_image(mmsi)
+        if image_url:
+            result["image_url"] = image_url
+            if "marinesia" not in result["sources_used"]:
+                result["sources_used"].append("marinesia")
+
+        # Get recent behavioral events from GFW
+        events = self.get_events(mmsi, days=7)
+        if events:
+            result["recent_events"] = [
+                {
+                    "type": e.event_type,
+                    "timestamp": e.timestamp.isoformat() if e.timestamp else None,
+                    "lat": e.latitude,
+                    "lon": e.longitude,
+                    "duration_hours": e.duration_hours
+                }
+                for e in events[:10]  # Limit to 10 most recent
+            ]
+            if "gfw" not in result["sources_used"]:
+                result["sources_used"].append("gfw")
+
+        return result
 
     def get_status(self) -> Dict[str, Any]:
         """Get status of all sources."""
