@@ -134,9 +134,108 @@ class SanctionedVessel:
 #   GET /api/meta                 - Dataset metadata/stats
 # =============================================================================
 
+# Confirmed working endpoints (December 2025)
+FLEETLEAKS_MAP_DATA = "https://fleetleaks.com/wp-json/fleetleaks/v1/vessels/map-data"
+FLEETLEAKS_HARMONIZATION = "https://fleetleaks.com/wp-json/fleetleaks/v1/harmonization"
+FLEETLEAKS_SEARCH = "https://fleetleaks.com/wp-json/fl/v1/search"
+FLEETLEAKS_TERMINALS = "https://fleetleaks.com/wp-json/wp/v2/terminals"
+
+# Legacy endpoints (may not work)
 FLEETLEAKS_CSV = "https://fleetleaks.com/export/vessels.csv"
 FLEETLEAKS_API = "https://fleetleaks.com/api/vessels"
-FLEETLEAKS_EXPORT = "https://fleetleaks.com/api/vessels/export"
+
+
+def fetch_fleetleaks_map_data() -> List[SanctionedVessel]:
+    """
+    Fetch sanctions data from FleetLeaks map-data endpoint.
+
+    This is the CONFIRMED WORKING endpoint (December 2025).
+    Returns JSON with 800+ sanctioned vessels.
+
+    Sample response:
+    [
+        {
+            "id": "2245",
+            "name": "Achilles",
+            "imo": "9368223",
+            "flag": "Panama",
+            "vessel_type": "Oil Tanker",
+            "latitude": "49.301105",
+            "longitude": "-4.77723",
+            "speed_knots": "11",
+            "course_degrees": "233.9",
+            "heading_degrees": "..."
+        }
+    ]
+
+    Returns:
+        List of SanctionedVessel records
+    """
+    vessels = []
+
+    headers = {
+        "User-Agent": "ArsenalTracker/1.0",
+        "Accept": "application/json"
+    }
+
+    try:
+        req = urllib.request.Request(FLEETLEAKS_MAP_DATA, headers=headers)
+
+        with urllib.request.urlopen(req, timeout=60) as response:
+            data = json.loads(response.read().decode("utf-8"))
+
+            for vessel_data in data:
+                imo = vessel_data.get("imo", "")
+                if not imo:
+                    continue
+
+                vessels.append(SanctionedVessel(
+                    imo=imo,
+                    name=vessel_data.get("name", ""),
+                    flag=vessel_data.get("flag"),
+                    vessel_type=vessel_data.get("vessel_type"),
+                    sanctioned_by=[],  # Map data doesn't include authorities
+                    source="fleetleaks_map",
+                    last_updated=datetime.utcnow()
+                ))
+
+        print(f"FleetLeaks map-data: Fetched {len(vessels)} sanctioned vessels")
+
+    except urllib.error.HTTPError as e:
+        print(f"FleetLeaks map-data error: {e.code}")
+    except Exception as e:
+        print(f"FleetLeaks map-data fetch error: {e}")
+
+    return vessels
+
+
+def fetch_fleetleaks_harmonization() -> Dict[str, Any]:
+    """
+    Fetch sanctions harmonization statistics from FleetLeaks.
+
+    Returns breakdown of vessels by sanctioning authority:
+    {
+        "total_vessels": 882,
+        "by_sanctioner": {"US": 466, "UK": 545, "EU": 597, ...},
+        "overlap_matrix": {...}
+    }
+    """
+    headers = {
+        "User-Agent": "ArsenalTracker/1.0",
+        "Accept": "application/json"
+    }
+
+    try:
+        req = urllib.request.Request(FLEETLEAKS_HARMONIZATION, headers=headers)
+
+        with urllib.request.urlopen(req, timeout=30) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            print(f"FleetLeaks harmonization: {data.get('total_vessels', 0)} total vessels")
+            return data
+
+    except Exception as e:
+        print(f"FleetLeaks harmonization error: {e}")
+        return {}
 
 
 def fetch_fleetleaks_csv() -> List[SanctionedVessel]:
@@ -283,7 +382,7 @@ def fetch_fleetleaks(api_key: Optional[str] = None) -> List[SanctionedVessel]:
     """
     Fetch sanctioned vessels from FleetLeaks.
 
-    Tries CSV first (most reliable), falls back to JSON API.
+    Tries confirmed working endpoints first, then falls back.
 
     FleetLeaks tracks 800+ vessels designated by:
     - OFAC (United States)
@@ -296,10 +395,14 @@ def fetch_fleetleaks(api_key: Optional[str] = None) -> List[SanctionedVessel]:
     Returns:
         List of SanctionedVessel records
     """
-    # Try CSV first (most reliable)
-    vessels = fetch_fleetleaks_csv()
+    # Try confirmed working map-data endpoint first
+    vessels = fetch_fleetleaks_map_data()
 
-    # Fall back to JSON if CSV fails
+    # Fall back to CSV if map-data fails
+    if not vessels:
+        vessels = fetch_fleetleaks_csv()
+
+    # Final fallback to legacy JSON API
     if not vessels:
         vessels = fetch_fleetleaks_json()
 
