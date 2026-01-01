@@ -467,7 +467,8 @@ def analyze_infrastructure_incident(
     # 4. Detect loitering
     loitering = detect_loitering(positions, mmsi, min_duration_hours=0.5)
     analysis.loitering_events = [
-        {"start": e.start_time.isoformat(), "duration_hours": e.duration_hours,
+        {"start": e.start_time.isoformat(),
+         "duration_hours": (e.end_time - e.start_time).total_seconds() / 3600,
          "lat": e.latitude, "lon": e.longitude}
         for e in loitering
     ]

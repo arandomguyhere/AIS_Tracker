@@ -23,10 +23,13 @@
       "description": "Global Fishing Watch enrichment data (requires free API key, enrichment only)"
     }
   },
-  "priority": ["aisstream", "aishub", "marinesia"],
+  "priority": [
+    "aisstream",
+    "aishub",
+    "marinesia"
+  ],
   "poll_interval": 60,
   "position_cache_ttl": 300,
-
   "area_tracking": {
     "enabled": true,
     "auto_update": true,
@@ -38,7 +41,6 @@
       "description": "Baltic Sea - Cable Infrastructure Monitoring Zone"
     }
   },
-
   "notes": {
     "env_vars": [
       "AISSTREAM_API_KEY - Get from https://aisstream.io/",

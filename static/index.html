@@ -3112,6 +3112,29 @@
                         dashArray: '5, 5'
                     });
                     layers.push(circle);
+
+                    // Add text label for the infrastructure line
+                    const labelIcon = L.divIcon({
+                        className: 'infra-label',
+                        html: `<div style="
+                            background: ${color}dd;
+                            color: white;
+                            padding: 2px 6px;
+                            border-radius: 3px;
+                            font-size: 10px;
+                            font-weight: 600;
+                            white-space: nowrap;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+                            border: 1px solid ${color};
+                        ">${asset.name}</div>`,
+                        iconSize: [100, 20],
+                        iconAnchor: [50, 10]
+                    });
+                    const label = L.marker([midpoint[0], midpoint[1]], {
+                        icon: labelIcon,
+                        interactive: false
+                    });
+                    layers.push(label);
                 } else if (asset.latitude && asset.longitude) {
                     // Point infrastructure
                     const marker = L.circleMarker([asset.latitude, asset.longitude], {
