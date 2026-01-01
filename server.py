@@ -1272,22 +1272,44 @@ class TrackerHandler(SimpleHTTPRequestHandler):
         elif path == '/api/ports/nearby':
             # Get ports near a location
             try:
-                lat = float(params.get('lat', [0])[0])
-                lon = float(params.get('lon', [0])[0])
+                lat_param = params.get('lat', [None])[0]
+                lon_param = params.get('lon', [None])[0]
+                lat = float(lat_param) if lat_param else None
+                lon = float(lon_param) if lon_param else None
                 radius = float(params.get('radius', [50])[0])  # nautical miles
             except (ValueError, TypeError):
                 return self.send_json({'error': 'Invalid coordinates'}, 400)
 
-            if not lat or not lon:
+            if lat is None or lon is None:
                 return self.send_json({'error': 'lat and lon required'}, 400)
 
             try:
                 manager = get_ais_manager()
                 if manager:
                     ports = manager.get_ports_nearby(lat, lon, radius)
+
+                    # Calculate distance from search center to each port
+                    enriched_ports = []
+                    for port in ports:
+                        # Handle various port data formats
+                        port_lat = port.get('lat') or port.get('latitude') or port.get('location', {}).get('lat')
+                        port_lon = port.get('lon') or port.get('longitude') or port.get('location', {}).get('lon')
+
+                        if port_lat is not None and port_lon is not None:
+                            # Calculate distance in nautical miles (haversine returns km)
+                            distance_km = haversine(lat, lon, float(port_lat), float(port_lon))
+                            port['distance_nm'] = round(distance_km / 1.852, 1)
+                        else:
+                            port['distance_nm'] = None
+
+                        enriched_ports.append(port)
+
+                    # Sort by distance (closest first)
+                    enriched_ports.sort(key=lambda p: p.get('distance_nm') if p.get('distance_nm') is not None else 9999)
+
                     return self.send_json({
-                        'ports': ports,
-                        'count': len(ports),
+                        'ports': enriched_ports,
+                        'count': len(enriched_ports),
                         'search_center': {'lat': lat, 'lon': lon},
                         'radius_nm': radius
                     })

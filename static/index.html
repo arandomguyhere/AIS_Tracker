@@ -1612,9 +1612,20 @@
 
             renderVesselPanel(v, events, osint);
             document.getElementById('vessel-panel').classList.add('active');
-            // Load intelligence assessment
+
+            // Auto-load data from all sources
             loadIntelligence(v.id);
-            // Load Marinesia image if no photo exists
+            loadCombinedData(v.id);
+
+            // Load nearby ports if vessel has position
+            if (v.last_lat && v.last_lon) {
+                loadNearbyPorts(v.id);
+            } else {
+                const portsDisplay = document.getElementById('ports-display');
+                if (portsDisplay) portsDisplay.innerHTML = '<span style="color:#999">No position data available</span>';
+            }
+
+            // Load Marinesia image if no local photo exists
             if (!v.photo_url && v.mmsi) {
                 loadMarinesiaImage(v.id);
             }
@@ -1644,7 +1655,7 @@
                 </div>`}
 
                 <div class="panel-section">
-                    <div class="section-title">Position</div>
+                    <div class="section-title">Position & Navigation</div>
                     <div class="position-display">
                         <div class="coord-box">
                             <div class="coord-label">Latitude</div>
@@ -1655,14 +1666,25 @@
                             <div class="coord-value">${v.last_lon?.toFixed(4) || '-'}</div>
                         </div>
                     </div>
+                    <div id="live-nav-display" style="margin-top:8px;font-size:11px;color:#666">
+                        <!-- Speed/course loaded from live sources -->
+                    </div>
                 </div>
 
                 <div class="panel-section">
-                    <div class="section-title">Details</div>
+                    <div class="section-title">Vessel Details</div>
                     <div class="info-row"><span class="info-label">MMSI</span><span class="info-value">${v.mmsi || '-'}</span></div>
                     <div class="info-row"><span class="info-label">IMO</span><span class="info-value">${v.imo || '-'}</span></div>
                     <div class="info-row"><span class="info-label">Classification</span><span class="info-value">${v.classification || '-'}</span></div>
                     <div class="info-row"><span class="info-label">Length</span><span class="info-value">${v.length_m ? v.length_m + 'm' : '-'}</span></div>
+                </div>
+
+                <div class="panel-section" id="ports-section">
+                    <div class="section-title">
+                        Nearby Ports
+                        <button onclick="loadNearbyPorts(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Refresh</button>
+                    </div>
+                    <div id="ports-display" style="padding:8px 0;color:#666;font-size:11px">Loading nearby ports...</div>
                 </div>
 
                 <div class="panel-section" id="confidence-section">
@@ -1673,55 +1695,31 @@
                     <div id="confidence-display" style="padding:12px;color:#666">Loading...</div>
                 </div>
 
-                <div class="panel-section" id="sanctions-section">
-                    <div class="section-title">
-                        Sanctions Check
-                        <button onclick="loadSanctions(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Check</button>
-                    </div>
-                    <div id="sanctions-display" style="padding:12px;color:#666">Click Check to verify sanctions status</div>
-                </div>
-
-                <div class="panel-section" id="venezuela-section">
-                    <div class="section-title">
-                        Venezuela Risk
-                        <button onclick="loadVenezuelaRisk(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Analyze</button>
-                    </div>
-                    <div id="venezuela-display" style="padding:12px;color:#666">Click Analyze for dark fleet risk assessment</div>
-                </div>
-
                 <div class="panel-section" id="darkfleet-section">
                     <div class="section-title">
-                        Global Dark Fleet
+                        Dark Fleet Risk
                         <button onclick="loadDarkFleetRisk(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Analyze</button>
                     </div>
-                    <div id="darkfleet-display" style="padding:12px;color:#666">Click Analyze for multi-region dark fleet assessment (Russia, Iran, Venezuela, China)</div>
+                    <div id="darkfleet-display" style="padding:12px;color:#666;font-size:11px">Analyzes risk for Russia, Iran, Venezuela, China shadow fleets</div>
                 </div>
 
-                <div class="panel-section" id="ports-section">
+                <div class="panel-section" id="sanctions-section">
                     <div class="section-title">
-                        Nearby Ports
-                        <button onclick="loadNearbyPorts(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Find</button>
+                        Sanctions Status
+                        <button onclick="loadSanctions(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Check</button>
                     </div>
-                    <div id="ports-display" style="padding:12px;color:#666">Click Find to locate nearby ports (via Marinesia)</div>
-                </div>
-
-                <div class="panel-section" id="combined-section">
-                    <div class="section-title">
-                        All Sources
-                        <button onclick="loadCombinedData(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Load</button>
-                    </div>
-                    <div id="combined-display" style="padding:12px;color:#666">Click Load to fetch data from all AIS sources</div>
+                    <div id="sanctions-display" style="padding:12px;color:#666;font-size:11px">Click Check to verify against OFAC/EU sanctions</div>
                 </div>
 
                 ${v.intel_notes ? `
                 <div class="panel-section">
-                    <div class="section-title">Intelligence</div>
+                    <div class="section-title">Intelligence Notes</div>
                     <div class="intel-box">${v.intel_notes}</div>
                 </div>` : ''}
 
                 ${Object.keys(weapons).length ? `
                 <div class="panel-section">
-                    <div class="section-title">Weapons</div>
+                    <div class="section-title">Weapons Systems</div>
                     <div class="weapons-grid">
                         ${weapons.vls_cells ? `<div class="weapon-item"><span class="weapon-name">VLS Cells</span><span class="weapon-value">${weapons.vls_cells}</span></div>` : ''}
                         ${weapons.ciws ? `<div class="weapon-item"><span class="weapon-name">CIWS</span><span class="weapon-value">${weapons.ciws}</span></div>` : ''}
@@ -1739,7 +1737,7 @@
 
                 ${events?.length ? `
                 <div class="panel-section">
-                    <div class="section-title">Timeline</div>
+                    <div class="section-title">Event Timeline</div>
                     <div class="timeline">
                         ${events.slice(0, 8).map(e => `
                             <div class="timeline-item">
@@ -1763,6 +1761,14 @@
                         </div>
                     `).join('')}
                 </div>` : ''}
+
+                <div class="panel-section" style="background:#f8f9fa;border:1px dashed #ddd">
+                    <div class="section-title" style="font-size:10px;color:#999">
+                        Data Sources
+                        <button onclick="loadCombinedData(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:10px">↻ Refresh</button>
+                    </div>
+                    <div id="combined-display" style="padding:4px 0;color:#666;font-size:10px">Loading source status...</div>
+                </div>
             `;
         }
 
