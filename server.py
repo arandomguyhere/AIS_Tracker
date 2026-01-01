@@ -105,6 +105,16 @@ try:
 except ImportError:
     DARK_FLEET_AVAILABLE = False
 
+# Import infrastructure threat analysis module
+try:
+    from infra_analysis import (
+        get_baltic_infrastructure, analyze_vessel_for_incident,
+        analyze_infrastructure_incident, BALTIC_INFRASTRUCTURE
+    )
+    INFRA_ANALYSIS_AVAILABLE = True
+except ImportError:
+    INFRA_ANALYSIS_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -1272,22 +1282,44 @@ class TrackerHandler(SimpleHTTPRequestHandler):
         elif path == '/api/ports/nearby':
             # Get ports near a location
             try:
-                lat = float(params.get('lat', [0])[0])
-                lon = float(params.get('lon', [0])[0])
+                lat_param = params.get('lat', [None])[0]
+                lon_param = params.get('lon', [None])[0]
+                lat = float(lat_param) if lat_param else None
+                lon = float(lon_param) if lon_param else None
                 radius = float(params.get('radius', [50])[0])  # nautical miles
             except (ValueError, TypeError):
                 return self.send_json({'error': 'Invalid coordinates'}, 400)
 
-            if not lat or not lon:
+            if lat is None or lon is None:
                 return self.send_json({'error': 'lat and lon required'}, 400)
 
             try:
                 manager = get_ais_manager()
                 if manager:
                     ports = manager.get_ports_nearby(lat, lon, radius)
+
+                    # Calculate distance from search center to each port
+                    enriched_ports = []
+                    for port in ports:
+                        # Handle various port data formats
+                        port_lat = port.get('lat') or port.get('latitude') or port.get('location', {}).get('lat')
+                        port_lon = port.get('lon') or port.get('longitude') or port.get('location', {}).get('lon')
+
+                        if port_lat is not None and port_lon is not None:
+                            # Calculate distance in nautical miles (haversine returns km)
+                            distance_km = haversine(lat, lon, float(port_lat), float(port_lon))
+                            port['distance_nm'] = round(distance_km / 1.852, 1)
+                        else:
+                            port['distance_nm'] = None
+
+                        enriched_ports.append(port)
+
+                    # Sort by distance (closest first)
+                    enriched_ports.sort(key=lambda p: p.get('distance_nm') if p.get('distance_nm') is not None else 9999)
+
                     return self.send_json({
-                        'ports': ports,
-                        'count': len(ports),
+                        'ports': enriched_ports,
+                        'count': len(enriched_ports),
                         'search_center': {'lat': lat, 'lon': lon},
                         'radius_nm': radius
                     })
@@ -1391,6 +1423,49 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 return self.send_json({'error': 'AIS manager not available'}, 500)
             except Exception as e:
                 return self.send_json({'error': str(e)}, 500)
+
+        # ========== Infrastructure Analysis Endpoints ==========
+
+        elif path == '/api/infrastructure/baltic':
+            # Get Baltic Sea undersea infrastructure for map overlay
+            if not INFRA_ANALYSIS_AVAILABLE:
+                return self.send_json({'error': 'Infrastructure analysis module not available'}, 500)
+            infra = get_baltic_infrastructure()
+            return self.send_json({
+                'infrastructure': infra,
+                'count': len(infra),
+                'region': 'Baltic Sea'
+            }, cache_seconds=3600)  # Cache for 1 hour
+
+        elif path.startswith('/api/vessels/') and path.endswith('/infra-analysis'):
+            # Analyze vessel behavior relative to infrastructure
+            if not INFRA_ANALYSIS_AVAILABLE:
+                return self.send_json({'error': 'Infrastructure analysis module not available'}, 500)
+
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            days = int(params.get('days', [7])[0])
+            incident_time = params.get('incident_time', [None])[0]
+
+            # Get vessel track
+            track = get_vessel_track(vessel_id, days)
+            if not track:
+                return self.send_json({'error': 'No track data available for analysis'}, 404)
+
+            # Run infrastructure analysis
+            result = analyze_vessel_for_incident(
+                vessel_id=vessel_id,
+                track_history=track,
+                mmsi=vessel.get('mmsi', ''),
+                vessel_name=vessel.get('name'),
+                vessel_flag=vessel.get('flag_state'),
+                incident_time=incident_time
+            )
+
+            return self.send_json(result)
 
         # Static files
         else:
