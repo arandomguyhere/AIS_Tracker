@@ -1654,13 +1654,15 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 return self.send_json({'error': str(e)}, 500)
 
         elif path == '/api/ports/nearby':
-            # Get ports near a location (with fallback to built-in database)
+            # Get ports near a location
+            # source param: 'auto', 'marinesia', 'built-in'
             try:
                 lat_param = params.get('lat', [None])[0]
                 lon_param = params.get('lon', [None])[0]
                 lat = float(lat_param) if lat_param else None
                 lon = float(lon_param) if lon_param else None
-                radius = float(params.get('radius', [50])[0])  # nautical miles
+                radius = float(params.get('radius', [50])[0])
+                requested_source = params.get('source', ['auto'])[0]
             except (ValueError, TypeError):
                 return self.send_json({'error': 'Invalid coordinates'}, 400)
 
@@ -1668,42 +1670,39 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 return self.send_json({'error': 'lat and lon required'}, 400)
 
             ports = []
-            source = 'none'
+            used_source = 'none'
 
-            # Try Marinesia first
-            try:
-                manager = get_ais_manager()
-                if manager:
-                    marinesia_ports = manager.get_ports_nearby(lat, lon, radius)
-                    if marinesia_ports:
-                        # Calculate distance from search center to each port
-                        for port in marinesia_ports:
-                            port_lat = port.get('lat') or port.get('latitude') or port.get('location', {}).get('lat')
-                            port_lon = port.get('lon') or port.get('longitude') or port.get('location', {}).get('lon')
-
-                            if port_lat is not None and port_lon is not None:
-                                distance_km = haversine(lat, lon, float(port_lat), float(port_lon))
-                                port['distance_nm'] = round(distance_km / 1.852, 1)
-                            else:
-                                port['distance_nm'] = None
-
-                            port['source'] = 'marinesia'
-                            ports.append(port)
-
-                        source = 'marinesia'
-            except Exception as e:
-                print(f"[ports] Marinesia failed: {e}")
-
-            # Fallback to built-in database if Marinesia returned nothing
-            if not ports and PORTS_DB_AVAILABLE:
+            # Source: marinesia or auto
+            if requested_source in ('marinesia', 'auto'):
                 try:
-                    fallback_ports = fallback_get_ports_nearby(lat, lon, radius)
-                    ports = fallback_ports
-                    source = 'built-in'
+                    manager = get_ais_manager()
+                    if manager:
+                        marinesia_ports = manager.get_ports_nearby(lat, lon, radius)
+                        if marinesia_ports:
+                            for port in marinesia_ports:
+                                port_lat = port.get('lat') or port.get('latitude') or port.get('location', {}).get('lat')
+                                port_lon = port.get('lon') or port.get('longitude') or port.get('location', {}).get('lon')
+                                if port_lat is not None and port_lon is not None:
+                                    distance_km = haversine(lat, lon, float(port_lat), float(port_lon))
+                                    port['distance_nm'] = round(distance_km / 1.852, 1)
+                                else:
+                                    port['distance_nm'] = None
+                                port['source'] = 'marinesia'
+                                ports.append(port)
+                            used_source = 'marinesia'
                 except Exception as e:
-                    print(f"[ports] Fallback failed: {e}")
+                    print(f"[ports] Marinesia failed: {e}")
 
-            # Sort by distance (closest first)
+            # Source: built-in or auto fallback
+            if requested_source == 'built-in' or (requested_source == 'auto' and not ports):
+                if PORTS_DB_AVAILABLE:
+                    try:
+                        fallback_ports = fallback_get_ports_nearby(lat, lon, radius)
+                        ports = fallback_ports
+                        used_source = 'built-in'
+                    except Exception as e:
+                        print(f"[ports] Built-in failed: {e}")
+
             ports.sort(key=lambda p: p.get('distance_nm') if p.get('distance_nm') is not None else 9999)
 
             return self.send_json({
@@ -1711,8 +1710,31 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 'count': len(ports),
                 'search_center': {'lat': lat, 'lon': lon},
                 'radius_nm': radius,
-                'source': source
+                'source': used_source,
+                'requested_source': requested_source
             })
+
+        elif path == '/api/data-sources':
+            # Get available data sources and their status
+            sources = {
+                'ports': {
+                    'marinesia': {'available': True, 'configured': False, 'description': 'Marinesia REST API'},
+                    'built-in': {'available': PORTS_DB_AVAILABLE, 'configured': True, 'description': 'Built-in database (150+ ports)'}
+                },
+                'vessels': {
+                    'aisstream': {'available': True, 'configured': True, 'description': 'Real-time AIS WebSocket'},
+                    'gfw': {'available': GFW_AVAILABLE, 'configured': GFW_AVAILABLE and gfw_is_configured(), 'description': 'Global Fishing Watch'}
+                }
+            }
+            try:
+                manager = get_ais_manager()
+                if manager:
+                    mar_source = manager.get_marinesia_source()
+                    if mar_source and mar_source.api_key:
+                        sources['ports']['marinesia']['configured'] = True
+            except:
+                pass
+            return self.send_json(sources)
 
         elif path.startswith('/api/vessels/') and path.endswith('/image'):
             # Get vessel image URL from Marinesia
