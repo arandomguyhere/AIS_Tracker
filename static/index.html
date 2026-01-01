@@ -1628,12 +1628,60 @@
                 api(`/osint?vessel_id=${id}`)
             ]);
 
-            // Draw track
-            if (trackLine) map.removeLayer(trackLine);
+            // Draw track with timestamp markers
+            if (trackLine) {
+                if (Array.isArray(trackLine)) {
+                    trackLine.forEach(layer => map.removeLayer(layer));
+                } else {
+                    map.removeLayer(trackLine);
+                }
+            }
             if (track?.length > 1) {
-                trackLine = L.polyline(track.map(p => [p.latitude, p.longitude]), {
-                    color: getThreatColor(v.threat_level), weight: 2, opacity: 0.7, dashArray: '6'
+                const trackColor = getThreatColor(v.threat_level);
+                const line = L.polyline(track.map(p => [p.latitude, p.longitude]), {
+                    color: trackColor, weight: 2, opacity: 0.7, dashArray: '6'
                 }).addTo(map);
+
+                // Add timestamp markers along the track
+                const markers = [];
+                const markerInterval = Math.max(1, Math.floor(track.length / 10)); // ~10 markers max
+
+                track.forEach((p, idx) => {
+                    // Show markers at regular intervals, plus first and last
+                    const isEndpoint = idx === 0 || idx === track.length - 1;
+                    const isInterval = idx % markerInterval === 0;
+
+                    if (isEndpoint || isInterval) {
+                        const ts = p.timestamp ? new Date(p.timestamp) : null;
+                        const timeStr = ts ? ts.toLocaleString('en-GB', {
+                            day: '2-digit', month: 'short', year: '2-digit',
+                            hour: '2-digit', minute: '2-digit'
+                        }) : 'Unknown';
+
+                        const size = isEndpoint ? 8 : 5;
+                        const marker = L.circleMarker([p.latitude, p.longitude], {
+                            radius: size,
+                            color: trackColor,
+                            fillColor: isEndpoint ? (idx === 0 ? '#27ae60' : '#e74c3c') : trackColor,
+                            fillOpacity: 0.9,
+                            weight: 1
+                        }).addTo(map);
+
+                        const label = idx === 0 ? 'START' : (idx === track.length - 1 ? 'LATEST' : '');
+                        marker.bindTooltip(`
+                            <div style="font-size:11px;white-space:nowrap">
+                                ${label ? `<strong>${label}</strong><br>` : ''}
+                                <strong>${timeStr}</strong><br>
+                                ${p.speed_knots ? `Speed: ${p.speed_knots.toFixed(1)} kts<br>` : ''}
+                                ${p.course ? `Course: ${p.course.toFixed(0)}°` : ''}
+                            </div>
+                        `, { permanent: false, direction: 'top' });
+
+                        markers.push(marker);
+                    }
+                });
+
+                trackLine = [line, ...markers];
             }
 
             renderVesselPanel(v, events, osint);
@@ -1868,6 +1916,15 @@
         function closeVesselPanel() {
             document.getElementById('vessel-panel').classList.remove('active');
             selectedVessel = null;
+            // Clear track line and markers
+            if (trackLine) {
+                if (Array.isArray(trackLine)) {
+                    trackLine.forEach(layer => map.removeLayer(layer));
+                } else {
+                    map.removeLayer(trackLine);
+                }
+                trackLine = null;
+            }
         }
 
         // Search
