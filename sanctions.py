@@ -156,15 +156,16 @@ def fetch_fleetleaks_map_data() -> List[SanctionedVessel]:
     [
         {
             "id": "2245",
-            "name": "Achilles",
             "imo": "9368223",
+            "name": "Achilles",
             "flag": "Panama",
             "vessel_type": "Oil Tanker",
             "latitude": "49.301105",
             "longitude": "-4.77723",
             "speed_knots": "11",
             "course_degrees": "233.9",
-            "heading_degrees": "..."
+            "sanctions": ["US", "EU", "UK"],
+            "ais_status": "active"
         }
     ]
 
@@ -189,12 +190,30 @@ def fetch_fleetleaks_map_data() -> List[SanctionedVessel]:
                 if not imo:
                     continue
 
+                # Parse sanctions array from API response
+                # API returns: "sanctions": ["US", "EU", "UK"]
+                sanctions = vessel_data.get("sanctions", [])
+                if isinstance(sanctions, str):
+                    # Handle comma-separated string format
+                    sanctions = [s.strip() for s in sanctions.split(",") if s.strip()]
+
+                # Normalize authority names (US -> OFAC, etc.)
+                normalized_sanctions = []
+                for s in sanctions:
+                    s_upper = s.upper().strip()
+                    if s_upper == "US":
+                        normalized_sanctions.append("OFAC")
+                    elif s_upper in ["EU", "UK", "CA", "AU", "NZ", "UN"]:
+                        normalized_sanctions.append(s_upper)
+                    else:
+                        normalized_sanctions.append(s_upper)
+
                 vessels.append(SanctionedVessel(
                     imo=imo,
                     name=vessel_data.get("name", ""),
                     flag=vessel_data.get("flag"),
                     vessel_type=vessel_data.get("vessel_type"),
-                    sanctioned_by=[],  # Map data doesn't include authorities
+                    sanctioned_by=normalized_sanctions,
                     source="fleetleaks_map",
                     last_updated=datetime.utcnow()
                 ))
