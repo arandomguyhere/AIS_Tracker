@@ -105,6 +105,16 @@ try:
 except ImportError:
     DARK_FLEET_AVAILABLE = False
 
+# Import infrastructure threat analysis module
+try:
+    from infra_analysis import (
+        get_baltic_infrastructure, analyze_vessel_for_incident,
+        analyze_infrastructure_incident, BALTIC_INFRASTRUCTURE
+    )
+    INFRA_ANALYSIS_AVAILABLE = True
+except ImportError:
+    INFRA_ANALYSIS_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -1413,6 +1423,49 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 return self.send_json({'error': 'AIS manager not available'}, 500)
             except Exception as e:
                 return self.send_json({'error': str(e)}, 500)
+
+        # ========== Infrastructure Analysis Endpoints ==========
+
+        elif path == '/api/infrastructure/baltic':
+            # Get Baltic Sea undersea infrastructure for map overlay
+            if not INFRA_ANALYSIS_AVAILABLE:
+                return self.send_json({'error': 'Infrastructure analysis module not available'}, 500)
+            infra = get_baltic_infrastructure()
+            return self.send_json({
+                'infrastructure': infra,
+                'count': len(infra),
+                'region': 'Baltic Sea'
+            }, cache_seconds=3600)  # Cache for 1 hour
+
+        elif path.startswith('/api/vessels/') and path.endswith('/infra-analysis'):
+            # Analyze vessel behavior relative to infrastructure
+            if not INFRA_ANALYSIS_AVAILABLE:
+                return self.send_json({'error': 'Infrastructure analysis module not available'}, 500)
+
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            days = int(params.get('days', [7])[0])
+            incident_time = params.get('incident_time', [None])[0]
+
+            # Get vessel track
+            track = get_vessel_track(vessel_id, days)
+            if not track:
+                return self.send_json({'error': 'No track data available for analysis'}, 404)
+
+            # Run infrastructure analysis
+            result = analyze_vessel_for_incident(
+                vessel_id=vessel_id,
+                track_history=track,
+                mmsi=vessel.get('mmsi', ''),
+                vessel_name=vessel.get('name'),
+                vessel_flag=vessel.get('flag_state'),
+                incident_time=incident_time
+            )
+
+            return self.send_json(result)
 
         # Static files
         else:

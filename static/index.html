@@ -790,6 +790,11 @@
                 <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
             </svg>
         </button>
+        <button class="control-btn active" id="toggle-infrastructure" title="Toggle Undersea Infrastructure" onclick="toggleInfrastructure()" style="background:#3498db;color:white;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 12h4l3-9 3 18 3-9 3 0h4"/><circle cx="12" cy="12" r="2"/>
+            </svg>
+        </button>
         <button class="control-btn" id="toggle-sar" title="SAR Detections">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
@@ -1215,6 +1220,7 @@
         let selectedVessel = null, trackLine = null;
         let mapClickMode = false, showShipyards = true, showLiveVessels = true;
         let drawingArea = false, areaStartPoint = null, areaRectangle = null;
+        let infrastructureLayer = null, showInfrastructure = true, balticInfrastructure = [];
 
         // Color schemes for vessel types (used for live vessels)
         const VESSEL_TYPE_COLORS = {
@@ -1761,6 +1767,16 @@
                         </div>
                     `).join('')}
                 </div>` : ''}
+
+                <div class="panel-section" style="background:#fff5f5;border:1px solid #e74c3c20">
+                    <div class="section-title" style="color:#c0392b">
+                        Infrastructure Analysis
+                        <button onclick="loadInfraAnalysis(${v.id})" style="float:right;background:none;border:none;color:#e74c3c;cursor:pointer;font-size:10px">↻ Analyze</button>
+                    </div>
+                    <div id="infra-analysis-display" style="padding:4px 0;color:#666;font-size:10px">
+                        <span style="color:#999">Click Analyze to check proximity to undersea cables/pipelines</span>
+                    </div>
+                </div>
 
                 <div class="panel-section" style="background:#f8f9fa;border:1px dashed #ddd">
                     <div class="section-title" style="font-size:10px;color:#999">
@@ -3027,12 +3043,191 @@
             }
         }
 
+        // ========== Infrastructure Analysis ==========
+        // Baltic Sea undersea cables and pipelines overlay
+
+        async function loadBalticInfrastructure() {
+            try {
+                const result = await api('/infrastructure/baltic');
+                balticInfrastructure = result.infrastructure || [];
+                renderInfrastructure();
+                console.log(`Loaded ${balticInfrastructure.length} infrastructure assets`);
+            } catch(e) {
+                console.log('Infrastructure data not available:', e);
+            }
+        }
+
+        function renderInfrastructure() {
+            // Remove existing layer
+            if (infrastructureLayer) {
+                map.removeLayer(infrastructureLayer);
+            }
+
+            if (!showInfrastructure || !balticInfrastructure.length) return;
+
+            const layers = [];
+
+            // Infrastructure type colors
+            const typeColors = {
+                'telecom_cable': '#3498db',   // Blue
+                'power_cable': '#f1c40f',     // Yellow
+                'gas_pipeline': '#e67e22',    // Orange
+                'oil_pipeline': '#c0392b',    // Dark red
+                'fiber_optic': '#9b59b6'      // Purple
+            };
+
+            balticInfrastructure.forEach(asset => {
+                const color = typeColors[asset.type] || '#95a5a6';
+                const waypoints = asset.waypoints || [];
+
+                if (waypoints.length > 1) {
+                    // Draw cable/pipeline route as a line
+                    const line = L.polyline(waypoints, {
+                        color: color,
+                        weight: 3,
+                        opacity: 0.7,
+                        dashArray: asset.type.includes('cable') ? null : '10, 5'
+                    });
+                    line.bindPopup(`
+                        <div style="min-width:200px">
+                            <h4 style="margin:0 0 8px 0;color:${color}">${asset.name}</h4>
+                            <div style="font-size:12px;color:#666">${asset.type.replace('_', ' ').toUpperCase()}</div>
+                            ${asset.operator ? `<div style="font-size:11px;margin-top:4px"><b>Operator:</b> ${asset.operator}</div>` : ''}
+                            ${asset.capacity ? `<div style="font-size:11px"><b>Capacity:</b> ${asset.capacity}</div>` : ''}
+                            ${asset.notes ? `<div style="font-size:10px;margin-top:6px;color:#888">${asset.notes}</div>` : ''}
+                            <div style="font-size:10px;margin-top:6px;color:#e74c3c">⚠ Protection zone: ${asset.protection_radius_nm} nm</div>
+                        </div>
+                    `);
+                    layers.push(line);
+
+                    // Draw protection zone circles at key points
+                    const midIdx = Math.floor(waypoints.length / 2);
+                    const midpoint = waypoints[midIdx];
+                    const circle = L.circle([midpoint[0], midpoint[1]], {
+                        radius: asset.protection_radius_nm * 1852, // nm to meters
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.1,
+                        weight: 1,
+                        dashArray: '5, 5'
+                    });
+                    layers.push(circle);
+                } else if (asset.latitude && asset.longitude) {
+                    // Point infrastructure
+                    const marker = L.circleMarker([asset.latitude, asset.longitude], {
+                        radius: 8,
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.6
+                    });
+                    marker.bindPopup(`<b>${asset.name}</b><br>${asset.type}`);
+                    layers.push(marker);
+                }
+            });
+
+            if (layers.length) {
+                infrastructureLayer = L.layerGroup(layers).addTo(map);
+            }
+        }
+
+        function toggleInfrastructure() {
+            showInfrastructure = !showInfrastructure;
+            const btn = document.getElementById('toggle-infrastructure');
+            if (btn) {
+                btn.classList.toggle('active', showInfrastructure);
+            }
+            renderInfrastructure();
+        }
+
+        async function loadInfraAnalysis(vesselId) {
+            const display = document.getElementById('infra-analysis-display');
+            if (!display) return;
+            display.innerHTML = '<span style="color:#666">Analyzing infrastructure proximity...</span>';
+
+            try {
+                const result = await api(`/vessels/${vesselId}/infra-analysis?days=7`);
+                renderInfraAnalysis(result);
+            } catch(e) {
+                display.innerHTML = '<span style="color:#e74c3c">Error running analysis</span>';
+            }
+        }
+
+        function renderInfraAnalysis(data) {
+            const display = document.getElementById('infra-analysis-display');
+            if (!display) return;
+
+            const assessment = data.assessment || {};
+            const infraProx = data.infrastructure_proximity || {};
+            const behavior = data.behavioral_indicators || {};
+
+            // Risk level color
+            const riskColors = {
+                'low': '#27ae60',
+                'medium': '#f39c12',
+                'high': '#e74c3c',
+                'critical': '#c0392b'
+            };
+
+            const riskScore = assessment.risk_score || 0;
+            let riskLevel = 'low';
+            if (riskScore >= 70) riskLevel = 'critical';
+            else if (riskScore >= 50) riskLevel = 'high';
+            else if (riskScore >= 30) riskLevel = 'medium';
+
+            const riskColor = riskColors[riskLevel] || '#95a5a6';
+
+            // Proximity events
+            const events = infraProx.events || [];
+            let eventsHtml = '';
+            if (events.length) {
+                eventsHtml = events.slice(0, 3).map(e => `
+                    <div style="padding:6px 0;border-bottom:1px solid #eee">
+                        <div style="font-weight:600;font-size:11px;color:#333">${e.infrastructure}</div>
+                        <div style="font-size:9px;color:#666">${e.infra_type} | Min dist: ${e.min_distance_nm?.toFixed(1) || '?'} nm</div>
+                        ${e.indicators?.length ? `<div style="font-size:9px;color:#e74c3c">⚠ ${e.indicators.join(', ')}</div>` : ''}
+                    </div>
+                `).join('');
+            } else {
+                eventsHtml = '<span style="color:#999;font-size:10px">No infrastructure proximity events</span>';
+            }
+
+            // Indicators
+            const indicators = behavior.detected || [];
+            let indicatorsHtml = '';
+            if (indicators.length) {
+                indicatorsHtml = indicators.map(i =>
+                    `<span style="background:#e74c3c;color:white;padding:2px 6px;border-radius:3px;font-size:9px;margin-right:4px">${i}</span>`
+                ).join('');
+            }
+
+            display.innerHTML = `
+                <div style="margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <span style="font-size:10px;color:#666">RISK SCORE</span>
+                        <span style="font-size:16px;font-weight:bold;color:${riskColor}">${riskScore.toFixed(0)}/100</span>
+                    </div>
+                    <div style="height:6px;background:#eee;border-radius:3px;margin-top:4px">
+                        <div style="height:100%;width:${riskScore}%;background:${riskColor};border-radius:3px"></div>
+                    </div>
+                    <div style="font-size:9px;color:#666;margin-top:2px">Confidence: ${assessment.confidence || 'low'}</div>
+                </div>
+                ${indicatorsHtml ? `<div style="margin-bottom:10px">${indicatorsHtml}</div>` : ''}
+                ${behavior.anchor_drag_detected ? `<div style="background:#fee;border:1px solid #e74c3c;padding:6px;border-radius:4px;margin-bottom:10px;font-size:10px;color:#c0392b">⚓ ANCHOR DRAG PATTERN DETECTED</div>` : ''}
+                <div>
+                    <div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">INFRASTRUCTURE PROXIMITY</div>
+                    ${eventsHtml}
+                </div>
+            `;
+        }
+
         // Init
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
             loadData();
             loadLiveVessels();
+            loadBalticInfrastructure();
             document.getElementById('toggle-shipyards').classList.add('active');
+            document.getElementById('toggle-infrastructure')?.classList.add('active');
             // Auto-refresh live vessels every 10 seconds
             setInterval(loadLiveVessels, 10000);
         });
