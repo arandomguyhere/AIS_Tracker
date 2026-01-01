@@ -997,29 +997,39 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 mmsi=vessel.get('mmsi', ''),
                 vessel_info={
                     'name': vessel.get('name', ''),
-                    'flag_state': vessel.get('flag', ''),
+                    'flag_state': vessel.get('flag_state', ''),
                     'imo': vessel.get('imo', '')
                 },
                 track_history=track or []
             )
 
             # Check alerts
-            alerts = check_venezuela_alerts(
-                vessel.get('mmsi', ''),
-                track[-1].get('lat', 0) if track else 0,
-                track[-1].get('lon', 0) if track else 0,
-                vessel.get('name', ''),
-                vessel.get('flag', '')
-            ) if track else []
+            alerts = []
+            if track:
+                latest_position = track[-1]
+                alerts = check_venezuela_alerts(
+                    mmsi=vessel.get('mmsi', ''),
+                    vessel_name=vessel.get('name', ''),
+                    current_position={
+                        'lat': latest_position.get('latitude', latest_position.get('lat', 0)),
+                        'lon': latest_position.get('longitude', latest_position.get('lon', 0)),
+                        'timestamp': latest_position.get('timestamp')
+                    },
+                    track_history=track,
+                    vessel_info={
+                        'flag_state': vessel.get('flag_state', ''),
+                        'imo': vessel.get('imo', '')
+                    }
+                )
 
             return self.send_json({
                 'vessel_id': vessel_id,
                 'vessel_name': vessel.get('name'),
                 'in_venezuela_zone': in_zone,
                 'risk_score': risk.get('score', 0),
-                'risk_level': risk.get('level', 'unknown'),
+                'risk_level': risk.get('risk_level', 'unknown'),
                 'risk_factors': risk.get('factors', []),
-                'alerts': alerts
+                'alerts': [alert.to_dict() if hasattr(alert, 'to_dict') else alert for alert in alerts]
             })
 
         # Sanctions database endpoints
