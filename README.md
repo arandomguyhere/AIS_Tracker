@@ -564,18 +564,31 @@ print(analysis.generate_report())  # Human-readable incident report
 
 ### Baltic Cable Incident POC
 
+Load via UI (recommended):
+1. Click the purple **POC** button in the vessel list header
+2. Select "Baltic Cable Incident" scenario
+3. Map auto-pans to Gulf of Finland with vessels loaded
 ![BSpoc](docs/screenshots/bs-poc.png)
 
 Setup script for Finland cable incident analysis:
 
+Or via command line:
 ```bash
 python scripts/setup_baltic_poc.py
 ```
 
-Adds:
+**API Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/poc/load` | Load POC scenario (body: `{"poc": "baltic"}`) |
+| POST | `/api/poc/list` | List available POC scenarios |
+
+**Adds:**
 - **FITBURG** (MMSI: 518100989) - C-Lion1 incident vessel
-- **EAGLE S** (MMSI: 215915000) - Estlink-2 incident vessel
-- Infrastructure locations and incident timeline events
+- **EAGLE S** (MMSI: 255806583) - Estlink-2 incident vessel
+- Infrastructure zones (C-Lion1, Estlink-2, Balticconnector)
+- Incident timeline events
+- Baltic Sea bounding box configuration
 
 ## Sanctions Database Integration (NEW)
 
