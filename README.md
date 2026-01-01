@@ -394,6 +394,135 @@ Combines multiple indicators based on shadow fleet research:
 | GET | `/api/mmsi/validate?mmsi=XXX` | MMSI validation |
 | GET | `/api/mmsi/country?mmsi=XXX` | Flag country lookup |
 
+## Venezuela Dark Fleet Detection (NEW)
+
+Real-time monitoring for sanctioned vessel activity in Venezuelan waters, based on commercial intelligence methodologies (Kpler, Windward, TankerTrackers).
+
+### Background
+- **920+ sanctioned tankers** globally, ~40% serving Venezuela
+- **95% YoY increase** in high-risk tanker presence in Caribbean (2025)
+- **Detection-to-interdiction transition**: U.S. now physically seizing vessels
+
+### Monitoring Zones
+
+| Location | Coordinates | Type | Risk |
+|----------|-------------|------|------|
+| Jose Terminal | 10.15°N, 64.68°W | Terminal | Critical |
+| La Borracha | 10.08°N, 64.89°W | STS Zone | Critical |
+| Barcelona STS | 10.12°N, 64.72°W | STS Zone | High |
+| Amuay Refinery | 11.74°N, 70.21°W | Refinery | High |
+
+### Detection Capabilities
+
+| Detection | Method | Based On |
+|-----------|--------|----------|
+| **AIS Spoofing** | Satellite-AIS position comparison | Skipper case study |
+| **Circle Spoofing** | Geometric pattern analysis | GNSS manipulation research |
+| **Going Dark** | AIS transmission gap detection | GFW methodology |
+| **Identity Laundering** | Scrapped vessel database cross-reference | "Zombie vessel" detection |
+| **STS Transfers** | Vessel proximity + loitering analysis | arXiv 2024 |
+
+### Known Dark Fleet Vessels
+
+| Vessel | Status | Notes |
+|--------|--------|-------|
+| Skipper | Seized | 80+ days AIS spoofing, Iran-Venezuela-China route |
+| Centuries | Seized | December 2025 |
+| Bella 1 | Pursued | Currently tracked by U.S. Navy |
+
+### High-Risk Flags (Venezuela)
+Cameroon, Gabon, Palau, Marshall Islands, São Tomé and Príncipe, Equatorial Guinea, Comoros, Togo, Tanzania, Djibouti
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/venezuela/config` | Get monitoring configuration |
+| GET | `/api/venezuela/alerts?mmsi=XXX` | Check vessel alerts |
+| GET | `/api/venezuela/risk?mmsi=XXX` | Calculate risk score |
+
+### Example: Skipper Detection
+
+```python
+from venezuela import (
+    detect_ais_spoofing,
+    calculate_venezuela_risk_score,
+    check_venezuela_alerts
+)
+
+# Detect AIS spoofing (Skipper showed Guyana, was at Jose)
+ais_positions = [{"lat": 7.5, "lon": -57.5, "timestamp": "..."}]
+sat_positions = [{"lat": 10.15, "lon": -64.68, "timestamp": "..."}]
+spoofing = detect_ais_spoofing(ais_positions, sat_positions, mmsi)
+# Returns: 550km discrepancy, severity=critical
+
+# Calculate risk score
+risk = calculate_venezuela_risk_score(
+    mmsi="123456789",
+    vessel_info={"name": "Skipper", "flag_state": "Cameroon"}
+)
+# Returns: score=70+, risk_level=critical
+
+# Check alerts for vessel in Venezuela zone
+alerts = check_venezuela_alerts(mmsi, "Skipper", position, track)
+# Returns: TERMINAL_ARRIVAL, SANCTIONED_VESSEL alerts
+```
+
+## Sanctions Database Integration (NEW)
+
+Real-time sanctions data from multiple sources for vessel compliance checking.
+
+### Data Sources
+
+| Source | Vessels | Coverage | Format |
+|--------|---------|----------|--------|
+| [FleetLeaks](https://fleetleaks.com/) | 800+ | OFAC, EU, UK, CA, AU, NZ | CSV/JSON |
+| [OFAC SDN](https://ofac.treasury.gov/) | Official | U.S. Treasury | XML/CSV |
+| [TankerTrackers](https://tankertrackers.com/) | 1,300+ | Blacklisted tankers | CSV |
+
+### FleetLeaks API Endpoints (No Auth Required)
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /export/vessels.csv` | Bulk CSV export (primary) |
+| `GET /api/vessels` | JSON API |
+| `GET /api/vessels/{imo}` | Single vessel detail |
+| `GET /api/search?q=` | Search by name/IMO |
+
+### Confidence-Weighted Scoring
+
+| Authority | Weight | Notes |
+|-----------|--------|-------|
+| OFAC / UN | 1.0 | Highest enforcement |
+| EU / UK | 0.95 | Strong enforcement |
+| CA / AU | 0.85 | Moderate |
+| NZ | 0.80 | Lower |
+
++0.05 bonus for 3+ authorities (cross-jurisdictional designation)
+
+### Usage
+
+```python
+from sanctions import SanctionsDatabase, fetch_fleetleaks_csv
+
+# Fetch all sanctioned vessels from FleetLeaks
+vessels = fetch_fleetleaks_csv()  # Returns 800+ vessels
+
+# Initialize database
+db = SanctionsDatabase()
+db.load_known_vessels()  # Load built-in database
+
+# Check vessel
+result = db.check_vessel(imo="9179834")
+# Returns: {"sanctioned": True, "authorities": ["OFAC", "UK"], ...}
+
+# CLI commands
+# python sanctions.py init    - Load known vessels
+# python sanctions.py update  - Fetch from FleetLeaks/OFAC
+# python sanctions.py stats   - Show statistics
+# python sanctions.py check --imo 9328716
+```
+
 ### Academic References
 
 The behavior detection algorithms are based on peer-reviewed research:
