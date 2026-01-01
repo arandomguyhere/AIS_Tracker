@@ -2070,8 +2070,9 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             result['vessel_name'] = vessel.get('name')
             return self.send_json(result)
 
-        elif path.startswith('/api/vessels/') and path.endswith('/gfw-risk'):
+        elif path.startswith('/api/vessels/') and (path.endswith('/gfw-indicators') or path.endswith('/gfw-risk')):
             # Get dark fleet risk indicators from GFW
+            # Note: /gfw-risk is kept as alias for backwards compatibility
             if not GFW_AVAILABLE:
                 return self.send_json({'error': 'GFW module not available'}, 500)
             if not gfw_is_configured():
@@ -2091,6 +2092,119 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             result['vessel_id'] = vessel_id
             result['vessel_name'] = vessel.get('name')
             return self.send_json(result)
+
+        elif path.startswith('/api/vessels/') and path.endswith('/combined-risk'):
+            # Combined risk assessment from all available sources
+            vessel_id = int(path.split('/')[3])
+            days = int(params.get('days', [90])[0])
+
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            mmsi = vessel.get('mmsi', '')
+            track = get_vessel_track(vessel_id, days)
+
+            combined = {
+                'vessel_id': vessel_id,
+                'vessel_name': vessel.get('name'),
+                'mmsi': mmsi,
+                'period_days': days,
+                'sources': [],
+                'combined_score': 0,
+                'combined_level': 'minimal',
+                'all_factors': []
+            }
+
+            scores = []
+
+            # 1. Local behavior analysis
+            if BEHAVIOR_AVAILABLE and track and mmsi:
+                behavior = analyze_vessel_behavior(track, mmsi)
+                behavior_score = behavior.get('dark_fleet_score', {}).get('score', 0)
+                scores.append(behavior_score)
+                combined['sources'].append('behavior')
+                combined['behavior'] = {
+                    'score': behavior_score,
+                    'level': behavior.get('dark_fleet_score', {}).get('risk_level', 'unknown'),
+                    'events': behavior.get('risk_indicators', {}),
+                    'factors': behavior.get('dark_fleet_score', {}).get('factors', [])
+                }
+                combined['all_factors'].extend(behavior.get('dark_fleet_score', {}).get('factors', []))
+
+            # 2. Multi-region dark fleet analysis
+            if DARK_FLEET_AVAILABLE:
+                dark_fleet = calculate_dark_fleet_risk_score(
+                    mmsi=mmsi,
+                    vessel_info={
+                        'name': vessel.get('name', ''),
+                        'flag_state': vessel.get('flag_state', ''),
+                        'flag': vessel.get('flag_state', ''),
+                        'imo': vessel.get('imo', ''),
+                        'year_built': vessel.get('year_built')
+                    },
+                    track_history=track or []
+                )
+                df_score = dark_fleet.get('score', 0)
+                scores.append(df_score)
+                combined['sources'].append('dark_fleet')
+                combined['dark_fleet'] = {
+                    'score': df_score,
+                    'level': dark_fleet.get('risk_level', 'unknown'),
+                    'regions': dark_fleet.get('regions_checked', []),
+                    'factors': dark_fleet.get('factors', [])
+                }
+                combined['all_factors'].extend(dark_fleet.get('factors', []))
+
+            # 3. GFW verified events
+            if GFW_AVAILABLE and gfw_is_configured() and mmsi:
+                try:
+                    gfw = gfw_get_dark_fleet_indicators(mmsi, days)
+                    if 'error' not in gfw:
+                        gfw_score = gfw.get('risk_score', 0)
+                        scores.append(gfw_score)
+                        combined['sources'].append('gfw')
+                        combined['gfw'] = {
+                            'score': gfw_score,
+                            'level': gfw.get('risk_level', 'unknown'),
+                            'ais_gaps': gfw.get('ais_gaps', {}),
+                            'encounters': gfw.get('encounters', {}),
+                            'loitering': gfw.get('loitering', {}),
+                            'factors': [{'factor': f, 'source': 'gfw'} for f in gfw.get('risk_factors', [])]
+                        }
+                        combined['all_factors'].extend([
+                            {'factor': f, 'points': 0, 'detail': f, 'source': 'gfw'}
+                            for f in gfw.get('risk_factors', [])
+                        ])
+                except Exception:
+                    pass  # GFW data optional
+
+            # Calculate combined score (weighted average)
+            if scores:
+                # Weight: behavior=1.0, dark_fleet=1.2, gfw=1.5 (verified data gets higher weight)
+                weights = {'behavior': 1.0, 'dark_fleet': 1.2, 'gfw': 1.5}
+                weighted_sum = 0
+                weight_total = 0
+                for i, source in enumerate(combined['sources']):
+                    w = weights.get(source, 1.0)
+                    weighted_sum += scores[i] * w
+                    weight_total += w
+                combined['combined_score'] = round(weighted_sum / weight_total) if weight_total > 0 else 0
+
+            # Determine combined level
+            score = combined['combined_score']
+            if score >= 70:
+                combined['combined_level'] = 'critical'
+            elif score >= 50:
+                combined['combined_level'] = 'high'
+            elif score >= 30:
+                combined['combined_level'] = 'medium'
+            elif score >= 15:
+                combined['combined_level'] = 'low'
+            else:
+                combined['combined_level'] = 'minimal'
+
+            return self.send_json(combined)
 
         elif path == '/api/gfw/sts-zone':
             # Check for STS activity in a zone

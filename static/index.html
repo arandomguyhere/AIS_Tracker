@@ -1777,6 +1777,16 @@
                     </div>
                 </div>
 
+                <div class="panel-section" id="combined-risk-section" style="background:#fff3e0;border:1px solid #ff9800">
+                    <div class="section-title" style="color:#e65100">
+                        Combined Risk Assessment
+                        <button onclick="loadCombinedRisk(${v.id})" style="float:right;background:none;border:none;color:#e65100;cursor:pointer;font-size:11px">↻ Analyze All</button>
+                    </div>
+                    <div id="combined-risk-display" style="padding:8px 0;color:#666;font-size:11px">
+                        <span style="color:#999">Unified risk score from behavior, dark fleet & GFW data</span>
+                    </div>
+                </div>
+
                 ${v.intel_notes ? `
                 <div class="panel-section">
                     <div class="section-title">Intelligence Notes</div>
@@ -3575,6 +3585,80 @@
                 </div>
                 ${factorsHtml}
                 <div style="font-size:9px;color:#999;margin-top:6px">Data: Global Fishing Watch (90 days)</div>
+            `;
+        }
+
+        // ========== Combined Risk Assessment ==========
+        async function loadCombinedRisk(vesselId) {
+            const display = document.getElementById('combined-risk-display');
+            if (!display) return;
+            display.innerHTML = '<span style="color:#666">Analyzing all data sources...</span>';
+
+            try {
+                const result = await api(`/vessels/${vesselId}/combined-risk?days=90`);
+                renderCombinedRisk(result);
+            } catch(e) {
+                display.innerHTML = '<span style="color:#e74c3c">Error loading combined risk</span>';
+            }
+        }
+
+        function renderCombinedRisk(data) {
+            const display = document.getElementById('combined-risk-display');
+            if (!display) return;
+
+            if (data.error) {
+                display.innerHTML = `<span style="color:#e74c3c">${data.error}</span>`;
+                return;
+            }
+
+            const levelColors = {
+                'minimal': '#95a5a6',
+                'low': '#27ae60',
+                'medium': '#f39c12',
+                'high': '#e74c3c',
+                'critical': '#8e44ad'
+            };
+
+            const level = data.combined_level || 'minimal';
+            const levelColor = levelColors[level] || '#95a5a6';
+            const score = data.combined_score || 0;
+            const sources = data.sources || [];
+
+            // Source badges
+            const sourceBadges = sources.map(s => {
+                const sourceData = data[s] || {};
+                const sourceScore = sourceData.score || 0;
+                const sourceLevel = sourceData.level || 'unknown';
+                const color = levelColors[sourceLevel] || '#95a5a6';
+                const labels = { behavior: 'Local', dark_fleet: 'Regional', gfw: 'GFW' };
+                return `<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:4px;border:1px solid ${color}20">
+                    <div style="font-size:8px;color:#666">${labels[s] || s.toUpperCase()}</div>
+                    <div style="font-size:11px;font-weight:bold;color:${color}">${sourceScore}</div>
+                </div>`;
+            }).join('');
+
+            // Top factors
+            let topFactors = '';
+            if (data.all_factors?.length) {
+                const unique = [...new Map(data.all_factors.slice(0, 5).map(f =>
+                    [f.detail || f.factor, f])).values()];
+                topFactors = unique.map(f =>
+                    `<div style="font-size:10px;color:#c0392b;padding:2px 0">⚠ ${f.detail || f.factor}</div>`
+                ).join('');
+            }
+
+            display.innerHTML = `
+                <div style="display:flex;gap:8px;margin-bottom:10px">
+                    <div style="flex:1;text-align:center;padding:10px;background:white;border-radius:6px;border:2px solid ${levelColor}">
+                        <div style="font-size:9px;color:#666">COMBINED RISK</div>
+                        <div style="font-size:18px;font-weight:bold;color:${levelColor};text-transform:uppercase">${level}</div>
+                        <div style="font-size:12px;color:${levelColor}">${score}/100</div>
+                    </div>
+                </div>
+                <div style="font-size:9px;color:#666;margin-bottom:6px">Source Scores:</div>
+                <div style="display:flex;gap:6px;margin-bottom:10px">${sourceBadges}</div>
+                ${topFactors ? `<div style="margin-top:8px">${topFactors}</div>` : ''}
+                <div style="font-size:9px;color:#999;margin-top:6px">Combined from ${sources.length} data source${sources.length !== 1 ? 's' : ''}</div>
             `;
         }
 
