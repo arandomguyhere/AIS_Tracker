@@ -994,10 +994,13 @@ class TrackerHandler(SimpleHTTPRequestHandler):
 
             # Calculate risk score
             risk = calculate_venezuela_risk_score(
-                vessel_name=vessel.get('name', ''),
-                flag_state=vessel.get('flag', ''),
-                imo=vessel.get('imo', ''),
-                track=track or []
+                mmsi=vessel.get('mmsi', ''),
+                vessel_info={
+                    'name': vessel.get('name', ''),
+                    'flag_state': vessel.get('flag', ''),
+                    'imo': vessel.get('imo', '')
+                },
+                track_history=track or []
             )
 
             # Check alerts
