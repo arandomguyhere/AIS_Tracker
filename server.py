@@ -150,7 +150,9 @@ try:
         get_vessel_events as gfw_get_vessel_events,
         get_dark_fleet_indicators as gfw_get_dark_fleet_indicators,
         check_sts_zone as gfw_check_sts_zone,
-        save_token as gfw_save_token
+        save_token as gfw_save_token,
+        get_sar_detections as gfw_get_sar_detections,
+        find_dark_vessels as gfw_find_dark_vessels
     )
     GFW_AVAILABLE = True
 except ImportError:
@@ -2268,6 +2270,62 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 return self.send_json({'error': 'Invalid coordinates'}, 400)
 
             result = gfw_check_sts_zone(min_lat, min_lon, max_lat, max_lon, days)
+            return self.send_json(result)
+
+        elif path == '/api/gfw/sar-detections':
+            # Get SAR vessel detections in an area (Sentinel-1)
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            if not gfw_is_configured():
+                return self.send_json({'error': 'GFW API token not configured'}, 400)
+
+            try:
+                min_lat = float(params.get('min_lat', [0])[0])
+                min_lon = float(params.get('min_lon', [0])[0])
+                max_lat = float(params.get('max_lat', [0])[0])
+                max_lon = float(params.get('max_lon', [0])[0])
+                days = int(params.get('days', [30])[0])
+                dark_only = params.get('dark_only', ['true'])[0].lower() == 'true'
+            except (ValueError, TypeError):
+                return self.send_json({'error': 'Invalid parameters'}, 400)
+
+            result = gfw_get_sar_detections(min_lat, min_lon, max_lat, max_lon, days, dark_only)
+            return self.send_json(result)
+
+        elif path == '/api/gfw/dark-vessels':
+            # Find dark vessels by cross-referencing SAR with AIS
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            if not gfw_is_configured():
+                return self.send_json({'error': 'GFW API token not configured'}, 400)
+
+            try:
+                min_lat = float(params.get('min_lat', [0])[0])
+                min_lon = float(params.get('min_lon', [0])[0])
+                max_lat = float(params.get('max_lat', [0])[0])
+                max_lon = float(params.get('max_lon', [0])[0])
+                days = int(params.get('days', [7])[0])
+            except (ValueError, TypeError):
+                return self.send_json({'error': 'Invalid parameters'}, 400)
+
+            # Get current AIS positions in area for cross-reference
+            ais_positions = []
+            try:
+                # Get live vessels in area
+                for mmsi, v in live_vessel_positions.items():
+                    lat = v.get('lat', 0)
+                    lon = v.get('lon', 0)
+                    if min_lat <= lat <= max_lat and min_lon <= lon <= max_lon:
+                        ais_positions.append({
+                            'mmsi': mmsi,
+                            'lat': lat,
+                            'lon': lon,
+                            'name': v.get('name', '')
+                        })
+            except:
+                pass
+
+            result = gfw_find_dark_vessels(min_lat, min_lon, max_lat, max_lon, ais_positions, days)
             return self.send_json(result)
 
         # ========== Feature Status Endpoint ==========

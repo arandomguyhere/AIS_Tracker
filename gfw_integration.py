@@ -466,6 +466,198 @@ class GFWClient:
 
         return events
 
+    def get_sar_detections(self, min_lat: float, min_lon: float,
+                           max_lat: float, max_lon: float,
+                           start_date: datetime = None,
+                           end_date: datetime = None,
+                           matched_only: bool = False) -> List[SARDetection]:
+        """
+        Get SAR vessel detections from Sentinel-1 in an area.
+
+        Uses GFW 4Wings API to query pre-processed SAR detections.
+        Can filter for AIS-matched or unmatched (dark) vessels.
+
+        Args:
+            min_lat, min_lon, max_lat, max_lon: Bounding box
+            start_date: Start of time range (default: 30 days ago)
+            end_date: End of time range (default: now)
+            matched_only: If False, returns unmatched (dark) vessels
+
+        Returns:
+            List of SARDetection objects
+        """
+        if not end_date:
+            end_date = datetime.now()
+        if not start_date:
+            start_date = end_date - timedelta(days=30)
+
+        # Build 4Wings report request
+        # Dataset for SAR detections
+        dataset = "public-global-sar-presence:latest"
+
+        # Create spatial filter
+        geometry = {
+            "type": "Polygon",
+            "coordinates": [[
+                [min_lon, min_lat],
+                [max_lon, min_lat],
+                [max_lon, max_lat],
+                [min_lon, max_lat],
+                [min_lon, min_lat]
+            ]]
+        }
+
+        # 4Wings report endpoint
+        report_data = {
+            "datasets": [dataset],
+            "date-range": [
+                start_date.strftime('%Y-%m-%d'),
+                end_date.strftime('%Y-%m-%d')
+            ],
+            "spatial-resolution": "high",  # 0.01 degree resolution
+            "temporal-resolution": "daily",
+            "region": geometry,
+            "group-by": ["flag", "matched"]  # Group by AIS match status
+        }
+
+        result = self._post('/4wings/report', report_data)
+
+        if 'error' in result:
+            # Try alternative endpoint format
+            params = {
+                'datasets': dataset,
+                'date-range': f"{start_date.strftime('%Y-%m-%d')},{end_date.strftime('%Y-%m-%d')}",
+                'format': 'json'
+            }
+            params['geometry'] = json.dumps(geometry)
+            result = self._request('/4wings/report', params)
+
+            if 'error' in result:
+                print(f"SAR detection query error: {result.get('error')}")
+                return []
+
+        detections = []
+
+        # Parse response - format varies based on API version
+        entries = result.get('entries', result.get('data', []))
+
+        for entry in entries:
+            # Check if matched/unmatched based on filter
+            is_matched = entry.get('matched', entry.get('ais_matched', False))
+
+            if matched_only and not is_matched:
+                continue
+            if not matched_only and is_matched:
+                continue  # We want dark vessels
+
+            # Parse detection
+            timestamp_str = entry.get('timestamp', entry.get('date'))
+            try:
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00')) if timestamp_str else datetime.now()
+            except:
+                timestamp = datetime.now()
+
+            detection = SARDetection(
+                id=entry.get('id', f"sar_{timestamp.timestamp()}"),
+                timestamp=timestamp,
+                lat=float(entry.get('lat', entry.get('latitude', 0))),
+                lon=float(entry.get('lon', entry.get('longitude', 0))),
+                length_m=entry.get('length_m', entry.get('vessel_length')),
+                matched_mmsi=entry.get('mmsi', entry.get('ssvid')) if is_matched else None,
+                matched_vessel_name=entry.get('vessel_name', entry.get('shipname')) if is_matched else None,
+                is_dark=not is_matched,
+                confidence=float(entry.get('confidence', entry.get('score', 0.8))),
+                source="sentinel-1"
+            )
+
+            if detection.lat != 0 and detection.lon != 0:
+                detections.append(detection)
+
+        return detections
+
+    def find_dark_vessels(self, min_lat: float, min_lon: float,
+                          max_lat: float, max_lon: float,
+                          ais_positions: List[dict] = None,
+                          days: int = 7) -> dict:
+        """
+        Find vessels detected by SAR but not broadcasting AIS.
+
+        Cross-references SAR detections with AIS data to identify
+        potentially illicit "dark" vessels.
+
+        Args:
+            min_lat, min_lon, max_lat, max_lon: Area to search
+            ais_positions: List of known AIS positions [{lat, lon, mmsi, timestamp}]
+            days: Days of history to check
+
+        Returns:
+            Dict with dark_vessels, matched_vessels, and statistics
+        """
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+
+        # Get all SAR detections (both matched and unmatched)
+        unmatched = self.get_sar_detections(
+            min_lat, min_lon, max_lat, max_lon,
+            start_date, end_date, matched_only=False
+        )
+
+        matched = self.get_sar_detections(
+            min_lat, min_lon, max_lat, max_lon,
+            start_date, end_date, matched_only=True
+        )
+
+        # If caller provided AIS positions, do additional matching
+        extra_matches = []
+        still_dark = []
+
+        if ais_positions and unmatched:
+            from math import radians, sin, cos, sqrt, atan2
+
+            def haversine_km(lat1, lon1, lat2, lon2):
+                R = 6371  # Earth radius km
+                dlat = radians(lat2 - lat1)
+                dlon = radians(lon2 - lon1)
+                a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+                return 2 * R * atan2(sqrt(a), sqrt(1-a))
+
+            for det in unmatched:
+                found_match = False
+                for ais in ais_positions:
+                    dist = haversine_km(det.lat, det.lon, ais.get('lat', 0), ais.get('lon', 0))
+                    if dist < 2.0:  # Within 2km - likely same vessel
+                        det.matched_mmsi = ais.get('mmsi')
+                        det.matched_vessel_name = ais.get('name')
+                        det.is_dark = False
+                        extra_matches.append(det)
+                        found_match = True
+                        break
+
+                if not found_match:
+                    still_dark.append(det)
+        else:
+            still_dark = unmatched
+
+        return {
+            'dark_vessels': [d.to_dict() for d in still_dark],
+            'matched_vessels': [d.to_dict() for d in matched + extra_matches],
+            'statistics': {
+                'total_sar_detections': len(unmatched) + len(matched),
+                'dark_count': len(still_dark),
+                'matched_count': len(matched) + len(extra_matches),
+                'dark_percentage': round(len(still_dark) / max(1, len(unmatched) + len(matched)) * 100, 1),
+                'area': {
+                    'min_lat': min_lat, 'min_lon': min_lon,
+                    'max_lat': max_lat, 'max_lon': max_lon
+                },
+                'date_range': {
+                    'start': start_date.isoformat(),
+                    'end': end_date.isoformat()
+                }
+            },
+            'source': 'Global Fishing Watch Sentinel-1 SAR'
+        }
+
 
 # Convenience functions
 _client = None
@@ -656,6 +848,65 @@ def check_sts_zone(min_lat: float, min_lon: float,
         },
         'source': 'Global Fishing Watch'
     }
+
+
+def get_sar_detections(min_lat: float, min_lon: float,
+                       max_lat: float, max_lon: float,
+                       days: int = 30, dark_only: bool = True) -> dict:
+    """
+    Get SAR vessel detections in an area.
+
+    Args:
+        min_lat, min_lon, max_lat, max_lon: Bounding box
+        days: Days of history
+        dark_only: If True, only return AIS-unmatched vessels
+
+    Returns:
+        Dict with detections and statistics
+    """
+    client = get_gfw_client()
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+
+    detections = client.get_sar_detections(
+        min_lat, min_lon, max_lat, max_lon,
+        start_date, end_date,
+        matched_only=not dark_only
+    )
+
+    return {
+        'detections': [d.to_dict() for d in detections],
+        'count': len(detections),
+        'dark_only': dark_only,
+        'area': {
+            'min_lat': min_lat, 'min_lon': min_lon,
+            'max_lat': max_lat, 'max_lon': max_lon
+        },
+        'period_days': days,
+        'source': 'Global Fishing Watch Sentinel-1 SAR'
+    }
+
+
+def find_dark_vessels(min_lat: float, min_lon: float,
+                      max_lat: float, max_lon: float,
+                      ais_positions: list = None,
+                      days: int = 7) -> dict:
+    """
+    Find vessels detected by SAR but not broadcasting AIS.
+
+    Args:
+        min_lat, min_lon, max_lat, max_lon: Area to search
+        ais_positions: Optional list of known AIS positions for cross-reference
+        days: Days of history
+
+    Returns:
+        Dict with dark_vessels, matched_vessels, and statistics
+    """
+    client = get_gfw_client()
+    return client.find_dark_vessels(
+        min_lat, min_lon, max_lat, max_lon,
+        ais_positions, days
+    )
 
 
 # Configuration helper
