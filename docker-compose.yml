@@ -1,0 +1,40 @@
+# Arsenal Ship Tracker - Docker Compose
+# Run with: docker-compose up -d
+
+version: '3.8'
+
+services:
+  tracker:
+    build: .
+    container_name: arsenal-tracker
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AISSTREAM_API_KEY=${AISSTREAM_API_KEY}
+      - AISHUB_USERNAME=${AISHUB_USERNAME:-}
+      - GFW_API_KEY=${GFW_API_KEY:-}
+    volumes:
+      - tracker-data:/app/data
+      - ./static/photos:/app/static/photos
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/stats')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ais-streamer:
+    build: .
+    container_name: arsenal-ais-streamer
+    command: python stream_area.py
+    environment:
+      - AISSTREAM_API_KEY=${AISSTREAM_API_KEY}
+    volumes:
+      - tracker-data:/app/data
+    depends_on:
+      - tracker
+    restart: unless-stopped
+
+volumes:
+  tracker-data:
