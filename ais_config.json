@@ -12,12 +12,12 @@
     },
     "marinesia": {
       "enabled": true,
-      "api_key": "",
+      "api_key": "${MARINESIA_API_KEY}",
       "rate_limit": 30,
       "description": "REST API fallback from marinesia.com (free, no key required for basic access)"
     },
     "gfw": {
-      "enabled": false,
+      "enabled": true,
       "api_key": "${GFW_API_KEY}",
       "rate_limit": 10,
       "description": "Global Fishing Watch enrichment data (requires free API key, enrichment only)"
@@ -45,6 +45,7 @@
     "env_vars": [
       "AISSTREAM_API_KEY - Get from https://aisstream.io/",
       "AISHUB_USERNAME - Register at https://www.aishub.net/register",
+      "MARINESIA_API_KEY - Get from https://marinesia.com/",
       "GFW_API_KEY - Get from https://globalfishingwatch.org/our-apis/"
     ],
     "priority_explanation": "Sources are tried in order. AISStream provides real-time WebSocket data. AISHub is community-based fallback. Marinesia is REST fallback.",

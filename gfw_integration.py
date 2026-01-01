@@ -575,11 +575,17 @@ def get_dark_fleet_indicators(mmsi: str, days: int = 90) -> dict:
         risk_score += 10
         risk_factors.append(f"Loitering: {loitering_hours:.0f} hours")
 
-    risk_level = 'low'
-    if risk_score >= 50:
+    # Standardized risk levels matching behavior.py and dark_fleet.py
+    if risk_score >= 70:
+        risk_level = 'critical'
+    elif risk_score >= 50:
         risk_level = 'high'
-    elif risk_score >= 25:
+    elif risk_score >= 30:
         risk_level = 'medium'
+    elif risk_score >= 15:
+        risk_level = 'low'
+    else:
+        risk_level = 'minimal'
 
     return {
         'mmsi': mmsi,

@@ -1708,7 +1708,14 @@
                 <div class="panel-section" id="ports-section">
                     <div class="section-title">
                         Nearby Ports
-                        <button onclick="loadNearbyPorts(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Refresh</button>
+                        <span style="float:right;display:flex;gap:4px;align-items:center">
+                            <select id="ports-source" onchange="loadNearbyPorts(${v.id})" style="font-size:9px;padding:2px 4px;border:1px solid #ddd;border-radius:3px;background:#fff">
+                                <option value="auto">Auto</option>
+                                <option value="marinesia">Marinesia</option>
+                                <option value="built-in">Built-in</option>
+                            </select>
+                            <button onclick="loadNearbyPorts(${v.id})" style="background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻</button>
+                        </span>
                     </div>
                     <div id="ports-display" style="padding:8px 0;color:#666;font-size:11px">Loading nearby ports...</div>
                 </div>
@@ -3090,7 +3097,11 @@
                     return;
                 }
 
-                const result = await api(`/ports/nearby?lat=${vessel.last_lat}&lon=${vessel.last_lon}&radius=100`);
+                // Get selected data source
+                const sourceSelect = document.getElementById('ports-source');
+                const source = sourceSelect ? sourceSelect.value : 'auto';
+
+                const result = await api(`/ports/nearby?lat=${vessel.last_lat}&lon=${vessel.last_lon}&radius=100&source=${source}`);
                 renderNearbyPorts(result);
             } catch(e) {
                 display.innerHTML = '<span style="color:#e74c3c">Error loading ports</span>';
@@ -3102,22 +3113,26 @@
             if (!display) return;
 
             const ports = data.ports || [];
+            const source = data.source || 'unknown';
+
             if (!ports.length) {
-                display.innerHTML = '<span style="color:#999">No ports found within 100nm</span>';
+                display.innerHTML = `<span style="color:#999">No ports found within 100nm</span><div style="font-size:8px;color:#bbb;margin-top:4px">Source: ${source}</div>`;
                 return;
             }
+
+            const sourceLabel = source === 'built-in' ? '📦 Built-in' : source === 'marinesia' ? '🌐 Marinesia' : source;
 
             display.innerHTML = ports.slice(0, 5).map(p => `
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee">
                     <div>
                         <div style="font-weight:600;font-size:11px;color:#333">${p.name || 'Unknown Port'}</div>
-                        <div style="font-size:9px;color:#666">${p.country || ''}</div>
+                        <div style="font-size:9px;color:#666">${p.country || ''}${p.type && p.type !== 'major' ? ' • ' + p.type : ''}</div>
                     </div>
                     <div style="text-align:right">
                         <div style="font-size:10px;color:#3498db;font-weight:600">${p.distance_nm?.toFixed(1) || '?'} nm</div>
                     </div>
                 </div>
-            `).join('');
+            `).join('') + `<div style="font-size:8px;color:#999;margin-top:6px;text-align:right">${sourceLabel}</div>`;
         }
 
         async function loadCombinedData(vesselId) {
