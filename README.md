@@ -511,16 +511,28 @@ alerts = check_venezuela_alerts(mmsi, "Skipper", position, track)
 
 Situational awareness for undersea cable and pipeline incidents, with anchor drag detection and AIS gap correlation. Developed for the Finland cable incident investigation (December 2025).
 
-### Baltic Sea Infrastructure
+### Global Infrastructure Database
 
-**33 infrastructure assets** loaded from `data/infrastructure.json`:
+**56 infrastructure assets** loaded from `data/infrastructure.json` across 7 regions:
 
-| Type | Count | Examples |
-|------|-------|----------|
-| Telecom/Fiber Cables | 12 | C-Lion1, BCS East-West Interlink, EESF-1/2, Eastern Light |
-| Power Cables (HVDC) | 10 | Estlink-1/2, NordBalt, SwePol, Fenno-Skan 1/2 |
-| Gas Pipelines | 4 | Balticconnector, Nord Stream 1/2, Europipe II |
-| Offshore Wind Farms | 7 | Kriegers Flak, Arkona, Wikinger |
+| Region | Cables | Pipelines | Key Assets |
+|--------|--------|-----------|------------|
+| Baltic Sea | 22 | 3 | C-Lion1, Estlink-2, Nord Stream |
+| North Atlantic | 7 | - | MAREA, Dunant, Grace Hopper, Amitié |
+| Trans-Pacific | 4 | - | FASTER, NCP, PLCN (Google/Meta) |
+| Asia-Pacific | 3 | - | AAG, APG, SEA-ME-WE 3 |
+| Taiwan Strait | 3 | - | Cross-Strait 1/2, Taiwan-Matsu |
+| South China Sea | 1 | - | SJC (Singapore-Japan) |
+| Gulf of Mexico | - | 5 | Mars, Mardi Gras, Gulfstream |
+
+**Strategic Cables:**
+| Cable | Route | Capacity | Operator |
+|-------|-------|----------|----------|
+| MAREA | US-Spain | 200 Tbps | Microsoft/Meta |
+| Grace Hopper | US-UK-Spain | 350 Tbps | Google |
+| FASTER | Japan-US | 60 Tbps | Google/KDDI |
+| NCP | China-US | 80 Tbps | China Telecom/Microsoft |
+| Cross-Strait | Taiwan-China | High | Chunghwa/China Telecom |
 
 **Recent Incidents Tracked:**
 | Infrastructure | Date | Vessel | Status |
@@ -528,6 +540,7 @@ Situational awareness for undersea cable and pipeline incidents, with anchor dra
 | C-Lion1 | Dec 31, 2025 | Under investigation | Damaged |
 | Estlink-2 | Dec 25, 2025 | Eagle S | Damaged |
 | EESF-1 | Dec 25, 2025 | Eagle S | Damaged |
+| Taiwan-Matsu | Feb 2, 2023 | Chinese vessel | Damaged |
 | BCS East-West Interlink | Nov 17, 2024 | Yi Peng 3 | Damaged |
 | Balticconnector | Oct 8, 2023 | Newnew Polar Bear | Damaged |
 
