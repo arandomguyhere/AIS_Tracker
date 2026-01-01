@@ -468,6 +468,61 @@ alerts = check_venezuela_alerts(mmsi, "Skipper", position, track)
 # Returns: TERMINAL_ARRIVAL, SANCTIONED_VESSEL alerts
 ```
 
+## Sanctions Database Integration (NEW)
+
+Real-time sanctions data from multiple sources for vessel compliance checking.
+
+### Data Sources
+
+| Source | Vessels | Coverage | Format |
+|--------|---------|----------|--------|
+| [FleetLeaks](https://fleetleaks.com/) | 800+ | OFAC, EU, UK, CA, AU, NZ | CSV/JSON |
+| [OFAC SDN](https://ofac.treasury.gov/) | Official | U.S. Treasury | XML/CSV |
+| [TankerTrackers](https://tankertrackers.com/) | 1,300+ | Blacklisted tankers | CSV |
+
+### FleetLeaks API Endpoints (No Auth Required)
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /export/vessels.csv` | Bulk CSV export (primary) |
+| `GET /api/vessels` | JSON API |
+| `GET /api/vessels/{imo}` | Single vessel detail |
+| `GET /api/search?q=` | Search by name/IMO |
+
+### Confidence-Weighted Scoring
+
+| Authority | Weight | Notes |
+|-----------|--------|-------|
+| OFAC / UN | 1.0 | Highest enforcement |
+| EU / UK | 0.95 | Strong enforcement |
+| CA / AU | 0.85 | Moderate |
+| NZ | 0.80 | Lower |
+
++0.05 bonus for 3+ authorities (cross-jurisdictional designation)
+
+### Usage
+
+```python
+from sanctions import SanctionsDatabase, fetch_fleetleaks_csv
+
+# Fetch all sanctioned vessels from FleetLeaks
+vessels = fetch_fleetleaks_csv()  # Returns 800+ vessels
+
+# Initialize database
+db = SanctionsDatabase()
+db.load_known_vessels()  # Load built-in database
+
+# Check vessel
+result = db.check_vessel(imo="9179834")
+# Returns: {"sanctioned": True, "authorities": ["OFAC", "UK"], ...}
+
+# CLI commands
+# python sanctions.py init    - Load known vessels
+# python sanctions.py update  - Fetch from FleetLeaks/OFAC
+# python sanctions.py stats   - Show statistics
+# python sanctions.py check --imo 9328716
+```
+
 ### Academic References
 
 The behavior detection algorithms are based on peer-reviewed research:
