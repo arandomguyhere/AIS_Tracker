@@ -69,6 +69,29 @@ try:
 except ImportError:
     BEHAVIOR_AVAILABLE = False
 
+# Import Venezuela dark fleet detection module
+try:
+    from venezuela import (
+        is_in_venezuela_zone, check_venezuela_alerts,
+        calculate_venezuela_risk_score, detect_ais_spoofing,
+        detect_circle_spoofing, KNOWN_DARK_FLEET_VESSELS,
+        get_venezuela_monitoring_config
+    )
+    VENEZUELA_AVAILABLE = True
+except ImportError:
+    VENEZUELA_AVAILABLE = False
+
+# Import sanctions database module
+try:
+    from sanctions import (
+        SanctionsDatabase, check_venezuela_sanctions,
+        calculate_sanction_confidence, enrich_vessel_with_sanctions,
+        fetch_fleetleaks_map_data
+    )
+    SANCTIONS_AVAILABLE = True
+except ImportError:
+    SANCTIONS_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -937,6 +960,94 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 return self.send_json({'error': 'Behavior module not available'}, 500)
             country = get_flag_country(mmsi)
             return self.send_json({'mmsi': mmsi, 'country': country})
+
+        # Venezuela dark fleet detection endpoints
+        elif path == '/api/venezuela/config':
+            if not VENEZUELA_AVAILABLE:
+                return self.send_json({'error': 'Venezuela module not available'}, 500)
+            return self.send_json(get_venezuela_monitoring_config())
+
+        elif path == '/api/venezuela/known-vessels':
+            if not VENEZUELA_AVAILABLE:
+                return self.send_json({'error': 'Venezuela module not available'}, 500)
+            vessels = [v.to_dict() for v in KNOWN_DARK_FLEET_VESSELS]
+            return self.send_json({'vessels': vessels, 'count': len(vessels)})
+
+        elif path.startswith('/api/vessels/') and path.endswith('/venezuela'):
+            if not VENEZUELA_AVAILABLE:
+                return self.send_json({'error': 'Venezuela module not available'}, 500)
+            vessel_id = int(path.split('/')[3])
+            days = int(params.get('days', [30])[0])
+
+            # Get vessel info and track
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            track = get_vessel_track(vessel_id, days)
+
+            # Check if in Venezuela zone
+            in_zone = False
+            if track:
+                latest = track[-1]
+                in_zone = is_in_venezuela_zone(latest.get('lat', 0), latest.get('lon', 0))
+
+            # Calculate risk score
+            risk = calculate_venezuela_risk_score(
+                vessel_name=vessel.get('name', ''),
+                flag_state=vessel.get('flag', ''),
+                imo=vessel.get('imo', ''),
+                track=track or []
+            )
+
+            # Check alerts
+            alerts = check_venezuela_alerts(
+                vessel.get('mmsi', ''),
+                track[-1].get('lat', 0) if track else 0,
+                track[-1].get('lon', 0) if track else 0,
+                vessel.get('name', ''),
+                vessel.get('flag', '')
+            ) if track else []
+
+            return self.send_json({
+                'vessel_id': vessel_id,
+                'vessel_name': vessel.get('name'),
+                'in_venezuela_zone': in_zone,
+                'risk_score': risk.get('score', 0),
+                'risk_level': risk.get('level', 'unknown'),
+                'risk_factors': risk.get('factors', []),
+                'alerts': alerts
+            })
+
+        # Sanctions database endpoints
+        elif path == '/api/sanctions/check':
+            if not SANCTIONS_AVAILABLE:
+                return self.send_json({'error': 'Sanctions module not available'}, 500)
+            imo = params.get('imo', [None])[0]
+            mmsi = params.get('mmsi', [None])[0]
+            name = params.get('name', [None])[0]
+            if not any([imo, mmsi, name]):
+                return self.send_json({'error': 'IMO, MMSI, or name parameter required'}, 400)
+            result = check_venezuela_sanctions(mmsi=mmsi, imo=imo, name=name)
+            return self.send_json(result)
+
+        elif path == '/api/sanctions/stats':
+            if not SANCTIONS_AVAILABLE:
+                return self.send_json({'error': 'Sanctions module not available'}, 500)
+            db = SanctionsDatabase()
+            return self.send_json(db.get_statistics())
+
+        elif path.startswith('/api/vessels/') and path.endswith('/sanctions'):
+            if not SANCTIONS_AVAILABLE:
+                return self.send_json({'error': 'Sanctions module not available'}, 500)
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            db = SanctionsDatabase()
+            enriched = enrich_vessel_with_sanctions(vessel, db)
+            return self.send_json(enriched.get('sanctions', {'listed': False}))
 
         # Static files
         else:
