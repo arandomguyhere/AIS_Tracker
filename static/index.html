@@ -871,7 +871,7 @@
 
     <!-- POC Scenario Modal -->
     <div class="modal-overlay" id="poc-modal">
-        <div class="modal" style="max-width:500px">
+        <div class="modal" style="max-width:550px">
             <div class="modal-header" style="background:#9b59b6">
                 <span class="modal-title">Load POC Scenario</span>
                 <button class="modal-close" onclick="closeModal('poc-modal')">&times;</button>
@@ -879,17 +879,7 @@
             <div class="modal-body">
                 <p style="color:#666;font-size:12px;margin-bottom:16px">Load a pre-configured scenario with vessels, infrastructure, and events for analysis.</p>
                 <div id="poc-list" style="display:flex;flex-direction:column;gap:12px">
-                    <div class="poc-card" onclick="loadPoc('baltic')" style="padding:16px;border:2px solid #9b59b6;border-radius:8px;cursor:pointer;transition:all 0.2s">
-                        <div style="font-weight:600;color:#333;margin-bottom:4px">Baltic Cable Incident</div>
-                        <div style="font-size:11px;color:#666;margin-bottom:8px">Finland undersea cable investigation (December 2025)</div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap">
-                            <span style="background:#e74c3c;color:white;padding:2px 6px;border-radius:3px;font-size:9px">FITBURG</span>
-                            <span style="background:#e74c3c;color:white;padding:2px 6px;border-radius:3px;font-size:9px">EAGLE S</span>
-                            <span style="background:#3498db;color:white;padding:2px 6px;border-radius:3px;font-size:9px">C-Lion1</span>
-                            <span style="background:#f1c40f;color:#333;padding:2px 6px;border-radius:3px;font-size:9px">Estlink-2</span>
-                        </div>
-                        <div style="font-size:10px;color:#999;margin-top:8px">Region: Baltic Sea / Gulf of Finland</div>
-                    </div>
+                    <div style="color:#666;font-size:12px">Loading scenarios...</div>
                 </div>
                 <div id="poc-status" style="margin-top:16px;padding:12px;border-radius:6px;display:none"></div>
             </div>
@@ -1866,10 +1856,40 @@
             openModal('add-vessel-modal');
         }
 
-        function openPocModal() {
+        async function openPocModal() {
             document.getElementById('poc-status').style.display = 'none';
             openModal('poc-modal');
+
+            // Load POC list from API
+            const listEl = document.getElementById('poc-list');
+            listEl.innerHTML = '<div style="color:#666;font-size:12px">Loading scenarios...</div>';
+
+            try {
+                const result = await post('/poc/list', {});
+                const scenarios = result.scenarios || [];
+
+                listEl.innerHTML = scenarios.map(poc => `
+                    <div class="poc-card" onclick="loadPoc('${poc.id}')" style="padding:16px;border:2px solid ${poc.color || '#9b59b6'};border-radius:8px;cursor:pointer;transition:all 0.2s;background:white">
+                        <div style="font-weight:600;color:#333;margin-bottom:4px">${poc.name}</div>
+                        <div style="font-size:11px;color:#666;margin-bottom:8px">${poc.description}</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                            ${poc.vessels.map(v => `<span style="background:#e74c3c;color:white;padding:2px 6px;border-radius:3px;font-size:9px">${v}</span>`).join('')}
+                            ${poc.infrastructure.map(i => `<span style="background:${poc.color || '#3498db'};color:white;padding:2px 6px;border-radius:3px;font-size:9px">${i}</span>`).join('')}
+                        </div>
+                        <div style="font-size:10px;color:#999;margin-top:8px">Region: ${poc.region}</div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                listEl.innerHTML = '<div style="color:#e74c3c">Error loading scenarios</div>';
+            }
         }
+
+        // POC region coordinates for map panning
+        const POC_REGIONS = {
+            'baltic': { lat: 59.5, lon: 24.5, zoom: 7 },
+            'venezuela': { lat: 10.5, lon: -66.0, zoom: 7 },
+            'china': { lat: 28.0, lon: 122.0, zoom: 6 }
+        };
 
         async function loadPoc(pocId) {
             const statusEl = document.getElementById('poc-status');
@@ -1893,8 +1913,9 @@
                     setTimeout(async () => {
                         await loadData();
                         closeModal('poc-modal');
-                        // Pan to Baltic Sea
-                        map.setView([59.5, 24.5], 7);
+                        // Pan to region
+                        const region = POC_REGIONS[pocId] || POC_REGIONS['baltic'];
+                        map.setView([region.lat, region.lon], region.zoom);
                     }, 1500);
                 } else {
                     statusEl.style.background = '#f8d7da';
