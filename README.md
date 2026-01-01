@@ -151,6 +151,7 @@ export AISHUB_USERNAME="your-aishub-username"
 | `laden_status.py` | Laden status detection: draft analysis, cargo operations, STS transfer detection |
 | `satellite_intel.py` | Satellite imagery integration: Sentinel-1/2, vessel detection, storage monitoring |
 | `shoreside_photos.py` | Crowdsourced photography: port photos, vessel verification, intel collection |
+| `gfw_integration.py` | Global Fishing Watch API: AIS gaps, encounters, loitering, vessel identity |
 | `run_tests.py` | Test runner script |
 | `tests/` | Unit tests for database, API, SAR, confidence, intelligence, Venezuela, sanctions |
 
@@ -756,8 +757,81 @@ curl http://localhost:8080/api/features
   "dark_fleet": true,
   "infra_analysis": true,
   "sanctions": true,
+  "gfw": true,
+  "gfw_configured": true,
   ...
 }
+```
+
+## Global Fishing Watch Integration (NEW)
+
+Free API integration for vessel event data - AIS gaps, encounters, loitering, port visits.
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **AIS Gaps** | Periods where vessel stopped transmitting |
+| **Encounters** | Ship-to-ship meetings (STS detection) |
+| **Loitering** | Extended time in an area |
+| **Port Visits** | Port call history |
+| **Vessel Identity** | Search by MMSI, IMO, name |
+
+### Setup
+
+1. Register at https://globalfishingwatch.org/our-apis/ (free)
+2. Get API token
+3. Configure via API:
+
+```bash
+curl -X POST http://localhost:8080/api/gfw/configure \
+  -H "Content-Type: application/json" \
+  -d '{"token": "YOUR_GFW_TOKEN"}'
+```
+
+Or set environment variable:
+```bash
+export GFW_API_TOKEN=your_token_here
+```
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/gfw/status` | Check if GFW is configured |
+| GET | `/api/gfw/search?mmsi=X` | Search vessel identity |
+| GET | `/api/vessels/:id/gfw-events` | Get all events for vessel |
+| GET | `/api/vessels/:id/gfw-risk` | Get dark fleet risk indicators |
+| GET | `/api/gfw/sts-zone?min_lat=X&...` | Check STS activity in zone |
+| POST | `/api/gfw/configure` | Configure API token |
+
+### Example: Dark Fleet Risk Analysis
+
+```bash
+curl http://localhost:8080/api/vessels/1/gfw-risk?days=90
+```
+
+```json
+{
+  "risk_score": 65,
+  "risk_level": "high",
+  "risk_factors": [
+    "Extended AIS gaps: 72 hours",
+    "Multiple encounters: 4"
+  ],
+  "ais_gaps": {"count": 3, "total_hours": 72},
+  "encounters": {"count": 4},
+  "loitering": {"count": 2, "total_hours": 48}
+}
+```
+
+### STS Zone Monitoring
+
+Monitor known STS hotspots:
+
+```bash
+# Check Tanjung Pelepas (Malaysia) - Iran oil STS hub
+curl "http://localhost:8080/api/gfw/sts-zone?min_lat=1.2&min_lon=103.4&max_lat=1.5&max_lon=103.7&days=30"
 ```
 
 ## Sanctions Database Integration (NEW)

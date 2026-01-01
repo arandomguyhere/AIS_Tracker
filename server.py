@@ -142,6 +142,20 @@ try:
 except ImportError:
     PHOTOS_AVAILABLE = False
 
+# Import Global Fishing Watch integration
+try:
+    from gfw_integration import (
+        is_configured as gfw_is_configured,
+        search_vessel as gfw_search_vessel,
+        get_vessel_events as gfw_get_vessel_events,
+        get_dark_fleet_indicators as gfw_get_dark_fleet_indicators,
+        check_sts_zone as gfw_check_sts_zone,
+        save_token as gfw_save_token
+    )
+    GFW_AVAILABLE = True
+except ImportError:
+    GFW_AVAILABLE = False
+
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, 'arsenal_tracker.db')
@@ -2007,6 +2021,96 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 'count': len(photos)
             })
 
+        # ========== Global Fishing Watch Endpoints ==========
+
+        elif path == '/api/gfw/status':
+            # Check GFW API status
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            return self.send_json({
+                'available': True,
+                'configured': gfw_is_configured(),
+                'register_url': 'https://globalfishingwatch.org/our-apis/'
+            })
+
+        elif path == '/api/gfw/search':
+            # Search for vessel in GFW database
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            if not gfw_is_configured():
+                return self.send_json({'error': 'GFW API token not configured', 'register_url': 'https://globalfishingwatch.org/our-apis/'}, 400)
+
+            query = params.get('q', [None])[0]
+            mmsi = params.get('mmsi', [None])[0]
+            imo = params.get('imo', [None])[0]
+            name = params.get('name', [None])[0]
+
+            result = gfw_search_vessel(query=query, mmsi=mmsi, imo=imo, name=name)
+            return self.send_json(result)
+
+        elif path.startswith('/api/vessels/') and path.endswith('/gfw-events'):
+            # Get GFW events for a vessel
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            if not gfw_is_configured():
+                return self.send_json({'error': 'GFW API token not configured'}, 400)
+
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            mmsi = vessel.get('mmsi')
+            if not mmsi:
+                return self.send_json({'error': 'Vessel has no MMSI'}, 400)
+
+            days = int(params.get('days', [90])[0])
+            result = gfw_get_vessel_events(mmsi, days)
+            result['vessel_id'] = vessel_id
+            result['vessel_name'] = vessel.get('name')
+            return self.send_json(result)
+
+        elif path.startswith('/api/vessels/') and path.endswith('/gfw-risk'):
+            # Get dark fleet risk indicators from GFW
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            if not gfw_is_configured():
+                return self.send_json({'error': 'GFW API token not configured'}, 400)
+
+            vessel_id = int(path.split('/')[3])
+            vessel = get_vessel(vessel_id)
+            if not vessel:
+                return self.send_json({'error': 'Vessel not found'}, 404)
+
+            mmsi = vessel.get('mmsi')
+            if not mmsi:
+                return self.send_json({'error': 'Vessel has no MMSI'}, 400)
+
+            days = int(params.get('days', [90])[0])
+            result = gfw_get_dark_fleet_indicators(mmsi, days)
+            result['vessel_id'] = vessel_id
+            result['vessel_name'] = vessel.get('name')
+            return self.send_json(result)
+
+        elif path == '/api/gfw/sts-zone':
+            # Check for STS activity in a zone
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+            if not gfw_is_configured():
+                return self.send_json({'error': 'GFW API token not configured'}, 400)
+
+            try:
+                min_lat = float(params.get('min_lat', [0])[0])
+                min_lon = float(params.get('min_lon', [0])[0])
+                max_lat = float(params.get('max_lat', [0])[0])
+                max_lon = float(params.get('max_lon', [0])[0])
+                days = int(params.get('days', [30])[0])
+            except (ValueError, TypeError):
+                return self.send_json({'error': 'Invalid coordinates'}, 400)
+
+            result = gfw_check_sts_zone(min_lat, min_lon, max_lat, max_lon, days)
+            return self.send_json(result)
+
         # ========== Feature Status Endpoint ==========
 
         elif path == '/api/features':
@@ -2024,7 +2128,9 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                 'infra_analysis': INFRA_ANALYSIS_AVAILABLE,
                 'laden_status': LADEN_STATUS_AVAILABLE,
                 'satellite': SATELLITE_AVAILABLE,
-                'photos': PHOTOS_AVAILABLE
+                'photos': PHOTOS_AVAILABLE,
+                'gfw': GFW_AVAILABLE,
+                'gfw_configured': GFW_AVAILABLE and gfw_is_configured()
             })
 
         # Static files
@@ -2226,6 +2332,21 @@ class TrackerHandler(SimpleHTTPRequestHandler):
             if result:
                 return self.send_json(result)
             return self.send_json({'error': 'Photo not found'}, 404)
+
+        # ========== GFW Configuration POST Endpoints ==========
+
+        elif path == '/api/gfw/configure':
+            # Configure GFW API token
+            if not GFW_AVAILABLE:
+                return self.send_json({'error': 'GFW module not available'}, 500)
+
+            token = data.get('token')
+            if not token:
+                return self.send_json({'error': 'Token required'}, 400)
+
+            if gfw_save_token(token):
+                return self.send_json({'success': True, 'message': 'GFW API token configured'})
+            return self.send_json({'error': 'Failed to save token'}, 500)
 
         else:
             self.send_json({'error': 'Not found'}, 404)

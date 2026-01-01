@@ -1767,6 +1767,16 @@
                     </div>
                 </div>
 
+                <div class="panel-section" id="gfw-section" style="background:#e3f2fd;border:1px solid #2196f3">
+                    <div class="section-title" style="color:#1565c0">
+                        Global Fishing Watch
+                        <button onclick="loadGFWData(${v.id})" style="float:right;background:none;border:none;color:#1565c0;cursor:pointer;font-size:11px">↻ Analyze</button>
+                    </div>
+                    <div id="gfw-display" style="padding:8px 0;color:#666;font-size:11px">
+                        <span style="color:#999">AIS gaps, encounters, loitering events (free API)</span>
+                    </div>
+                </div>
+
                 ${v.intel_notes ? `
                 <div class="panel-section">
                     <div class="section-title">Intelligence Notes</div>
@@ -3471,6 +3481,100 @@
             display.innerHTML = `
                 <div style="margin-bottom:8px;font-size:11px;color:#333"><strong>${photos.length}</strong> photo${photos.length !== 1 ? 's' : ''} available</div>
                 ${photosHtml}
+            `;
+        }
+
+        // ========== Global Fishing Watch ==========
+        async function loadGFWData(vesselId) {
+            const display = document.getElementById('gfw-display');
+            if (!display) return;
+            display.innerHTML = '<span style="color:#666">Querying Global Fishing Watch...</span>';
+
+            try {
+                // First check if GFW is configured
+                const status = await api('/gfw/status');
+                if (!status.configured) {
+                    display.innerHTML = `
+                        <div style="text-align:center;padding:12px">
+                            <div style="font-size:11px;color:#666;margin-bottom:8px">GFW API not configured</div>
+                            <a href="https://globalfishingwatch.org/our-apis/" target="_blank"
+                               style="font-size:10px;color:#1565c0;text-decoration:underline">
+                                Get free API token
+                            </a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const result = await api(`/vessels/${vesselId}/gfw-risk?days=90`);
+                renderGFWData(result);
+            } catch(e) {
+                display.innerHTML = '<span style="color:#e74c3c">Error loading GFW data</span>';
+            }
+        }
+
+        function renderGFWData(data) {
+            const display = document.getElementById('gfw-display');
+            if (!display) return;
+
+            if (data.error) {
+                display.innerHTML = `<span style="color:#e74c3c">${data.error}</span>`;
+                return;
+            }
+
+            const riskColors = {
+                'low': '#27ae60',
+                'medium': '#f39c12',
+                'high': '#e74c3c'
+            };
+
+            const riskLevel = data.risk_level || 'low';
+            const riskColor = riskColors[riskLevel] || '#95a5a6';
+            const riskScore = data.risk_score || 0;
+
+            // Format events
+            const gaps = data.ais_gaps || {};
+            const encounters = data.encounters || {};
+            const loitering = data.loitering || {};
+
+            // Risk factors
+            let factorsHtml = '';
+            if (data.risk_factors?.length) {
+                factorsHtml = data.risk_factors.map(f =>
+                    `<div style="font-size:10px;color:#c0392b;padding:2px 0">⚠ ${f}</div>`
+                ).join('');
+            }
+
+            display.innerHTML = `
+                <div style="display:flex;gap:8px;margin-bottom:10px">
+                    <div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px">
+                        <div style="font-size:9px;color:#666">RISK</div>
+                        <div style="font-size:14px;font-weight:bold;color:${riskColor};text-transform:uppercase">${riskLevel}</div>
+                    </div>
+                    <div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px">
+                        <div style="font-size:9px;color:#666">SCORE</div>
+                        <div style="font-size:14px;font-weight:bold;color:${riskColor}">${riskScore}/100</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;margin-bottom:10px">
+                    <div style="flex:1;text-align:center;padding:6px;background:#ffebee;border-radius:4px">
+                        <div style="font-size:8px;color:#666">AIS GAPS</div>
+                        <div style="font-size:12px;font-weight:bold;color:#c0392b">${gaps.count || 0}</div>
+                        <div style="font-size:8px;color:#999">${(gaps.total_hours || 0).toFixed(0)}h</div>
+                    </div>
+                    <div style="flex:1;text-align:center;padding:6px;background:#fff3e0;border-radius:4px">
+                        <div style="font-size:8px;color:#666">ENCOUNTERS</div>
+                        <div style="font-size:12px;font-weight:bold;color:#e65100">${encounters.count || 0}</div>
+                        <div style="font-size:8px;color:#999">STS events</div>
+                    </div>
+                    <div style="flex:1;text-align:center;padding:6px;background:#e3f2fd;border-radius:4px">
+                        <div style="font-size:8px;color:#666">LOITERING</div>
+                        <div style="font-size:12px;font-weight:bold;color:#1565c0">${loitering.count || 0}</div>
+                        <div style="font-size:8px;color:#999">${(loitering.total_hours || 0).toFixed(0)}h</div>
+                    </div>
+                </div>
+                ${factorsHtml}
+                <div style="font-size:9px;color:#999;margin-top:6px">Data: Global Fishing Watch (90 days)</div>
             `;
         }
 
