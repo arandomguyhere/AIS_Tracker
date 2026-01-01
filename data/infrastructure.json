@@ -341,6 +341,259 @@
       "rfs_year": 2020,
       "protection_radius_nm": 3.0,
       "notes": "Sweden-Germany fiber cable via offshore wind farm area."
+    },
+    {
+      "id": "bcs_ewi",
+      "name": "BCS East-West Interlink",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "damaged",
+      "region": "baltic_sea",
+      "waypoints": [
+        [56.03, 21.07],
+        [56.30, 20.00],
+        [56.80, 19.00],
+        [57.20, 18.50],
+        [57.50, 18.30]
+      ],
+      "landing_points": [
+        {"name": "Sventoji", "country": "LT", "lat": 56.03, "lon": 21.07},
+        {"name": "Gotland (Katthammarsvik)", "country": "SE", "lat": 57.50, "lon": 18.30}
+      ],
+      "length_km": 218,
+      "operator": "Arelion (Telia Carrier)",
+      "capacity": "Multi-Tbps",
+      "rfs_year": 2017,
+      "protection_radius_nm": 5.0,
+      "notes": "Lithuania-Sweden telecom cable. Damaged Nov 17-18, 2024 during anchor drag incident.",
+      "incidents": [
+        {"date": "2024-11-17", "type": "damage", "vessel": "Yi Peng 3", "description": "Anchor drag damage, Chinese bulk carrier suspected"}
+      ]
+    },
+    {
+      "id": "eesf1",
+      "name": "EESF-1 (Estonia-Finland Submarine Cable)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "damaged",
+      "region": "baltic_sea",
+      "waypoints": [
+        [59.45, 24.75],
+        [59.60, 24.85],
+        [59.80, 25.00],
+        [59.95, 25.10]
+      ],
+      "landing_points": [
+        {"name": "Tallinn", "country": "EE", "lat": 59.45, "lon": 24.75},
+        {"name": "Helsinki", "country": "FI", "lat": 59.95, "lon": 25.10}
+      ],
+      "length_km": 75,
+      "operator": "Elisa",
+      "capacity": "High capacity",
+      "rfs_year": 2012,
+      "protection_radius_nm": 3.0,
+      "notes": "Finland-Estonia telecom cable. Damaged Dec 25, 2025 by Eagle S anchor drag.",
+      "incidents": [
+        {"date": "2025-12-25", "type": "damage", "vessel": "Eagle S", "description": "Anchor drag damage, same incident as Estlink-2"}
+      ]
+    },
+    {
+      "id": "eesf2",
+      "name": "EESF-2 (Estonia-Finland Submarine Cable 2)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [59.43, 24.70],
+        [59.58, 24.82],
+        [59.75, 24.95],
+        [59.92, 25.08]
+      ],
+      "landing_points": [
+        {"name": "Tallinn", "country": "EE", "lat": 59.43, "lon": 24.70},
+        {"name": "Helsinki", "country": "FI", "lat": 59.92, "lon": 25.08}
+      ],
+      "length_km": 72,
+      "operator": "Elisa",
+      "capacity": "High capacity",
+      "rfs_year": 2016,
+      "protection_radius_nm": 3.0,
+      "notes": "Second Finland-Estonia telecom cable. Provides redundancy for EESF-1."
+    },
+    {
+      "id": "ees1",
+      "name": "EE-S1 (Estonia-Sweden Cable)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [59.40, 24.65],
+        [59.20, 23.00],
+        [59.00, 21.00],
+        [58.80, 19.50],
+        [58.70, 18.20]
+      ],
+      "landing_points": [
+        {"name": "Tallinn", "country": "EE", "lat": 59.40, "lon": 24.65},
+        {"name": "Nynäshamn", "country": "SE", "lat": 58.70, "lon": 18.20}
+      ],
+      "length_km": 420,
+      "operator": "Arelion (Telia Carrier)",
+      "capacity": "Multi-Tbps",
+      "rfs_year": 2019,
+      "protection_radius_nm": 4.0,
+      "notes": "Estonia-Sweden direct fiber link. Critical for Baltic region connectivity."
+    },
+    {
+      "id": "eastern_light",
+      "name": "Eastern Light",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [59.30, 18.05],
+        [59.50, 19.50],
+        [59.80, 21.00],
+        [60.05, 22.50],
+        [60.15, 24.90]
+      ],
+      "landing_points": [
+        {"name": "Stockholm", "country": "SE", "lat": 59.30, "lon": 18.05},
+        {"name": "Helsinki", "country": "FI", "lat": 60.15, "lon": 24.90}
+      ],
+      "length_km": 500,
+      "operator": "Arelion",
+      "capacity": "Multi-Tbps",
+      "rfs_year": 2016,
+      "protection_radius_nm": 4.0,
+      "notes": "Sweden-Finland fiber optic cable. Part of Northern European backbone."
+    },
+    {
+      "id": "rotacs",
+      "name": "ROTACS (Rostock-Tallinn Cable System)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [54.18, 12.10],
+        [54.80, 13.50],
+        [55.50, 15.50],
+        [56.50, 18.00],
+        [57.80, 20.50],
+        [59.00, 22.50],
+        [59.45, 24.75]
+      ],
+      "landing_points": [
+        {"name": "Rostock", "country": "DE", "lat": 54.18, "lon": 12.10},
+        {"name": "Tallinn", "country": "EE", "lat": 59.45, "lon": 24.75}
+      ],
+      "length_km": 1100,
+      "operator": "Telia/Elisa",
+      "capacity": "High capacity",
+      "rfs_year": 2001,
+      "protection_radius_nm": 4.0,
+      "notes": "Germany-Estonia fiber cable crossing the Baltic Sea."
+    },
+    {
+      "id": "baltica",
+      "name": "Baltica",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [54.35, 18.65],
+        [54.80, 17.50],
+        [55.10, 15.80],
+        [55.45, 14.80],
+        [55.60, 12.90]
+      ],
+      "landing_points": [
+        {"name": "Gdynia", "country": "PL", "lat": 54.35, "lon": 18.65},
+        {"name": "Trelleborg", "country": "SE", "lat": 55.60, "lon": 12.90}
+      ],
+      "length_km": 350,
+      "operator": "Polkomtel/Telia",
+      "capacity": "High capacity",
+      "rfs_year": 1999,
+      "protection_radius_nm": 3.0,
+      "notes": "Poland-Sweden fiber optic cable."
+    },
+    {
+      "id": "denmark_sweden",
+      "name": "Denmark-Sweden Cable (Øresund)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [55.68, 12.60],
+        [55.58, 12.75],
+        [55.50, 12.90]
+      ],
+      "landing_points": [
+        {"name": "Copenhagen", "country": "DK", "lat": 55.68, "lon": 12.60},
+        {"name": "Malmö", "country": "SE", "lat": 55.50, "lon": 12.90}
+      ],
+      "length_km": 25,
+      "operator": "Multiple operators",
+      "capacity": "Multi-Tbps",
+      "rfs_year": 2000,
+      "protection_radius_nm": 2.0,
+      "notes": "Multiple fiber cables crossing the Øresund strait. Critical Nordic interconnect."
+    },
+    {
+      "id": "finland_sweden_aland",
+      "name": "Finland-Sweden via Åland",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [60.45, 22.20],
+        [60.10, 19.95],
+        [59.80, 19.20],
+        [59.30, 18.05]
+      ],
+      "landing_points": [
+        {"name": "Turku", "country": "FI", "lat": 60.45, "lon": 22.20},
+        {"name": "Mariehamn", "country": "AX", "lat": 60.10, "lon": 19.95},
+        {"name": "Stockholm", "country": "SE", "lat": 59.30, "lon": 18.05}
+      ],
+      "length_km": 300,
+      "operator": "Cinia/Arelion",
+      "capacity": "High capacity",
+      "rfs_year": 2010,
+      "protection_radius_nm": 3.0,
+      "notes": "Telecom cable route through Åland archipelago connecting Finland and Sweden."
+    },
+    {
+      "id": "sweden_latvia",
+      "name": "Sweden-Latvia Cable",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "baltic_sea",
+      "waypoints": [
+        [57.60, 18.30],
+        [57.30, 19.50],
+        [57.00, 21.00],
+        [56.95, 24.10]
+      ],
+      "landing_points": [
+        {"name": "Gotland", "country": "SE", "lat": 57.60, "lon": 18.30},
+        {"name": "Riga", "country": "LV", "lat": 56.95, "lon": 24.10}
+      ],
+      "length_km": 380,
+      "operator": "LVRTC/Telia",
+      "capacity": "High capacity",
+      "rfs_year": 2004,
+      "protection_radius_nm": 3.0,
+      "notes": "Sweden-Latvia submarine fiber cable via Gotland."
     }
   ],
   "pipelines": [
