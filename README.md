@@ -40,6 +40,9 @@ This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese 
 - **Multi-source AIS** - Support for AISStream, AISHub, and Marinesia APIs
 - **Ship markers with heading** - Vessel icons rotate based on course
 - **Vessel-type color coding** - Different colors for cargo, tanker, passenger, military, etc.
+- **Track with timestamps** - Click vessel to see historical track with time markers
+  - Green marker = track start, Red marker = latest position
+  - Hover for timestamp, speed, and course at each point
 - **Viewport-optimized rendering** - Handles 10,000+ live vessels without browser lag
 - **SQLite WAL mode** - Better concurrent database access
 
@@ -510,12 +513,23 @@ Situational awareness for undersea cable and pipeline incidents, with anchor dra
 
 ### Baltic Sea Infrastructure
 
-| Infrastructure | Type | Route | Protection Zone |
-|----------------|------|-------|-----------------|
-| C-Lion1 | Telecom Cable | Helsinki-Rostock | 5 nm |
-| Estlink-2 | Power Cable | Estonia-Finland | 3 nm |
-| Estlink-1 | Power Cable | Estonia-Finland | 3 nm |
-| Balticconnector | Gas Pipeline | Estonia-Finland | 5 nm |
+**33 infrastructure assets** loaded from `data/infrastructure.json`:
+
+| Type | Count | Examples |
+|------|-------|----------|
+| Telecom/Fiber Cables | 12 | C-Lion1, BCS East-West Interlink, EESF-1/2, Eastern Light |
+| Power Cables (HVDC) | 10 | Estlink-1/2, NordBalt, SwePol, Fenno-Skan 1/2 |
+| Gas Pipelines | 4 | Balticconnector, Nord Stream 1/2, Europipe II |
+| Offshore Wind Farms | 7 | Kriegers Flak, Arkona, Wikinger |
+
+**Recent Incidents Tracked:**
+| Infrastructure | Date | Vessel | Status |
+|----------------|------|--------|--------|
+| C-Lion1 | Dec 31, 2025 | Under investigation | Damaged |
+| Estlink-2 | Dec 25, 2025 | Eagle S | Damaged |
+| EESF-1 | Dec 25, 2025 | Eagle S | Damaged |
+| BCS East-West Interlink | Nov 17, 2024 | Yi Peng 3 | Damaged |
+| Balticconnector | Oct 8, 2023 | Newnew Polar Bear | Damaged |
 
 ### Detection Capabilities
 
@@ -546,8 +560,13 @@ Situational awareness for undersea cable and pipeline incidents, with anchor dra
 
 - **Infrastructure overlay** - Colored lines for cables/pipelines with labels
 - **Protection zones** - Dashed circles showing exclusion areas
-- **Toggle button** - Enable/disable infrastructure layer
+- **Toggle button** - Enable/disable infrastructure layer (blue cable icon)
+- **Legend panel** - Color key in bottom-left corner when layer active
+  - 🟣 Purple = Telecom/Fiber cables
+  - 🟡 Yellow = Power cables (HVDC)
+  - 🟠 Orange (dashed) = Gas pipelines
 - **Click for details** - Popup with operator, capacity, incident notes
+- **Track timestamps** - Hover on track markers to see position time, speed, course
 
 ### Usage Example
 
@@ -781,17 +800,30 @@ Free API integration for vessel event data - AIS gaps, encounters, loitering, po
 
 1. Register at https://globalfishingwatch.org/our-apis/ (free)
 2. Get API token
-3. Configure via API:
+3. Configure via one of these methods:
 
+**Option A: UI Entry (Recommended)**
+- Click any vessel in the watchlist
+- Scroll to "Global Fishing Watch" section
+- Paste your token and click Save
+- Reload the page
+
+**Option B: API Configuration**
 ```bash
 curl -X POST http://localhost:8080/api/gfw/configure \
   -H "Content-Type: application/json" \
   -d '{"token": "YOUR_GFW_TOKEN"}'
 ```
 
-Or set environment variable:
+**Option C: Environment Variable**
 ```bash
 export GFW_API_TOKEN=your_token_here
+```
+
+**Option D: Config File**
+Create `gfw_config.json`:
+```json
+{"api_token": "your_token_here"}
 ```
 
 ### API Endpoints

@@ -720,6 +720,47 @@
 <body>
     <div id="map"></div>
 
+    <!-- Infrastructure Legend -->
+    <div id="infra-legend" style="
+        position: absolute;
+        bottom: 30px;
+        left: 10px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        z-index: 1000;
+        font-size: 11px;
+        max-width: 200px;
+        display: none;
+    ">
+        <div style="padding: 8px 12px; border-bottom: 1px solid #eee; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
+            <span>🔌 Infrastructure</span>
+            <button onclick="toggleInfraLegend()" style="background:none;border:none;cursor:pointer;font-size:14px;color:#666">×</button>
+        </div>
+        <div style="padding: 8px 12px;">
+            <div style="display:flex;align-items:center;margin-bottom:6px">
+                <div style="width:20px;height:3px;background:#9b59b6;margin-right:8px"></div>
+                <span>Telecom/Fiber Cable</span>
+            </div>
+            <div style="display:flex;align-items:center;margin-bottom:6px">
+                <div style="width:20px;height:3px;background:#f1c40f;margin-right:8px"></div>
+                <span>Power Cable (HVDC)</span>
+            </div>
+            <div style="display:flex;align-items:center;margin-bottom:6px">
+                <div style="width:20px;height:3px;background:#e67e22;margin-right:8px;border-style:dashed"></div>
+                <span>Gas Pipeline</span>
+            </div>
+            <div style="display:flex;align-items:center;margin-bottom:6px">
+                <div style="width:12px;height:12px;border-radius:50%;background:#f1c40f33;border:1px dashed #f1c40f;margin-right:8px"></div>
+                <span>Protection Zone</span>
+            </div>
+            <div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;color:#666;font-size:10px">
+                <span id="infra-count">0</span> assets loaded<br>
+                Click cable for details
+            </div>
+        </div>
+    </div>
+
     <div class="top-bar">
         <div class="logo">
             <div class="logo-icon">A</div>
@@ -1628,12 +1669,60 @@
                 api(`/osint?vessel_id=${id}`)
             ]);
 
-            // Draw track
-            if (trackLine) map.removeLayer(trackLine);
+            // Draw track with timestamp markers
+            if (trackLine) {
+                if (Array.isArray(trackLine)) {
+                    trackLine.forEach(layer => map.removeLayer(layer));
+                } else {
+                    map.removeLayer(trackLine);
+                }
+            }
             if (track?.length > 1) {
-                trackLine = L.polyline(track.map(p => [p.latitude, p.longitude]), {
-                    color: getThreatColor(v.threat_level), weight: 2, opacity: 0.7, dashArray: '6'
+                const trackColor = getThreatColor(v.threat_level);
+                const line = L.polyline(track.map(p => [p.latitude, p.longitude]), {
+                    color: trackColor, weight: 2, opacity: 0.7, dashArray: '6'
                 }).addTo(map);
+
+                // Add timestamp markers along the track
+                const markers = [];
+                const markerInterval = Math.max(1, Math.floor(track.length / 10)); // ~10 markers max
+
+                track.forEach((p, idx) => {
+                    // Show markers at regular intervals, plus first and last
+                    const isEndpoint = idx === 0 || idx === track.length - 1;
+                    const isInterval = idx % markerInterval === 0;
+
+                    if (isEndpoint || isInterval) {
+                        const ts = p.timestamp ? new Date(p.timestamp) : null;
+                        const timeStr = ts ? ts.toLocaleString('en-GB', {
+                            day: '2-digit', month: 'short', year: '2-digit',
+                            hour: '2-digit', minute: '2-digit'
+                        }) : 'Unknown';
+
+                        const size = isEndpoint ? 8 : 5;
+                        const marker = L.circleMarker([p.latitude, p.longitude], {
+                            radius: size,
+                            color: trackColor,
+                            fillColor: isEndpoint ? (idx === 0 ? '#27ae60' : '#e74c3c') : trackColor,
+                            fillOpacity: 0.9,
+                            weight: 1
+                        }).addTo(map);
+
+                        const label = idx === 0 ? 'START' : (idx === track.length - 1 ? 'LATEST' : '');
+                        marker.bindTooltip(`
+                            <div style="font-size:11px;white-space:nowrap">
+                                ${label ? `<strong>${label}</strong><br>` : ''}
+                                <strong>${timeStr}</strong><br>
+                                ${p.speed_knots ? `Speed: ${p.speed_knots.toFixed(1)} kts<br>` : ''}
+                                ${p.course ? `Course: ${p.course.toFixed(0)}°` : ''}
+                            </div>
+                        `, { permanent: false, direction: 'top' });
+
+                        markers.push(marker);
+                    }
+                });
+
+                trackLine = [line, ...markers];
             }
 
             renderVesselPanel(v, events, osint);
@@ -1868,6 +1957,15 @@
         function closeVesselPanel() {
             document.getElementById('vessel-panel').classList.remove('active');
             selectedVessel = null;
+            // Clear track line and markers
+            if (trackLine) {
+                if (Array.isArray(trackLine)) {
+                    trackLine.forEach(layer => map.removeLayer(layer));
+                } else {
+                    map.removeLayer(trackLine);
+                }
+                trackLine = null;
+            }
         }
 
         // Search
@@ -3268,6 +3366,15 @@
                 balticInfrastructure = result.infrastructure || [];
                 renderInfrastructure();
                 console.log(`Loaded ${balticInfrastructure.length} infrastructure assets`);
+
+                // Update legend count and show it
+                const countEl = document.getElementById('infra-count');
+                if (countEl) countEl.textContent = balticInfrastructure.length;
+
+                const legend = document.getElementById('infra-legend');
+                if (legend && showInfrastructure && balticInfrastructure.length > 0) {
+                    legend.style.display = 'block';
+                }
             } catch(e) {
                 console.log('Infrastructure data not available:', e);
             }
@@ -3372,10 +3479,21 @@
         function toggleInfrastructure() {
             showInfrastructure = !showInfrastructure;
             const btn = document.getElementById('toggle-infrastructure');
+            const legend = document.getElementById('infra-legend');
             if (btn) {
                 btn.classList.toggle('active', showInfrastructure);
             }
+            if (legend) {
+                legend.style.display = showInfrastructure ? 'block' : 'none';
+            }
             renderInfrastructure();
+        }
+
+        function toggleInfraLegend() {
+            const legend = document.getElementById('infra-legend');
+            if (legend) {
+                legend.style.display = legend.style.display === 'none' ? 'block' : 'none';
+            }
         }
 
         async function loadInfraAnalysis(vesselId) {
@@ -3602,12 +3720,18 @@
                 const status = await api('/gfw/status');
                 if (!status.configured) {
                     display.innerHTML = `
-                        <div style="text-align:center;padding:12px">
+                        <div style="padding:8px">
                             <div style="font-size:11px;color:#666;margin-bottom:8px">GFW API not configured</div>
-                            <a href="https://globalfishingwatch.org/our-apis/" target="_blank"
-                               style="font-size:10px;color:#1565c0;text-decoration:underline">
-                                Get free API token
-                            </a>
+                            <input type="text" id="gfw-token-input" placeholder="Paste API token here..."
+                                   style="width:100%;padding:6px;font-size:11px;border:1px solid #ddd;border-radius:4px;margin-bottom:8px;box-sizing:border-box">
+                            <div style="display:flex;gap:8px;align-items:center">
+                                <button onclick="saveGFWToken()" style="padding:4px 12px;font-size:10px;background:#1565c0;color:white;border:none;border-radius:4px;cursor:pointer">Save</button>
+                                <a href="https://globalfishingwatch.org/our-apis/" target="_blank"
+                                   style="font-size:10px;color:#1565c0;text-decoration:underline">
+                                    Get free token
+                                </a>
+                            </div>
+                            <div id="gfw-save-status" style="font-size:10px;margin-top:6px"></div>
                         </div>
                     `;
                     return;
@@ -3617,6 +3741,36 @@
                 renderGFWData(result);
             } catch(e) {
                 display.innerHTML = '<span style="color:#e74c3c">Error loading GFW data</span>';
+            }
+        }
+
+        async function saveGFWToken() {
+            const input = document.getElementById('gfw-token-input');
+            const status = document.getElementById('gfw-save-status');
+            const token = input?.value?.trim();
+
+            if (!token) {
+                status.innerHTML = '<span style="color:#e74c3c">Please enter a token</span>';
+                return;
+            }
+
+            status.innerHTML = '<span style="color:#666">Saving...</span>';
+
+            try {
+                const result = await fetch('/api/gfw/configure', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({token: token})
+                }).then(r => r.json());
+
+                if (result.success) {
+                    status.innerHTML = '<span style="color:#27ae60">✓ Token saved! Reload the page to use GFW.</span>';
+                    input.style.borderColor = '#27ae60';
+                } else {
+                    status.innerHTML = `<span style="color:#e74c3c">${result.error || 'Failed to save'}</span>`;
+                }
+            } catch(e) {
+                status.innerHTML = '<span style="color:#e74c3c">Error saving token</span>';
             }
         }
 

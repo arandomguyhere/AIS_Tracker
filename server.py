@@ -151,6 +151,7 @@ try:
         get_dark_fleet_indicators as gfw_get_dark_fleet_indicators,
         check_sts_zone as gfw_check_sts_zone,
         save_token as gfw_save_token,
+        reload_token as gfw_reload_token,
         get_sar_detections as gfw_get_sar_detections,
         find_dark_vessels as gfw_find_dark_vessels
     )
