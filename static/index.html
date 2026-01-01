@@ -2631,6 +2631,29 @@
 
         async function loadSarDetections() {
             try {
+                // Get current map bounds
+                const bounds = map.getBounds();
+                const min_lat = bounds.getSouth();
+                const max_lat = bounds.getNorth();
+                const min_lon = bounds.getWest();
+                const max_lon = bounds.getEast();
+
+                // Try GFW dark vessel detection first (uses Sentinel-1 SAR)
+                try {
+                    const gfwResult = await api(`/gfw/dark-vessels?min_lat=${min_lat}&max_lat=${max_lat}&min_lon=${min_lon}&max_lon=${max_lon}&days=7`);
+                    if (gfwResult && !gfwResult.error) {
+                        const detections = [
+                            ...(gfwResult.dark_vessels || []).map(d => ({...d, is_dark: true})),
+                            ...(gfwResult.matched_vessels || []).map(d => ({...d, is_dark: false}))
+                        ];
+                        renderSarDetections(detections, gfwResult.statistics);
+                        return;
+                    }
+                } catch(gfwErr) {
+                    console.log('GFW SAR not available, trying local SAR');
+                }
+
+                // Fallback to local SAR import
                 const data = await api('/sar-detections');
                 renderSarDetections(data || []);
             } catch(e) {
@@ -2638,39 +2661,74 @@
             }
         }
 
-        function renderSarDetections(detections) {
+        function renderSarDetections(detections, stats = null) {
             // Clear existing markers
             sarMarkers.forEach(m => map.removeLayer(m));
             sarMarkers = [];
 
             if (!showSarDetections) return;
 
+            // Show statistics in button tooltip if available
+            if (stats) {
+                const btn = document.getElementById('toggle-sar');
+                btn.title = `SAR Detections: ${stats.dark_count || 0} dark, ${stats.matched_count || 0} matched (${stats.dark_percentage || 0}% dark)`;
+            }
+
             detections.forEach(d => {
-                const color = d.matched_mmsi ? '#9b59b6' : '#e74c3c'; // Purple if matched, red if dark vessel
-                const marker = L.circleMarker([d.latitude, d.longitude], {
-                    radius: 8,
+                // Handle both GFW format and local SAR format
+                const lat = d.lat || d.latitude;
+                const lon = d.lon || d.longitude;
+                const isDark = d.is_dark !== undefined ? d.is_dark : !d.matched_mmsi;
+                const color = isDark ? '#e74c3c' : '#9b59b6'; // Red if dark, purple if matched
+                const timestamp = d.timestamp || d.detection_time;
+                const length = d.length_m || d.estimated_length;
+                const vesselName = d.matched_vessel_name || '';
+                const mmsi = d.matched_mmsi || '';
+                const confidence = d.confidence || 0.8;
+
+                if (!lat || !lon) return;
+
+                const marker = L.circleMarker([lat, lon], {
+                    radius: isDark ? 10 : 7,  // Larger for dark vessels
                     fillColor: color,
-                    color: '#fff',
-                    weight: 2,
-                    fillOpacity: 0.8
+                    color: isDark ? '#fff' : '#ddd',
+                    weight: isDark ? 3 : 2,
+                    fillOpacity: 0.85
                 }).addTo(map);
 
-                const matchStatus = d.matched_mmsi ? `Matched: MMSI ${d.matched_mmsi}` : '<span style="color:#e74c3c;font-weight:bold">DARK VESSEL</span>';
+                const matchStatus = isDark
+                    ? '<span style="color:#e74c3c;font-weight:bold">⚠️ DARK VESSEL - No AIS</span>'
+                    : `✓ Matched: ${vesselName || 'MMSI ' + mmsi}`;
+
                 marker.bindPopup(`
-                    <div style="padding:8px;min-width:180px">
-                        <div style="font-weight:600;margin-bottom:8px">SAR Detection</div>
-                        <div style="font-size:12px;color:#666;margin-bottom:4px">
-                            <strong>Time:</strong> ${new Date(d.detection_time).toLocaleString()}
+                    <div style="padding:8px;min-width:200px">
+                        <div style="font-weight:600;margin-bottom:8px;color:${isDark ? '#e74c3c' : '#9b59b6'}">
+                            ${isDark ? '🔴 Dark Vessel Detection' : '🟣 SAR Detection'}
                         </div>
                         <div style="font-size:12px;color:#666;margin-bottom:4px">
-                            <strong>Position:</strong> ${d.latitude.toFixed(4)}, ${d.longitude.toFixed(4)}
+                            <strong>Source:</strong> ${d.source || 'Sentinel-1 SAR'}
                         </div>
-                        ${d.estimated_length ? `<div style="font-size:12px;color:#666;margin-bottom:4px"><strong>Length:</strong> ${d.estimated_length}m</div>` : ''}
-                        <div style="font-size:12px;margin-top:8px">${matchStatus}</div>
+                        <div style="font-size:12px;color:#666;margin-bottom:4px">
+                            <strong>Time:</strong> ${timestamp ? new Date(timestamp).toLocaleString() : 'Unknown'}
+                        </div>
+                        <div style="font-size:12px;color:#666;margin-bottom:4px">
+                            <strong>Position:</strong> ${lat.toFixed(4)}, ${lon.toFixed(4)}
+                        </div>
+                        ${length ? `<div style="font-size:12px;color:#666;margin-bottom:4px"><strong>Est. Length:</strong> ${length}m</div>` : ''}
+                        <div style="font-size:12px;color:#666;margin-bottom:4px">
+                            <strong>Confidence:</strong> ${(confidence * 100).toFixed(0)}%
+                        </div>
+                        <div style="font-size:12px;margin-top:8px;padding-top:8px;border-top:1px solid #eee">${matchStatus}</div>
+                        ${isDark ? '<div style="font-size:11px;color:#888;margin-top:6px">Vessel detected by satellite but not broadcasting AIS - potential illicit activity</div>' : ''}
                     </div>
                 `);
                 sarMarkers.push(marker);
             });
+
+            // Add stats legend if we have GFW data
+            if (stats && detections.length > 0) {
+                console.log(`SAR Stats: ${stats.total_sar_detections} total, ${stats.dark_count} dark (${stats.dark_percentage}%)`);
+            }
         }
 
         document.getElementById('toggle-sar').addEventListener('click', () => {
@@ -3440,6 +3498,25 @@
                 `).join('');
             }
 
+            // Get vessel position for direct links
+            const lat = data.position?.lat || data.lat;
+            const lon = data.position?.lon || data.lon;
+            const endDate = new Date().toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+
+            // Build direct links to free satellite browsers
+            const eoBrowserSAR = lat && lon
+                ? `https://apps.sentinel-hub.com/eo-browser/?zoom=12&lat=${lat.toFixed(4)}&lng=${lon.toFixed(4)}&themeId=DEFAULT-THEME&visualizationUrl=https://services.sentinel-hub.com/ogc/wms/c6b3cfef-6ac4-4c1e-86f8-eb4c4c47ab57&datasetId=S1_AWS_IW_VVVH&fromTime=${startDate}T00:00:00.000Z&toTime=${endDate}T23:59:59.999Z&layerId=VV-DECIBEL-GAMMA0-ORTHORECTIFIED`
+                : 'https://apps.sentinel-hub.com/eo-browser/';
+
+            const eoBrowserOptical = lat && lon
+                ? `https://apps.sentinel-hub.com/eo-browser/?zoom=12&lat=${lat.toFixed(4)}&lng=${lon.toFixed(4)}&themeId=DEFAULT-THEME&visualizationUrl=https://services.sentinel-hub.com/ogc/wms/c6b3cfef-6ac4-4c1e-86f8-eb4c4c47ab57&datasetId=S2L2A&fromTime=${startDate}T00:00:00.000Z&toTime=${endDate}T23:59:59.999Z&layerId=1_TRUE_COLOR`
+                : 'https://apps.sentinel-hub.com/eo-browser/';
+
+            const copernicusLink = lat && lon
+                ? `https://dataspace.copernicus.eu/browser/?zoom=10&lat=${lat.toFixed(4)}&lng=${lon.toFixed(4)}`
+                : 'https://dataspace.copernicus.eu/browser/';
+
             display.innerHTML = `
                 <div style="display:flex;gap:12px;margin-bottom:8px">
                     <div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px">
@@ -3452,8 +3529,13 @@
                     </div>
                 </div>
                 ${imageryHtml ? `<div style="margin-top:8px"><div style="font-size:9px;color:#666;margin-bottom:4px">AVAILABLE IMAGERY</div>${imageryHtml}</div>` : '<div style="color:#999;font-size:10px">No imagery found for vessel location</div>'}
-                <div style="margin-top:8px">
-                    <a href="https://apps.sentinel-hub.com/eo-browser/" target="_blank" style="font-size:10px;color:#8e44ad">Open EO Browser for detailed analysis →</a>
+                <div style="margin-top:10px;padding-top:8px;border-top:1px solid #eee">
+                    <div style="font-size:9px;color:#666;margin-bottom:6px">FREE SATELLITE ACCESS</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px">
+                        <a href="${eoBrowserSAR}" target="_blank" style="font-size:9px;padding:4px 8px;background:#8e44ad;color:white;border-radius:4px;text-decoration:none">🛰️ Sentinel-1 SAR</a>
+                        <a href="${eoBrowserOptical}" target="_blank" style="font-size:9px;padding:4px 8px;background:#27ae60;color:white;border-radius:4px;text-decoration:none">🌍 Sentinel-2 Optical</a>
+                        <a href="${copernicusLink}" target="_blank" style="font-size:9px;padding:4px 8px;background:#2980b9;color:white;border-radius:4px;text-decoration:none">📦 Copernicus</a>
+                    </div>
                 </div>
             `;
         }
