@@ -616,7 +616,12 @@ def calculate_dark_fleet_risk_score(
     if track_history and mmsi:
         gaps = detect_ais_gaps(track_history, mmsi, min_gap_minutes=120)
         if gaps:
-            total_gap_hours = sum(g.get("details", {}).get("gap_hours", 0) for g in gaps)
+            # BehaviorEvent objects - access .details attribute, not .get()
+            total_gap_hours = sum(
+                g.details.get("gap_hours", 0) if hasattr(g, 'details') else
+                g.get("details", {}).get("gap_hours", 0) if isinstance(g, dict) else 0
+                for g in gaps
+            )
             if total_gap_hours > 48:
                 score += 20
                 factors.append({

@@ -110,8 +110,9 @@ VENEZUELA_KEY_POINTS = [
 ]
 
 # Detection radius for key points (in km)
+# Standardized with dark_fleet.py and analytics_constants.py
 TERMINAL_DETECTION_RADIUS_KM = 10.0
-STS_ZONE_RADIUS_KM = 20.0
+STS_ZONE_RADIUS_KM = 25.0  # Increased from 20.0 for consistency
 ANCHORAGE_RADIUS_KM = 15.0
 
 

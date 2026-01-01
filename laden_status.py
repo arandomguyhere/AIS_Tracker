@@ -172,10 +172,12 @@ def extract_draft_readings(track_history: List[dict]) -> List[DraftReading]:
                     # Try parsing ISO format
                     try:
                         timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                    except:
-                        timestamp = datetime.now()
+                    except (ValueError, AttributeError):
+                        # Skip positions with unparseable timestamps
+                        continue
                 elif not isinstance(timestamp, datetime):
-                    timestamp = datetime.now()
+                    # Skip positions without valid timestamps
+                    continue
 
                 readings.append(DraftReading(
                     timestamp=timestamp,
