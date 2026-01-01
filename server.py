@@ -557,8 +557,12 @@ def load_poc_scenario(poc_name):
     """Load a POC scenario into the database."""
     if poc_name == 'baltic':
         return _load_baltic_poc()
+    elif poc_name == 'venezuela':
+        return _load_venezuela_poc()
+    elif poc_name == 'china':
+        return _load_china_poc()
     else:
-        return {'error': f'Unknown POC: {poc_name}', 'available': ['baltic']}
+        return {'error': f'Unknown POC: {poc_name}', 'available': ['baltic', 'venezuela', 'china']}
 
 
 def _load_baltic_poc():
@@ -664,6 +668,211 @@ def _load_baltic_poc():
         'name': 'Baltic Cable Incident',
         'results': results,
         'message': 'POC loaded. Refresh the page to see vessels and infrastructure.'
+    }
+
+
+def _load_venezuela_poc():
+    """Load Venezuela Dark Fleet POC data."""
+    conn = get_db()
+    results = {'vessels_added': [], 'infrastructure_added': [], 'events_added': []}
+
+    # Known dark fleet vessels
+    vessels = [
+        {
+            "name": "SKIPPER",
+            "mmsi": "352001234",
+            "imo": "9123456",
+            "flag_state": "Cameroon",
+            "vessel_type": "Oil Tanker",
+            "classification": "confirmed",
+            "threat_level": "critical",
+            "intel_notes": "Seized dark fleet tanker. 80+ days AIS spoofing on Iran-Venezuela-China route. Sanctioned."
+        },
+        {
+            "name": "BELLA 1",
+            "mmsi": "667001234",
+            "flag_state": "Cameroon",
+            "vessel_type": "Oil Tanker",
+            "classification": "suspected",
+            "threat_level": "high",
+            "intel_notes": "Currently tracked by U.S. Navy. Suspected sanctions evasion, Venezuela oil trade."
+        },
+        {
+            "name": "CENTURIES",
+            "mmsi": "538001234",
+            "flag_state": "Palau",
+            "vessel_type": "Oil Tanker",
+            "classification": "confirmed",
+            "threat_level": "critical",
+            "intel_notes": "Seized December 2025. Venezuela dark fleet operator."
+        }
+    ]
+
+    for v in vessels:
+        cursor = conn.execute("SELECT id FROM vessels WHERE name = ?", (v['name'],))
+        existing = cursor.fetchone()
+        if not existing:
+            conn.execute('''
+                INSERT INTO vessels (name, mmsi, imo, flag_state, vessel_type, classification, threat_level, intel_notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (v['name'], v.get('mmsi'), v.get('imo'), v['flag_state'], v['vessel_type'], v['classification'], v['threat_level'], v['intel_notes']))
+            results['vessels_added'].append(v['name'])
+
+    # Venezuela monitoring zones
+    infrastructure = [
+        {"name": "Jose Terminal", "latitude": 10.15, "longitude": -64.68, "geofence_radius_km": 15.0,
+         "facility_type": "port", "threat_association": "Critical", "notes": "Main Venezuela oil export terminal."},
+        {"name": "La Borracha STS Zone", "latitude": 10.08, "longitude": -64.89, "geofence_radius_km": 20.0,
+         "facility_type": "anchorage", "threat_association": "Critical", "notes": "Ship-to-ship transfer zone for dark fleet."},
+        {"name": "Amuay Refinery", "latitude": 11.74, "longitude": -70.21, "geofence_radius_km": 10.0,
+         "facility_type": "port", "threat_association": "High", "notes": "Major Venezuela refinery complex."},
+    ]
+
+    for infra in infrastructure:
+        cursor = conn.execute("SELECT id FROM shipyards WHERE name = ?", (infra['name'],))
+        existing = cursor.fetchone()
+        if not existing:
+            conn.execute('''
+                INSERT INTO shipyards (name, latitude, longitude, geofence_radius_km, facility_type, threat_association, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (infra['name'], infra['latitude'], infra['longitude'], infra['geofence_radius_km'],
+                  infra['facility_type'], infra.get('threat_association'), infra['notes']))
+            results['infrastructure_added'].append(infra['name'])
+
+    # Update config for Caribbean/Venezuela
+    config = {}
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'r') as f:
+            config = json.load(f)
+
+    config['area_tracking'] = {
+        'enabled': True,
+        'bounding_box': {
+            'lat_min': 8.0, 'lon_min': -75.0, 'lat_max': 15.0, 'lon_max': -60.0,
+            'description': 'Venezuela - Dark Fleet Monitoring Zone'
+        }
+    }
+    with open(CONFIG_PATH, 'w') as f:
+        json.dump(config, f, indent=2)
+
+    conn.commit()
+    conn.close()
+
+    return {
+        'status': 'success',
+        'poc': 'venezuela',
+        'name': 'Venezuela Dark Fleet',
+        'results': results,
+        'message': 'POC loaded. Map centered on Venezuela/Caribbean.'
+    }
+
+
+def _load_china_poc():
+    """Load China Arsenal Ship POC data."""
+    conn = get_db()
+    results = {'vessels_added': [], 'infrastructure_added': [], 'events_added': []}
+
+    # Arsenal ships and related vessels
+    vessels = [
+        {
+            "name": "ZHONG DA 79",
+            "mmsi": "413456789",
+            "imo": "9876543",
+            "flag_state": "China",
+            "vessel_type": "Container Feeder",
+            "classification": "confirmed",
+            "threat_level": "critical",
+            "intel_notes": """Arsenal Ship - Confirmed containerized weapons platform.
+
+WEAPONS CONFIG:
+- 60+ containerized cruise/ballistic missiles
+- CIWS close-in weapon systems
+- Radar arrays disguised as shipping containers
+- Retains civilian AIS classification
+
+OPERATIONAL PATTERN:
+- Operates in East/South China Sea
+- Frequent port calls: Shanghai, Ningbo, Xiamen
+- Exercises with PLAN vessels observed"""
+        },
+        {
+            "name": "YUAN WANG 5",
+            "mmsi": "413123456",
+            "flag_state": "China",
+            "vessel_type": "Research Vessel",
+            "classification": "confirmed",
+            "threat_level": "high",
+            "intel_notes": "Space/missile tracking ship. Dual-use military research vessel. Monitored by regional navies."
+        },
+        {
+            "name": "HAI YANG 26",
+            "mmsi": "413789012",
+            "flag_state": "China",
+            "vessel_type": "Research Vessel",
+            "classification": "suspected",
+            "threat_level": "medium",
+            "intel_notes": "Survey vessel. Possible subsea cable mapping operations. Frequent South China Sea presence."
+        }
+    ]
+
+    for v in vessels:
+        cursor = conn.execute("SELECT id FROM vessels WHERE name = ?", (v['name'],))
+        existing = cursor.fetchone()
+        if not existing:
+            conn.execute('''
+                INSERT INTO vessels (name, mmsi, imo, flag_state, vessel_type, classification, threat_level, intel_notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (v['name'], v.get('mmsi'), v.get('imo'), v['flag_state'], v['vessel_type'], v['classification'], v['threat_level'], v['intel_notes']))
+            results['vessels_added'].append(v['name'])
+
+    # China/Taiwan Strait facilities
+    infrastructure = [
+        {"name": "Shanghai Jiangnan Shipyard", "latitude": 31.35, "longitude": 121.50, "geofence_radius_km": 5.0,
+         "facility_type": "shipyard", "threat_association": "Military", "notes": "Major PLAN shipbuilding. Aircraft carriers, destroyers."},
+        {"name": "Ningbo-Zhoushan Port", "latitude": 29.87, "longitude": 122.10, "geofence_radius_km": 10.0,
+         "facility_type": "port", "threat_association": "Dual-use", "notes": "World's largest port. Military logistics hub."},
+        {"name": "Taiwan Strait Zone", "latitude": 24.50, "longitude": 119.50, "geofence_radius_km": 100.0,
+         "facility_type": "anchorage", "threat_association": "Critical", "notes": "Strategic chokepoint. High military activity."},
+        {"name": "Xiamen Naval Base", "latitude": 24.45, "longitude": 118.08, "geofence_radius_km": 8.0,
+         "facility_type": "military", "threat_association": "Military", "notes": "PLAN Eastern Theater base. Amphibious forces."},
+    ]
+
+    for infra in infrastructure:
+        cursor = conn.execute("SELECT id FROM shipyards WHERE name = ?", (infra['name'],))
+        existing = cursor.fetchone()
+        if not existing:
+            conn.execute('''
+                INSERT INTO shipyards (name, latitude, longitude, geofence_radius_km, facility_type, threat_association, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (infra['name'], infra['latitude'], infra['longitude'], infra['geofence_radius_km'],
+                  infra['facility_type'], infra.get('threat_association'), infra['notes']))
+            results['infrastructure_added'].append(infra['name'])
+
+    # Update config for East China Sea / Taiwan Strait
+    config = {}
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'r') as f:
+            config = json.load(f)
+
+    config['area_tracking'] = {
+        'enabled': True,
+        'bounding_box': {
+            'lat_min': 20.0, 'lon_min': 115.0, 'lat_max': 35.0, 'lon_max': 130.0,
+            'description': 'East China Sea - Arsenal Ship Monitoring Zone'
+        }
+    }
+    with open(CONFIG_PATH, 'w') as f:
+        json.dump(config, f, indent=2)
+
+    conn.commit()
+    conn.close()
+
+    return {
+        'status': 'success',
+        'poc': 'china',
+        'name': 'China Arsenal Ships',
+        'results': results,
+        'message': 'POC loaded. Map centered on East China Sea.'
     }
 
 
@@ -1693,10 +1902,29 @@ class TrackerHandler(SimpleHTTPRequestHandler):
                     {
                         'id': 'baltic',
                         'name': 'Baltic Cable Incident',
-                        'description': 'Finland undersea cable incident (Dec 2025) - Fitburg & Eagle S vessels',
+                        'description': 'Finland undersea cable incident (Dec 2025)',
                         'region': 'Baltic Sea / Gulf of Finland',
                         'vessels': ['FITBURG', 'EAGLE S'],
-                        'infrastructure': ['C-Lion1', 'Estlink-2', 'Balticconnector']
+                        'infrastructure': ['C-Lion1', 'Estlink-2', 'Balticconnector'],
+                        'color': '#3498db'
+                    },
+                    {
+                        'id': 'venezuela',
+                        'name': 'Venezuela Dark Fleet',
+                        'description': 'Sanctions evasion & oil smuggling operations',
+                        'region': 'Caribbean / Venezuela',
+                        'vessels': ['SKIPPER', 'BELLA 1', 'CENTURIES'],
+                        'infrastructure': ['Jose Terminal', 'La Borracha STS', 'Amuay'],
+                        'color': '#e67e22'
+                    },
+                    {
+                        'id': 'china',
+                        'name': 'China Arsenal Ships',
+                        'description': 'Containerized weapons & dual-use vessels',
+                        'region': 'East China Sea / Taiwan Strait',
+                        'vessels': ['ZHONG DA 79', 'YUAN WANG 5', 'HAI YANG 26'],
+                        'infrastructure': ['Shanghai Shipyard', 'Ningbo Port', 'Taiwan Strait'],
+                        'color': '#e74c3c'
                     }
                 ]
             })
