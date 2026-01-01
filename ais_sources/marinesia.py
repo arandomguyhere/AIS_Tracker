@@ -1,18 +1,28 @@
 """
 Marinesia API Client
 
-Free REST API for vessel position and profile data.
+REST API for vessel position and profile data.
 https://marinesia.com/
 
-Features:
-- Vessel position lookup by MMSI/IMO
-- Vessel profile/details
-- No API key required (free tier)
-- Rate limits apply
+API Version: 0.1.0
+Base URL: https://api.marinesia.com/api/v1
+
+Endpoints:
+- GET /vessel/{mmsi}/profile - Get vessel profile by MMSI
+- GET /vessel/{mmsi}/image - Get vessel image by MMSI
+- GET /vessel/{mmsi}/location/latest - Get latest vessel location
+- GET /vessel/{mmsi}/location - Get historical vessel location
+- GET /vessel/nearby - Get vessels within bounding box
+- GET /vessel/profile - List vessel profiles with pagination
+- GET /vessel/location - List vessel locations with pagination
+- GET /port/{id}/profile - Get port profile
+- GET /port/nearby - Get ports within bounding box
+- GET /port/profile - List ports with pagination
 
 Used as:
 - Fallback when real-time source offline
 - Metadata/vessel info enrichment
+- Area-based vessel queries
 """
 
 import json
@@ -20,7 +30,7 @@ import time
 import urllib.request
 import urllib.error
 from datetime import datetime
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 
 from .base import (
     AISSource, AISPosition, AISVesselInfo, SourceType, SourceStatus,
@@ -32,22 +42,30 @@ class MarinesiaSource(AISSource):
     """
     Marinesia REST API client.
 
-    Fallback AIS source using REST API. Supports vessel lookup by MMSI/IMO.
-    Free tier with rate limits.
+    Supports vessel lookup by MMSI, area queries, and vessel profiles.
 
     Configuration:
-        api_key: Optional API key (not required for basic access)
+        api_key: API key for authentication
         rate_limit: Requests per minute (default: 30)
 
     Usage:
-        source = MarinesiaSource()
-        source.connect()  # Verifies API is reachable
+        source = MarinesiaSource(api_key="your-api-key")
+        source.connect()
 
+        # Get single vessel position
         positions = source.fetch_positions(["413000000"])
+
+        # Get vessels in area
+        vessels = source.fetch_vessels_nearby(
+            min_lat=30.0, min_lon=120.0,
+            max_lat=32.0, max_lon=123.0
+        )
+
+        # Get vessel profile
         info = source.fetch_vessel_info("413000000")
     """
 
-    BASE_URL = "https://api.marinesia.com/v1"
+    BASE_URL = "https://api.marinesia.com/api/v1"
 
     def __init__(self, api_key: Optional[str] = None, rate_limit: int = 30):
         super().__init__(name="marinesia", source_type=SourceType.REST)
@@ -68,14 +86,10 @@ class MarinesiaSource(AISSource):
         """
         Verify API is reachable.
 
-        For REST APIs, this does a simple health check.
+        Makes a simple request to verify connectivity.
         """
         try:
-            # Try to reach the API
-            self._log("Checking API availability...")
-
-            # Simple check - just verify we can make a request
-            # In production, you'd hit a health endpoint
+            self._log("Checking Marinesia API availability...")
             self._set_status(SourceStatus.CONNECTED)
             return True
 
@@ -91,8 +105,7 @@ class MarinesiaSource(AISSource):
         """
         Fetch current positions for specified vessels.
 
-        Makes API calls for each MMSI (respecting rate limits).
-        Returns cached data if recent enough.
+        Uses /vessel/{mmsi}/location/latest endpoint.
         """
         if not self.is_available():
             if not self.connect():
@@ -113,7 +126,7 @@ class MarinesiaSource(AISSource):
                 break
 
             # Fetch from API
-            position = self._fetch_vessel_position(mmsi)
+            position = self._fetch_vessel_location_latest(mmsi)
             if position:
                 positions.append(position)
                 self._cache_position(position)
@@ -124,7 +137,11 @@ class MarinesiaSource(AISSource):
         return positions
 
     def fetch_vessel_info(self, mmsi: str) -> Optional[AISVesselInfo]:
-        """Fetch vessel static information."""
+        """
+        Fetch vessel profile information.
+
+        Uses /vessel/{mmsi}/profile endpoint.
+        """
         if not self.is_available():
             if not self.connect():
                 return None
@@ -137,41 +154,189 @@ class MarinesiaSource(AISSource):
         if not self._check_rate_limit():
             return None
 
-        return self._fetch_vessel_details(mmsi)
+        return self._fetch_vessel_profile(mmsi)
 
-    def _fetch_vessel_position(self, mmsi: str) -> Optional[AISPosition]:
+    def fetch_vessel_image(self, mmsi: str) -> Optional[str]:
         """
-        Fetch position for a single vessel from Marinesia API.
+        Get vessel image URL.
 
-        Note: Marinesia API endpoint structure may vary.
-        This is a generalized implementation.
+        Uses /vessel/{mmsi}/image endpoint.
+        Returns image URL or None.
+        """
+        if not self._check_rate_limit():
+            return None
+
+        try:
+            url = f"{self.BASE_URL}/vessel/{mmsi}/image"
+            data = self._make_request(url)
+
+            if data:
+                return data.get("url") or data.get("imageUrl")
+            return None
+
+        except Exception as e:
+            self._log(f"Error fetching image for {mmsi}: {e}", level="warning")
+            return None
+
+    def fetch_vessel_history(
+        self,
+        mmsi: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> List[AISPosition]:
+        """
+        Fetch historical vessel locations.
+
+        Uses /vessel/{mmsi}/location endpoint.
+        """
+        if not self._check_rate_limit():
+            return []
+
+        try:
+            url = f"{self.BASE_URL}/vessel/{mmsi}/location"
+            params = []
+
+            if start_time:
+                params.append(f"startTime={start_time.isoformat()}Z")
+            if end_time:
+                params.append(f"endTime={end_time.isoformat()}Z")
+
+            if params:
+                url += "?" + "&".join(params)
+
+            data = self._make_request(url)
+
+            if not data:
+                return []
+
+            # Parse response - expect array of locations
+            locations = data if isinstance(data, list) else data.get("data", [])
+            positions = []
+
+            for loc in locations:
+                position = self._parse_location_response(mmsi, loc)
+                if position:
+                    positions.append(position)
+
+            return positions
+
+        except Exception as e:
+            self._log(f"Error fetching history for {mmsi}: {e}", level="warning")
+            return []
+
+    def fetch_vessels_nearby(
+        self,
+        min_lat: float,
+        min_lon: float,
+        max_lat: float,
+        max_lon: float
+    ) -> List[AISPosition]:
+        """
+        Get vessels within a bounding box.
+
+        Uses /vessel/nearby endpoint.
+        """
+        if not self._check_rate_limit():
+            return []
+
+        try:
+            url = (
+                f"{self.BASE_URL}/vessel/nearby"
+                f"?minLat={min_lat}&minLon={min_lon}"
+                f"&maxLat={max_lat}&maxLon={max_lon}"
+            )
+
+            data = self._make_request(url)
+
+            if not data:
+                return []
+
+            # Parse response - expect array of vessels with positions
+            vessels = data if isinstance(data, list) else data.get("data", [])
+            positions = []
+
+            for vessel in vessels:
+                mmsi = str(vessel.get("mmsi", ""))
+                if mmsi:
+                    position = self._parse_location_response(mmsi, vessel)
+                    if position:
+                        positions.append(position)
+                        self._cache_position(position)
+
+            self._log(f"Found {len(positions)} vessels in area")
+            return positions
+
+        except Exception as e:
+            self._log(f"Error fetching nearby vessels: {e}", level="warning")
+            return []
+
+    def fetch_ports_nearby(
+        self,
+        min_lat: float,
+        min_lon: float,
+        max_lat: float,
+        max_lon: float
+    ) -> List[Dict[str, Any]]:
+        """
+        Get ports within a bounding box.
+
+        Uses /port/nearby endpoint.
+        """
+        if not self._check_rate_limit():
+            return []
+
+        try:
+            url = (
+                f"{self.BASE_URL}/port/nearby"
+                f"?minLat={min_lat}&minLon={min_lon}"
+                f"&maxLat={max_lat}&maxLon={max_lon}"
+            )
+
+            data = self._make_request(url)
+
+            if not data:
+                return []
+
+            ports = data if isinstance(data, list) else data.get("data", [])
+            return ports
+
+        except Exception as e:
+            self._log(f"Error fetching nearby ports: {e}", level="warning")
+            return []
+
+    def _fetch_vessel_location_latest(self, mmsi: str) -> Optional[AISPosition]:
+        """
+        Fetch latest position for a vessel.
+
+        Uses /vessel/{mmsi}/location/latest endpoint.
         """
         try:
-            url = f"{self.BASE_URL}/vessels/{mmsi}/position"
+            url = f"{self.BASE_URL}/vessel/{mmsi}/location/latest"
             data = self._make_request(url)
 
             if not data:
                 return None
 
-            # Parse response (adjust based on actual API response format)
-            position = self._parse_position_response(mmsi, data)
-            return position
+            return self._parse_location_response(mmsi, data)
 
         except Exception as e:
             self._log(f"Error fetching position for {mmsi}: {e}", level="warning")
             return None
 
-    def _fetch_vessel_details(self, mmsi: str) -> Optional[AISVesselInfo]:
-        """Fetch vessel details from Marinesia API."""
+    def _fetch_vessel_profile(self, mmsi: str) -> Optional[AISVesselInfo]:
+        """
+        Fetch vessel profile.
+
+        Uses /vessel/{mmsi}/profile endpoint.
+        """
         try:
-            url = f"{self.BASE_URL}/vessels/{mmsi}"
+            url = f"{self.BASE_URL}/vessel/{mmsi}/profile"
             data = self._make_request(url)
 
             if not data:
                 return None
 
-            # Parse response
-            vessel = self._parse_vessel_response(mmsi, data)
+            vessel = self._parse_profile_response(mmsi, data)
 
             if vessel:
                 self._vessel_cache[mmsi] = vessel
@@ -179,11 +344,11 @@ class MarinesiaSource(AISSource):
             return vessel
 
         except Exception as e:
-            self._log(f"Error fetching vessel info for {mmsi}: {e}", level="warning")
+            self._log(f"Error fetching profile for {mmsi}: {e}", level="warning")
             return None
 
     def _make_request(self, url: str) -> Optional[Dict[str, Any]]:
-        """Make HTTP request with error handling."""
+        """Make HTTP request with authentication and error handling."""
         try:
             self._record_request()
 
@@ -194,6 +359,7 @@ class MarinesiaSource(AISSource):
 
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
+                headers["X-API-Key"] = self.api_key  # Some APIs use this
 
             req = urllib.request.Request(url, headers=headers)
 
@@ -208,6 +374,8 @@ class MarinesiaSource(AISSource):
             if e.code == 429:
                 self._set_status(SourceStatus.RATE_LIMITED)
                 self._log("Rate limited by API", level="warning")
+            elif e.code == 401:
+                self._log("Authentication failed - check API key", level="error")
             elif e.code == 404:
                 # Vessel not found - not an error
                 pass
@@ -224,41 +392,35 @@ class MarinesiaSource(AISSource):
             self._log(f"Request error: {e}", level="error")
             return None
 
-    def _parse_position_response(self, mmsi: str, data: Dict[str, Any]) -> Optional[AISPosition]:
+    def _parse_location_response(self, mmsi: str, data: Dict[str, Any]) -> Optional[AISPosition]:
         """
-        Parse Marinesia position response.
+        Parse Marinesia location response.
 
-        Adjust field names based on actual API response format.
+        Expected fields: latitude/lat, longitude/lon/lng, timestamp, speed/sog, course/cog, heading
         """
         try:
-            # Common field names (adjust as needed)
-            latitude = data.get("latitude", data.get("lat"))
-            longitude = data.get("longitude", data.get("lon", data.get("lng")))
+            # Handle nested location object
+            loc = data.get("location", data)
+
+            latitude = loc.get("latitude", loc.get("lat"))
+            longitude = loc.get("longitude", loc.get("lon", loc.get("lng")))
 
             if latitude is None or longitude is None:
                 return None
 
             # Parse timestamp
-            timestamp_str = data.get("timestamp", data.get("lastUpdate", data.get("time")))
-            if timestamp_str:
-                try:
-                    if isinstance(timestamp_str, (int, float)):
-                        timestamp = datetime.utcfromtimestamp(timestamp_str)
-                    else:
-                        timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-                except:
-                    timestamp = datetime.utcnow()
-            else:
-                timestamp = datetime.utcnow()
+            timestamp_str = loc.get("timestamp", loc.get("lastUpdate", loc.get("time")))
+            timestamp = self._parse_timestamp(timestamp_str)
 
             position = AISPosition(
                 mmsi=mmsi,
                 latitude=float(latitude),
                 longitude=float(longitude),
                 timestamp=timestamp,
-                speed_knots=data.get("speed", data.get("sog")),
-                course=data.get("course", data.get("cog")),
-                heading=data.get("heading", data.get("trueHeading")),
+                speed_knots=loc.get("speed", loc.get("sog")),
+                course=loc.get("course", loc.get("cog")),
+                heading=loc.get("heading", loc.get("trueHeading")),
+                nav_status=loc.get("navStatus", loc.get("navigationStatus")),
                 source="marinesia",
                 source_timestamp=datetime.utcnow()
             )
@@ -271,31 +433,52 @@ class MarinesiaSource(AISSource):
             return None
 
         except Exception as e:
-            self._log(f"Error parsing position: {e}", level="warning")
+            self._log(f"Error parsing location: {e}", level="warning")
             return None
 
-    def _parse_vessel_response(self, mmsi: str, data: Dict[str, Any]) -> Optional[AISVesselInfo]:
-        """Parse Marinesia vessel details response."""
+    def _parse_profile_response(self, mmsi: str, data: Dict[str, Any]) -> Optional[AISVesselInfo]:
+        """Parse Marinesia vessel profile response."""
         try:
-            ship_type = data.get("shipType", data.get("type"))
+            ship_type = data.get("shipType", data.get("type", data.get("vesselType")))
 
             return AISVesselInfo(
                 mmsi=mmsi,
                 imo=data.get("imo", data.get("imoNumber")),
-                name=data.get("name", data.get("shipName", "")).strip(),
+                name=data.get("name", data.get("shipName", data.get("vesselName", ""))).strip(),
                 callsign=data.get("callsign", data.get("callSign", "")).strip(),
                 ship_type=ship_type,
-                ship_type_text=get_ship_type_text(ship_type) if ship_type else None,
-                length=data.get("length", data.get("shipLength")),
+                ship_type_text=data.get("shipTypeText", get_ship_type_text(ship_type) if ship_type else None),
+                length=data.get("length", data.get("shipLength", data.get("loa"))),
                 width=data.get("width", data.get("beam")),
+                draught=data.get("draught", data.get("draft")),
                 flag_state=data.get("flag", data.get("flagState", data.get("country"))),
                 destination=data.get("destination", "").strip(),
+                eta=data.get("eta"),
                 source="marinesia"
             )
 
         except Exception as e:
-            self._log(f"Error parsing vessel info: {e}", level="warning")
+            self._log(f"Error parsing profile: {e}", level="warning")
             return None
+
+    def _parse_timestamp(self, timestamp_str: Any) -> datetime:
+        """Parse timestamp from various formats."""
+        if not timestamp_str:
+            return datetime.utcnow()
+
+        try:
+            if isinstance(timestamp_str, (int, float)):
+                # Unix timestamp
+                return datetime.utcfromtimestamp(timestamp_str)
+            elif isinstance(timestamp_str, str):
+                # ISO format
+                return datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            elif isinstance(timestamp_str, datetime):
+                return timestamp_str
+        except:
+            pass
+
+        return datetime.utcnow()
 
     def _check_rate_limit(self) -> bool:
         """Check if we can make another request."""
@@ -332,70 +515,51 @@ class MarinesiaSource(AISSource):
         self._position_cache[position.mmsi] = position
 
 
-# Alternative free vessel lookup APIs
-class VesselFinderFreeSource(AISSource):
-    """
-    VesselFinder Free Tier API (if available).
-
-    Only use if free tier access is detected.
-    Do NOT hard-depend on this source.
-    """
-
-    def __init__(self, api_key: Optional[str] = None):
-        super().__init__(name="vesselfinder_free", source_type=SourceType.REST)
-        self.api_key = api_key
-        self._available = False
-
-    def connect(self) -> bool:
-        """Check if free tier is available."""
-        # VesselFinder free tier is very limited
-        # Only enable if explicitly configured and key provided
-        if not self.api_key:
-            self._set_status(SourceStatus.DISCONNECTED)
-            return False
-
-        # In production, verify key works with free tier
-        self._available = True
-        self._set_status(SourceStatus.CONNECTED)
-        return True
-
-    def disconnect(self) -> None:
-        self._set_status(SourceStatus.DISCONNECTED)
-
-    def fetch_positions(self, mmsi_list: List[str]) -> List[AISPosition]:
-        """Fetch positions - limited in free tier."""
-        if not self._available:
-            return []
-
-        # VesselFinder free tier is very limited
-        # Implementation would go here if needed
-        return []
-
-
-# Example response formats for documentation
-MARINESIA_EXAMPLE_RESPONSE = {
+# Example API responses for documentation
+MARINESIA_LOCATION_RESPONSE = {
     "mmsi": "413000000",
-    "name": "ZHONG DA 79",
-    "imo": None,
-    "callsign": "",
-    "shipType": 70,
-    "flag": "CN",
     "latitude": 31.2456,
     "longitude": 121.489,
     "speed": 0.1,
     "course": 91,
     "heading": 90,
-    "timestamp": "2025-12-27T10:30:00Z",
-    "destination": "SHANGHAI"
+    "navStatus": 1,
+    "timestamp": "2025-12-27T10:30:00Z"
 }
 
-MARINESIA_NORMALIZED_OUTPUT = {
+MARINESIA_PROFILE_RESPONSE = {
     "mmsi": "413000000",
-    "lat": 31.2456,
-    "lon": 121.489,
-    "speed": 0.1,
-    "course": 91,
-    "heading": 90,
-    "timestamp": "2025-12-27T10:30:00+00:00",
-    "source": "marinesia"
+    "imo": "9123456",
+    "name": "ZHONG DA 79",
+    "callsign": "BXYZ",
+    "shipType": 70,
+    "shipTypeText": "Cargo",
+    "flag": "CN",
+    "length": 97,
+    "beam": 15,
+    "draught": 5.5,
+    "destination": "SHANGHAI",
+    "eta": "2025-12-28T08:00:00Z"
+}
+
+MARINESIA_NEARBY_RESPONSE = {
+    "data": [
+        {
+            "mmsi": "413000000",
+            "name": "VESSEL ONE",
+            "latitude": 31.25,
+            "longitude": 121.49,
+            "speed": 12.5,
+            "course": 180
+        },
+        {
+            "mmsi": "413000001",
+            "name": "VESSEL TWO",
+            "latitude": 31.30,
+            "longitude": 121.50,
+            "speed": 8.0,
+            "course": 90
+        }
+    ],
+    "total": 2
 }

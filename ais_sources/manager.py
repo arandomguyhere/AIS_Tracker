@@ -186,7 +186,7 @@ class AISSourceManager:
         # Marinesia
         mar_config = sources_config.get("marinesia", {})
         if mar_config.get("enabled", True):  # Default enabled as fallback
-            api_key = self._resolve_env_var(mar_config.get("api_key", ""))
+            api_key = self._resolve_env_var(mar_config.get("api_key", "${MARINESIA_API_KEY}"))
             rate_limit = mar_config.get("rate_limit", 30)
             self.add_source(MarinesiaSource(api_key=api_key, rate_limit=rate_limit))
 
@@ -549,6 +549,7 @@ class AISSourceManager:
 # Convenience function for quick setup
 def create_manager(
     aisstream_key: Optional[str] = None,
+    marinesia_key: Optional[str] = None,
     gfw_key: Optional[str] = None,
     enable_marinesia: bool = True
 ) -> AISSourceManager:
@@ -557,8 +558,9 @@ def create_manager(
 
     Args:
         aisstream_key: AISStream.io API key (primary source)
+        marinesia_key: Marinesia API key (optional, enhances rate limits)
         gfw_key: Global Fishing Watch API key (enrichment)
-        enable_marinesia: Enable Marinesia as fallback (no key required)
+        enable_marinesia: Enable Marinesia as fallback
 
     Returns:
         Configured AISSourceManager instance
@@ -571,7 +573,7 @@ def create_manager(
         manager.source_priority.append("aisstream")
 
     if enable_marinesia:
-        manager.add_source(MarinesiaSource())
+        manager.add_source(MarinesiaSource(api_key=marinesia_key))
         manager.source_priority.append("marinesia")
 
     if gfw_key:
@@ -594,6 +596,7 @@ EXAMPLE_CONFIG = {
         },
         "marinesia": {
             "enabled": True,
+            "api_key": "${MARINESIA_API_KEY}",
             "rate_limit": 30
         },
         "gfw": {

@@ -1682,6 +1682,14 @@
                     <div id="venezuela-display" style="padding:12px;color:#666">Click Analyze for dark fleet risk assessment</div>
                 </div>
 
+                <div class="panel-section" id="darkfleet-section">
+                    <div class="section-title">
+                        Global Dark Fleet
+                        <button onclick="loadDarkFleetRisk(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Analyze</button>
+                    </div>
+                    <div id="darkfleet-display" style="padding:12px;color:#666">Click Analyze for multi-region dark fleet assessment (Russia, Iran, Venezuela, China)</div>
+                </div>
+
                 ${v.intel_notes ? `
                 <div class="panel-section">
                     <div class="section-title">Intelligence</div>
@@ -2780,6 +2788,84 @@
                 </div>
                 <div style="background:${riskColor}15;border-left:3px solid ${riskColor};padding:8px;border-radius:0 4px 4px 0;margin-bottom:10px">
                     <div style="font-size:11px;color:${riskColor};font-weight:600;text-transform:uppercase">${level} RISK</div>
+                </div>
+                ${factors ? `<div style="margin-bottom:10px"><div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">RISK FACTORS</div>${factors}</div>` : ''}
+                ${alerts ? `<div><div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">ALERTS</div>${alerts}</div>` : ''}
+            `;
+        }
+
+        // Multi-region dark fleet risk
+        async function loadDarkFleetRisk(vesselId) {
+            const display = document.getElementById('darkfleet-display');
+            if (display) display.innerHTML = '<span style="color:#666">Analyzing global dark fleet risk...</span>';
+
+            try {
+                const result = await api(`/vessels/${vesselId}/dark-fleet`);
+                renderDarkFleetRisk(result);
+            } catch(e) {
+                if (display) display.innerHTML = '<span style="color:#e74c3c">Error analyzing dark fleet risk</span>';
+            }
+        }
+
+        function renderDarkFleetRisk(data) {
+            const display = document.getElementById('darkfleet-display');
+            if (!display) return;
+
+            const score = data.risk_score || 0;
+            const level = data.risk_level || 'unknown';
+            const activeRegions = data.active_regions || [];
+            const regionScores = data.region_scores || {};
+
+            // Color based on risk level
+            let riskColor = '#27ae60';
+            if (level === 'critical') riskColor = '#e74c3c';
+            else if (level === 'high') riskColor = '#e67e22';
+            else if (level === 'medium') riskColor = '#f39c12';
+            else if (level === 'low') riskColor = '#3498db';
+
+            // Region badges
+            const regionColors = {
+                'russia': '#1e3a8a',
+                'iran': '#7c3aed',
+                'venezuela': '#dc2626',
+                'china': '#ea580c'
+            };
+
+            const regionBadges = activeRegions.length ? activeRegions.map(r =>
+                `<span style="background:${regionColors[r] || '#666'};color:white;padding:2px 6px;border-radius:3px;font-size:9px;margin-right:4px">${r.toUpperCase()}</span>`
+            ).join('') : '<span style="color:#27ae60;font-size:10px">Not in monitored zones</span>';
+
+            // Risk factors
+            const factors = (data.risk_factors || []).map(f =>
+                `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:10px">
+                    <span style="flex:1;color:#333">${f.detail || f.factor}</span>
+                    <span style="color:${riskColor};font-weight:600;margin-left:8px">+${f.points}</span>
+                </div>`
+            ).join('');
+
+            // Alerts
+            const alerts = (data.alerts || []).map(a =>
+                `<div style="background:${a.severity === 'critical' ? '#e74c3c15' : '#f39c1215'};padding:6px;border-radius:4px;margin-bottom:4px;font-size:10px;border-left:3px solid ${a.severity === 'critical' ? '#e74c3c' : '#f39c12'}">
+                    <div style="font-weight:600;color:${a.severity === 'critical' ? '#e74c3c' : '#f39c12'}">${(a.alert_type || '').replace(/_/g, ' ').toUpperCase()}</div>
+                    <div style="color:#333;margin-top:2px">${a.description || ''}</div>
+                    ${a.region ? `<span style="background:${regionColors[a.region] || '#666'};color:white;padding:1px 4px;border-radius:2px;font-size:8px;margin-top:4px;display:inline-block">${a.region.toUpperCase()}</span>` : ''}
+                </div>`
+            ).join('');
+
+            display.innerHTML = `
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center;margin-bottom:10px">
+                    <div style="background:${riskColor}15;padding:10px;border-radius:6px">
+                        <div style="font-size:20px;font-weight:700;color:${riskColor}">${score}</div>
+                        <div style="font-size:9px;color:#666;text-transform:uppercase">Risk Score</div>
+                    </div>
+                    <div style="background:#f8f9fa;padding:10px;border-radius:6px">
+                        <div style="font-size:11px;font-weight:700;color:${riskColor};text-transform:uppercase">${level}</div>
+                        <div style="font-size:9px;color:#666;text-transform:uppercase">Risk Level</div>
+                    </div>
+                </div>
+                <div style="margin-bottom:10px">
+                    <div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">ACTIVE REGIONS</div>
+                    <div>${regionBadges}</div>
                 </div>
                 ${factors ? `<div style="margin-bottom:10px"><div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">RISK FACTORS</div>${factors}</div>` : ''}
                 ${alerts ? `<div><div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">ALERTS</div>${alerts}</div>` : ''}
