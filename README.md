@@ -68,7 +68,7 @@ This proof-of-concept tracker monitors vessels like **ZHONG DA 79** - a Chinese 
 - **UI confidence panel** - Visual confidence display in vessel details with refresh button
 
 ### Testing
-- **74 unit tests** - Comprehensive test coverage
+- **117 unit tests** - Comprehensive test coverage
 - **Test runner** - `python3 run_tests.py` to run all tests
 - **Module tests** - Database, API, SAR import, confidence scoring, intelligence
 
@@ -122,6 +122,7 @@ export AISHUB_USERNAME="your-aishub-username"
 | `sar_import.py` | SAR ship detection import and AIS correlation |
 | `confidence.py` | Vessel confidence scoring and deception detection |
 | `intelligence.py` | Formal intelligence output with analyst-visible breakdown |
+| `behavior.py` | Behavior detection: loitering, AIS gaps, STS transfers, dark fleet scoring |
 | `run_tests.py` | Test runner script |
 | `tests/` | Unit tests for database, API, SAR, confidence, and intelligence |
 
@@ -331,6 +332,84 @@ The confidence module (`confidence.py`) provides trust assessment for vessel dat
   "calculated_at": "2025-12-31T00:00:00Z"
 }
 ```
+
+## Behavior Detection & Dark Fleet Analysis
+
+The behavior detection module (`behavior.py`) provides vessel behavior analysis based on peer-reviewed research:
+
+### Detection Capabilities
+| Detection | Description | Reference |
+|-----------|-------------|-----------|
+| **AIS Gaps** | Identify vessels "going dark" | Global Fishing Watch (2024) |
+| **Loitering** | Detect stationary behavior indicating STS transfers | GFW Nature Study |
+| **Position Spoofing** | Flag impossible vessel movements | MDPI (2021) |
+| **STS Transfers** | Ship-to-ship transfer detection | arXiv (2024) |
+| **Dark Fleet Score** | Multi-factor risk assessment | MDPI (2023, 2025) |
+
+### Dark Fleet Risk Scoring
+Combines multiple indicators based on shadow fleet research:
+- **Flag of Convenience** (0-25 pts) - FOC and emerging shadow fleet flags
+- **Vessel Age** (0-20 pts) - Old vessels (>15-25 years) common in shadow fleets
+- **Ownership Opacity** (0-15 pts) - Shell companies, hidden ownership
+- **AIS Gaps** (0-20 pts) - Primary shadow fleet tactic
+- **Position Spoofing** (0-15 pts) - Intentional deception
+- **STS Transfers** (0-15 pts) - Sanctions evasion indicator
+- **Vessel Type** (0-5 pts) - Tankers higher risk
+
+### Risk Levels
+| Score | Level | Assessment |
+|-------|-------|------------|
+| 70-100 | Critical | High probability of shadow fleet involvement |
+| 50-69 | High | Multiple dark fleet indicators present |
+| 30-49 | Medium | Some concerning indicators detected |
+| 15-29 | Low | Minor risk factors present |
+| 0-14 | Minimal | No significant dark fleet indicators |
+
+### API Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/vessels/:id/behavior` | Full behavior analysis |
+| GET | `/api/mmsi/validate?mmsi=XXX` | MMSI validation |
+| GET | `/api/mmsi/country?mmsi=XXX` | Flag country lookup |
+
+### Academic References
+
+The behavior detection algorithms are based on peer-reviewed research:
+
+#### Foundational Studies
+1. **Global Fishing Watch Nature Study (2024)** - "Satellite mapping reveals global scope of hidden fishing activity"
+   - Finding: 75% of industrial fishing vessels not publicly tracked
+   - Method: SAR/GPS correlation with machine learning
+   - URL: https://globalfishingwatch.org/research/global-footprint-of-fisheries/
+
+2. **MPA Compliance Study (Science, July 2025)** - First demonstration that SAR can detect fishing in protected areas
+   - Finding: AIS missed 90% of SAR-based detections in MPAs
+   - URL: https://www.science.org/
+
+#### AIS Manipulation Research
+3. **"AIS Data Manipulation in the Illicit Global Oil Trade"** (MDPI JMSE, 2023)
+   - Focus: Russian sanctions evasion via tanker AIS spoofing
+   - URL: https://www.mdpi.com/2077-1312/12/1/6
+
+4. **"AIS Data Vulnerability Indicated by a Spoofing Case-Study"** (MDPI, 2021)
+   - Finding: Chinese GPS spoofing devices creating "crop circle" patterns
+   - URL: https://www.mdpi.com/2076-3417/11/11/5015
+
+#### Shadow Fleet Analysis
+5. **"Shadow Fleets: A Growing Challenge in Global Maritime Commerce"** (MDPI Applied Sciences, 2025)
+   - Framework: Distinguishes "dark fleets" from "gray fleets"
+   - Finding: Shadow fleets now ~10% of global seaborne oil transport
+   - URL: https://www.mdpi.com/2076-3417/15/12/6424
+
+#### STS Transfer Detection
+6. **"Automatic Detection of Dark Ship-to-Ship Transfers"** (arXiv, 2024)
+   - Method: SAR/AIS correlation for sanctions evasion detection
+   - URL: https://arxiv.org/html/2404.07607v1
+
+#### Operational Systems
+7. **"INSURE System for Ghana IUU Fishing Monitoring"** (MDPI Remote Sensing, 2019)
+   - Performance: 91% detection rate, 75% SAR detections had no AIS
+   - URL: https://www.mdpi.com/2072-4292/11/3/293
 
 ## Intelligence Output
 
