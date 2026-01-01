@@ -1666,6 +1666,22 @@
                     <div id="confidence-display" style="padding:12px;color:#666">Loading...</div>
                 </div>
 
+                <div class="panel-section" id="sanctions-section">
+                    <div class="section-title">
+                        Sanctions Check
+                        <button onclick="loadSanctions(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Check</button>
+                    </div>
+                    <div id="sanctions-display" style="padding:12px;color:#666">Click Check to verify sanctions status</div>
+                </div>
+
+                <div class="panel-section" id="venezuela-section">
+                    <div class="section-title">
+                        Venezuela Risk
+                        <button onclick="loadVenezuelaRisk(${v.id})" style="float:right;background:none;border:none;color:#3498db;cursor:pointer;font-size:11px">↻ Analyze</button>
+                    </div>
+                    <div id="venezuela-display" style="padding:12px;color:#666">Click Analyze for dark fleet risk assessment</div>
+                </div>
+
                 ${v.intel_notes ? `
                 <div class="panel-section">
                     <div class="section-title">Intelligence</div>
@@ -2662,6 +2678,111 @@
                         <span>SAR Corroboration</span><span>${(score.sar_corroboration * 100).toFixed(0)}%</span>
                     </div>
                 </div>
+            `;
+        }
+
+        // Sanctions check
+        async function loadSanctions(vesselId) {
+            const display = document.getElementById('sanctions-display');
+            if (display) display.innerHTML = '<span style="color:#666">Checking sanctions databases...</span>';
+
+            try {
+                const result = await api(`/vessels/${vesselId}/sanctions`);
+                renderSanctions(result);
+            } catch(e) {
+                if (display) display.innerHTML = '<span style="color:#e74c3c">Error checking sanctions</span>';
+            }
+        }
+
+        function renderSanctions(data) {
+            const display = document.getElementById('sanctions-display');
+            if (!display) return;
+
+            if (!data.listed) {
+                display.innerHTML = `
+                    <div style="background:#27ae6015;border-left:3px solid #27ae60;padding:10px;border-radius:0 4px 4px 0">
+                        <div style="font-size:12px;color:#27ae60;font-weight:600">✓ NOT SANCTIONED</div>
+                        <div style="font-size:11px;color:#666;margin-top:4px">No matches found in sanctions databases</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const authorities = data.authorities || [];
+            const authBadges = authorities.map(a =>
+                `<span style="background:#e74c3c;color:white;padding:2px 6px;border-radius:3px;font-size:10px;margin-right:4px">${a}</span>`
+            ).join('');
+
+            display.innerHTML = `
+                <div style="background:#e74c3c15;border-left:3px solid #e74c3c;padding:10px;border-radius:0 4px 4px 0;margin-bottom:10px">
+                    <div style="font-size:12px;color:#e74c3c;font-weight:600">⚠ SANCTIONED VESSEL</div>
+                    <div style="margin-top:6px">${authBadges}</div>
+                </div>
+                <div style="font-size:11px;color:#666">
+                    ${data.designation_date ? `<div style="margin-bottom:4px"><b>Designated:</b> ${data.designation_date}</div>` : ''}
+                    ${data.programs?.length ? `<div style="margin-bottom:4px"><b>Programs:</b> ${data.programs.join(', ')}</div>` : ''}
+                    ${data.confidence ? `<div><b>Confidence:</b> ${(data.confidence * 100).toFixed(0)}%</div>` : ''}
+                </div>
+            `;
+        }
+
+        // Venezuela dark fleet risk
+        async function loadVenezuelaRisk(vesselId) {
+            const display = document.getElementById('venezuela-display');
+            if (display) display.innerHTML = '<span style="color:#666">Analyzing Venezuela dark fleet risk...</span>';
+
+            try {
+                const result = await api(`/vessels/${vesselId}/venezuela`);
+                renderVenezuelaRisk(result);
+            } catch(e) {
+                if (display) display.innerHTML = '<span style="color:#e74c3c">Error analyzing Venezuela risk</span>';
+            }
+        }
+
+        function renderVenezuelaRisk(data) {
+            const display = document.getElementById('venezuela-display');
+            if (!display) return;
+
+            const score = data.risk_score || 0;
+            const level = data.risk_level || 'unknown';
+            const inZone = data.in_venezuela_zone;
+
+            // Color based on risk level
+            let riskColor = '#27ae60';
+            if (level === 'critical') riskColor = '#e74c3c';
+            else if (level === 'high') riskColor = '#e67e22';
+            else if (level === 'medium') riskColor = '#f39c12';
+            else if (level === 'low') riskColor = '#3498db';
+
+            const factors = (data.risk_factors || []).map(f =>
+                `<div style="display:flex;align-items:center;margin-bottom:4px;font-size:10px">
+                    <span style="color:${riskColor};margin-right:4px">●</span>
+                    <span style="flex:1;color:#333">${f}</span>
+                </div>`
+            ).join('');
+
+            const alerts = (data.alerts || []).map(a =>
+                `<div style="background:#f39c1215;padding:6px;border-radius:4px;margin-bottom:4px;font-size:10px">
+                    <span style="color:#f39c12;font-weight:600">${a.type || 'ALERT'}:</span> ${a.message || a}
+                </div>`
+            ).join('');
+
+            display.innerHTML = `
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center;margin-bottom:10px">
+                    <div style="background:${riskColor}15;padding:10px;border-radius:6px">
+                        <div style="font-size:20px;font-weight:700;color:${riskColor}">${score}</div>
+                        <div style="font-size:9px;color:#666;text-transform:uppercase">Risk Score</div>
+                    </div>
+                    <div style="background:${inZone ? '#e74c3c15' : '#27ae6015'};padding:10px;border-radius:6px">
+                        <div style="font-size:14px;font-weight:700;color:${inZone ? '#e74c3c' : '#27ae60'}">${inZone ? 'IN ZONE' : 'OUTSIDE'}</div>
+                        <div style="font-size:9px;color:#666;text-transform:uppercase">Venezuela Zone</div>
+                    </div>
+                </div>
+                <div style="background:${riskColor}15;border-left:3px solid ${riskColor};padding:8px;border-radius:0 4px 4px 0;margin-bottom:10px">
+                    <div style="font-size:11px;color:${riskColor};font-weight:600;text-transform:uppercase">${level} RISK</div>
+                </div>
+                ${factors ? `<div style="margin-bottom:10px"><div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">RISK FACTORS</div>${factors}</div>` : ''}
+                ${alerts ? `<div><div style="font-size:10px;color:#666;margin-bottom:6px;font-weight:600">ALERTS</div>${alerts}</div>` : ''}
             `;
         }
 
