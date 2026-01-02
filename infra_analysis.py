@@ -84,6 +84,7 @@ class InfrastructureAsset:
     operator: Optional[str] = None
     capacity: Optional[str] = None  # e.g., "1.2 Tbps" or "650 MW"
     notes: str = ""
+    region: Optional[str] = None  # e.g., "baltic_sea", "trans_pacific"
 
     def get_nearest_point(self, lat: float, lon: float) -> Tuple[float, float, float]:
         """
@@ -175,7 +176,8 @@ def load_infrastructure_from_json(filepath: str = None) -> List['InfrastructureA
             protection_radius_nm=cable.get('protection_radius_nm', 3.0),
             operator=cable.get('operator'),
             capacity=cable.get('capacity'),
-            notes=cable.get('notes', '')
+            notes=cable.get('notes', ''),
+            region=cable.get('region', 'unknown')
         ))
 
     # Load pipelines
@@ -191,7 +193,8 @@ def load_infrastructure_from_json(filepath: str = None) -> List['InfrastructureA
             protection_radius_nm=pipeline.get('protection_radius_nm', 5.0),
             operator=pipeline.get('operator'),
             capacity=pipeline.get('capacity'),
-            notes=pipeline.get('notes', '')
+            notes=pipeline.get('notes', ''),
+            region=pipeline.get('region', 'unknown')
         ))
 
     # Load wind farms (as point assets)
@@ -205,7 +208,8 @@ def load_infrastructure_from_json(filepath: str = None) -> List['InfrastructureA
             protection_radius_nm=farm.get('protection_radius_nm', 2.0),
             operator=farm.get('operator'),
             capacity=f"{farm.get('capacity_mw', 0)} MW ({farm.get('turbines', 0)} turbines)",
-            notes=farm.get('notes', '')
+            notes=farm.get('notes', ''),
+            region=farm.get('region', 'unknown')
         ))
 
     print(f"Loaded {len(assets)} infrastructure assets from {filepath}")
@@ -952,7 +956,12 @@ def _parse_timestamp(ts) -> datetime:
 # =============================================================================
 
 def get_baltic_infrastructure() -> List[dict]:
-    """Get list of all infrastructure for map display."""
+    """Get list of all infrastructure for map display (legacy name, returns global)."""
+    return get_global_infrastructure()
+
+
+def get_global_infrastructure() -> List[dict]:
+    """Get list of all global infrastructure for map display."""
     return [
         {
             "name": asset.name,
@@ -963,7 +972,8 @@ def get_baltic_infrastructure() -> List[dict]:
             "protection_radius_nm": asset.protection_radius_nm,
             "operator": asset.operator,
             "capacity": asset.capacity,
-            "notes": asset.notes
+            "notes": asset.notes,
+            "region": asset.region
         }
         for asset in get_all_infrastructure()
     ]
