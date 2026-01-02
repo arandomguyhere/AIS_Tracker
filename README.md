@@ -6,6 +6,8 @@
 
 Maritime gray zone monitoring system for tracking vessels suspected of civilian-to-military conversion, containerized weapons systems, and dual-use activity.
 
+"A free, open-source maritime intelligence fusion proof-of-concept that demonstrates capabilities typically found only in commercial systems."
+
 ## Live Demo
 
 **[View Static Demo on GitHub Pages](https://arandomguyhere.github.io/AIS_Tracker/)**
