@@ -4,9 +4,11 @@
 ![Python](https://img.shields.io/badge/python-3.11-blue)
 ![License](https://img.shields.io/badge/license-internal-red)
 
-Maritime gray zone monitoring system for tracking vessels suspected of civilian-to-military conversion, containerized weapons systems, and dual-use activity.
+What is this?
 
 "A free, open-source maritime intelligence fusion proof-of-concept that demonstrates capabilities typically found only in commercial systems."
+
+It's a maritime gray-zone monitoring system for tracking vessels suspected of civilian-to-military conversion, containerized weapons systems, and dual-use activity.
 
 ## Live Demo
 
