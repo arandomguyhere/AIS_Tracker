@@ -108,8 +108,9 @@ except ImportError:
 # Import infrastructure threat analysis module
 try:
     from infra_analysis import (
-        get_baltic_infrastructure, analyze_vessel_for_incident,
-        analyze_infrastructure_incident, BALTIC_INFRASTRUCTURE
+        get_baltic_infrastructure, get_global_infrastructure,
+        analyze_vessel_for_incident, analyze_infrastructure_incident,
+        BALTIC_INFRASTRUCTURE
     )
     INFRA_ANALYSIS_AVAILABLE = True
 except ImportError:
@@ -1838,15 +1839,31 @@ class TrackerHandler(SimpleHTTPRequestHandler):
 
         # ========== Infrastructure Analysis Endpoints ==========
 
-        elif path == '/api/infrastructure/baltic':
-            # Get Baltic Sea undersea infrastructure for map overlay
+        elif path == '/api/infrastructure' or path == '/api/infrastructure/all':
+            # Get all global undersea infrastructure for map overlay
             if not INFRA_ANALYSIS_AVAILABLE:
                 return self.send_json({'error': 'Infrastructure analysis module not available'}, 500)
-            infra = get_baltic_infrastructure()
+            infra = get_global_infrastructure()
+            # Group by region for stats
+            regions = {}
+            for item in infra:
+                r = item.get('region', 'unknown')
+                regions[r] = regions.get(r, 0) + 1
             return self.send_json({
                 'infrastructure': infra,
                 'count': len(infra),
-                'region': 'Baltic Sea'
+                'regions': regions
+            }, cache_seconds=3600)  # Cache for 1 hour
+
+        elif path == '/api/infrastructure/baltic':
+            # Legacy endpoint - now returns all infrastructure
+            if not INFRA_ANALYSIS_AVAILABLE:
+                return self.send_json({'error': 'Infrastructure analysis module not available'}, 500)
+            infra = get_global_infrastructure()
+            return self.send_json({
+                'infrastructure': infra,
+                'count': len(infra),
+                'region': 'Global'  # Updated from 'Baltic Sea'
             }, cache_seconds=3600)  # Cache for 1 hour
 
         elif path.startswith('/api/vessels/') and path.endswith('/infra-analysis'):
