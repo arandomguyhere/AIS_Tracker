@@ -1393,6 +1393,9 @@
                 clearTimeout(moveTimeout);
                 moveTimeout = setTimeout(renderLiveVessels, 100);
 
+                // Re-render infrastructure for viewport culling (debounced)
+                debouncedRenderInfrastructure();
+
                 // Auto-update bounding box silently (500ms debounce, with padding)
                 if (autoUpdateBounds) {
                     clearTimeout(boundingBoxTimeout);
@@ -3396,6 +3399,8 @@
             if (!showInfrastructure || !balticInfrastructure.length) return;
 
             const layers = [];
+            const zoom = map.getZoom();
+            const bounds = map.getBounds();
 
             // Infrastructure type colors
             const typeColors = {
@@ -3406,15 +3411,22 @@
                 'fiber_optic': '#9b59b6'      // Purple
             };
 
+            // Performance: only render assets in viewport (with padding)
+            const paddedBounds = bounds.pad(0.2);
+
             balticInfrastructure.forEach(asset => {
                 const color = typeColors[asset.type] || '#95a5a6';
                 const waypoints = asset.waypoints || [];
 
                 if (waypoints.length > 1) {
+                    // Check if any waypoint is in viewport
+                    const inView = waypoints.some(wp => paddedBounds.contains([wp[0], wp[1]]));
+                    if (!inView) return; // Skip assets outside viewport
+
                     // Draw cable/pipeline route as a line
                     const line = L.polyline(waypoints, {
                         color: color,
-                        weight: 3,
+                        weight: zoom >= 6 ? 3 : 2,
                         opacity: 0.7,
                         dashArray: asset.type.includes('cable') ? null : '10, 5'
                     });
@@ -3432,43 +3444,51 @@
                     `);
                     layers.push(line);
 
-                    // Draw protection zone circles at key points
-                    const midIdx = Math.floor(waypoints.length / 2);
-                    const midpoint = waypoints[midIdx];
-                    const circle = L.circle([midpoint[0], midpoint[1]], {
-                        radius: asset.protection_radius_nm * 1852, // nm to meters
-                        color: color,
-                        fillColor: color,
-                        fillOpacity: 0.1,
-                        weight: 1,
-                        dashArray: '5, 5'
-                    });
-                    layers.push(circle);
+                    // Only show protection zones and labels at higher zoom (performance)
+                    if (zoom >= 7) {
+                        const midIdx = Math.floor(waypoints.length / 2);
+                        const midpoint = waypoints[midIdx];
 
-                    // Add text label for the infrastructure line
-                    const labelIcon = L.divIcon({
-                        className: 'infra-label',
-                        html: `<div style="
-                            background: ${color}dd;
-                            color: white;
-                            padding: 2px 6px;
-                            border-radius: 3px;
-                            font-size: 10px;
-                            font-weight: 600;
-                            white-space: nowrap;
-                            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-                            border: 1px solid ${color};
-                        ">${asset.name}</div>`,
-                        iconSize: [100, 20],
-                        iconAnchor: [50, 10]
-                    });
-                    const label = L.marker([midpoint[0], midpoint[1]], {
-                        icon: labelIcon,
-                        interactive: false
-                    });
-                    layers.push(label);
+                        // Protection zone circle
+                        const circle = L.circle([midpoint[0], midpoint[1]], {
+                            radius: asset.protection_radius_nm * 1852,
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: 0.1,
+                            weight: 1,
+                            dashArray: '5, 5'
+                        });
+                        layers.push(circle);
+
+                        // Text label only at zoom 8+
+                        if (zoom >= 8) {
+                            const labelIcon = L.divIcon({
+                                className: 'infra-label',
+                                html: `<div style="
+                                    background: ${color}dd;
+                                    color: white;
+                                    padding: 2px 6px;
+                                    border-radius: 3px;
+                                    font-size: 10px;
+                                    font-weight: 600;
+                                    white-space: nowrap;
+                                    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+                                    border: 1px solid ${color};
+                                ">${asset.name}</div>`,
+                                iconSize: [100, 20],
+                                iconAnchor: [50, 10]
+                            });
+                            const label = L.marker([midpoint[0], midpoint[1]], {
+                                icon: labelIcon,
+                                interactive: false
+                            });
+                            layers.push(label);
+                        }
+                    }
                 } else if (asset.latitude && asset.longitude) {
-                    // Point infrastructure
+                    // Point infrastructure - check if in view
+                    if (!paddedBounds.contains([asset.latitude, asset.longitude])) return;
+
                     const marker = L.circleMarker([asset.latitude, asset.longitude], {
                         radius: 8,
                         color: color,
@@ -3483,6 +3503,13 @@
             if (layers.length) {
                 infrastructureLayer = L.layerGroup(layers).addTo(map);
             }
+        }
+
+        // Debounced render for map movement
+        let infraRenderTimeout = null;
+        function debouncedRenderInfrastructure() {
+            if (infraRenderTimeout) clearTimeout(infraRenderTimeout);
+            infraRenderTimeout = setTimeout(renderInfrastructure, 150);
         }
 
         function toggleInfrastructure() {
