@@ -3503,9 +3503,18 @@
 
             try {
                 const result = await api(`/vessels/${vesselId}/infra-analysis?days=7`);
+                if (result.error) {
+                    display.innerHTML = `<span style="color:#999">${result.error}</span>`;
+                    return;
+                }
                 renderInfraAnalysis(result);
             } catch(e) {
-                display.innerHTML = '<span style="color:#e74c3c">Error running analysis</span>';
+                // Check if it's a "no track data" error
+                if (e.message?.includes('track') || e.message?.includes('404')) {
+                    display.innerHTML = '<span style="color:#999">No position history for analysis</span>';
+                } else {
+                    display.innerHTML = '<span style="color:#e74c3c">Error: ' + (e.message || 'Analysis failed') + '</span>';
+                }
             }
         }
 

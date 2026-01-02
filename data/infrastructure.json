@@ -20,6 +20,60 @@
         "min_lon": 9.0,
         "max_lon": 30.0
       }
+    },
+    "asia_pacific": {
+      "name": "Asia-Pacific",
+      "bounds": {
+        "min_lat": -10.0,
+        "max_lat": 45.0,
+        "min_lon": 100.0,
+        "max_lon": 180.0
+      }
+    },
+    "taiwan_strait": {
+      "name": "Taiwan Strait",
+      "bounds": {
+        "min_lat": 22.0,
+        "max_lat": 26.0,
+        "min_lon": 117.0,
+        "max_lon": 122.0
+      }
+    },
+    "south_china_sea": {
+      "name": "South China Sea",
+      "bounds": {
+        "min_lat": 3.0,
+        "max_lat": 23.0,
+        "min_lon": 105.0,
+        "max_lon": 121.0
+      }
+    },
+    "north_atlantic": {
+      "name": "North Atlantic",
+      "bounds": {
+        "min_lat": 30.0,
+        "max_lat": 60.0,
+        "min_lon": -80.0,
+        "max_lon": 0.0
+      }
+    },
+    "gulf_of_mexico": {
+      "name": "Gulf of Mexico",
+      "bounds": {
+        "min_lat": 18.0,
+        "max_lat": 31.0,
+        "min_lon": -98.0,
+        "max_lon": -80.0
+      }
+    },
+    "trans_pacific": {
+      "name": "Trans-Pacific",
+      "bounds": {
+        "min_lat": 10.0,
+        "max_lat": 55.0,
+        "min_lon": -180.0,
+        "max_lon": 180.0
+      }
     }
   },
   "cables": [
@@ -594,6 +648,470 @@
       "rfs_year": 2004,
       "protection_radius_nm": 3.0,
       "notes": "Sweden-Latvia submarine fiber cable via Gotland."
+    },
+    {
+      "id": "trans_pacific_tpn",
+      "name": "Trans-Pacific Network (TPN)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "trans_pacific",
+      "waypoints": [
+        [35.45, 139.75],
+        [40.00, 160.00],
+        [45.00, -180.00],
+        [45.00, -160.00],
+        [42.00, -130.00],
+        [37.78, -122.42]
+      ],
+      "landing_points": [
+        {"name": "Tokyo", "country": "JP", "lat": 35.45, "lon": 139.75},
+        {"name": "San Francisco", "country": "US", "lat": 37.78, "lon": -122.42}
+      ],
+      "length_km": 9600,
+      "operator": "Various",
+      "capacity": "Multi-Tbps",
+      "rfs_year": 1996,
+      "protection_radius_nm": 5.0,
+      "notes": "Major Trans-Pacific route connecting Japan to US West Coast."
+    },
+    {
+      "id": "faster",
+      "name": "FASTER",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "trans_pacific",
+      "waypoints": [
+        [35.00, 136.90],
+        [38.00, 155.00],
+        [42.00, 175.00],
+        [45.00, -165.00],
+        [43.00, -140.00],
+        [38.00, -123.00]
+      ],
+      "landing_points": [
+        {"name": "Chikura", "country": "JP", "lat": 35.00, "lon": 136.90},
+        {"name": "Shima", "country": "JP", "lat": 34.32, "lon": 136.85},
+        {"name": "Oregon", "country": "US", "lat": 43.00, "lon": -124.00}
+      ],
+      "length_km": 11629,
+      "operator": "Google/KDDI/others",
+      "capacity": "60 Tbps",
+      "rfs_year": 2016,
+      "protection_radius_nm": 5.0,
+      "notes": "Google consortium cable. Major US-Japan route."
+    },
+    {
+      "id": "plcn",
+      "name": "Pacific Light Cable Network (PLCN)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "trans_pacific",
+      "waypoints": [
+        [22.28, 114.15],
+        [20.00, 130.00],
+        [25.00, 155.00],
+        [30.00, 175.00],
+        [35.00, -160.00],
+        [34.05, -118.25]
+      ],
+      "landing_points": [
+        {"name": "Hong Kong", "country": "HK", "lat": 22.28, "lon": 114.15},
+        {"name": "Los Angeles", "country": "US", "lat": 34.05, "lon": -118.25}
+      ],
+      "length_km": 12800,
+      "operator": "Google/Facebook",
+      "capacity": "144 Tbps design",
+      "rfs_year": 2022,
+      "protection_radius_nm": 5.0,
+      "notes": "Hong Kong to LA. Originally planned for China landing, rerouted due to security concerns."
+    },
+    {
+      "id": "ncp",
+      "name": "New Cross Pacific (NCP)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "trans_pacific",
+      "waypoints": [
+        [31.23, 121.47],
+        [30.00, 135.00],
+        [35.00, 155.00],
+        [40.00, 175.00],
+        [42.00, -160.00],
+        [45.52, -122.68]
+      ],
+      "landing_points": [
+        {"name": "Shanghai", "country": "CN", "lat": 31.23, "lon": 121.47},
+        {"name": "Portland", "country": "US", "lat": 45.52, "lon": -122.68}
+      ],
+      "length_km": 13600,
+      "operator": "China Telecom/Microsoft/others",
+      "capacity": "80 Tbps",
+      "rfs_year": 2018,
+      "protection_radius_nm": 5.0,
+      "notes": "Direct China-US cable via northern Pacific route."
+    },
+    {
+      "id": "aag",
+      "name": "Asia-America Gateway (AAG)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "asia_pacific",
+      "waypoints": [
+        [22.28, 114.15],
+        [14.60, 121.00],
+        [1.35, 103.82],
+        [10.00, 90.00],
+        [15.00, 50.00],
+        [21.31, -157.86]
+      ],
+      "landing_points": [
+        {"name": "Hong Kong", "country": "HK", "lat": 22.28, "lon": 114.15},
+        {"name": "Manila", "country": "PH", "lat": 14.60, "lon": 121.00},
+        {"name": "Singapore", "country": "SG", "lat": 1.35, "lon": 103.82},
+        {"name": "Hawaii", "country": "US", "lat": 21.31, "lon": -157.86}
+      ],
+      "length_km": 20000,
+      "operator": "AT&T/Verizon/others",
+      "capacity": "2.88 Tbps",
+      "rfs_year": 2009,
+      "protection_radius_nm": 5.0,
+      "notes": "Major Asia to US via Hawaii route. Frequent cable cuts reported."
+    },
+    {
+      "id": "apg",
+      "name": "Asia Pacific Gateway (APG)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "asia_pacific",
+      "waypoints": [
+        [22.28, 114.15],
+        [25.03, 121.57],
+        [35.68, 139.75],
+        [14.60, 121.00],
+        [10.82, 106.63],
+        [1.35, 103.82]
+      ],
+      "landing_points": [
+        {"name": "Hong Kong", "country": "HK", "lat": 22.28, "lon": 114.15},
+        {"name": "Taiwan", "country": "TW", "lat": 25.03, "lon": 121.57},
+        {"name": "Japan", "country": "JP", "lat": 35.68, "lon": 139.75},
+        {"name": "Singapore", "country": "SG", "lat": 1.35, "lon": 103.82}
+      ],
+      "length_km": 10400,
+      "operator": "NTT/China Telecom/others",
+      "capacity": "54.8 Tbps",
+      "rfs_year": 2016,
+      "protection_radius_nm": 5.0,
+      "notes": "Major intra-Asia cable connecting East and Southeast Asia."
+    },
+    {
+      "id": "cross_strait_1",
+      "name": "Cross-Strait Cable 1 (TSE-1)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "taiwan_strait",
+      "waypoints": [
+        [25.03, 121.57],
+        [24.50, 120.00],
+        [24.45, 118.08]
+      ],
+      "landing_points": [
+        {"name": "Taipei (Tamsui)", "country": "TW", "lat": 25.03, "lon": 121.57},
+        {"name": "Fuzhou", "country": "CN", "lat": 24.45, "lon": 118.08}
+      ],
+      "length_km": 270,
+      "operator": "Chunghwa Telecom/China Telecom",
+      "capacity": "High capacity",
+      "rfs_year": 2013,
+      "protection_radius_nm": 5.0,
+      "notes": "Taiwan Strait cable. Critical cross-strait communications. Vulnerable to conflict."
+    },
+    {
+      "id": "cross_strait_2",
+      "name": "Cross-Strait Cable 2 (TSE-2)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "taiwan_strait",
+      "waypoints": [
+        [25.13, 121.74],
+        [24.80, 120.50],
+        [24.45, 118.08]
+      ],
+      "landing_points": [
+        {"name": "Taipei", "country": "TW", "lat": 25.13, "lon": 121.74},
+        {"name": "Fuzhou", "country": "CN", "lat": 24.45, "lon": 118.08}
+      ],
+      "length_km": 280,
+      "operator": "FET/China Telecom",
+      "capacity": "High capacity",
+      "rfs_year": 2014,
+      "protection_radius_nm": 5.0,
+      "notes": "Second Taiwan-China direct cable. Strategic importance for cross-strait relations."
+    },
+    {
+      "id": "matsu_taiwan",
+      "name": "Taiwan-Matsu Cable",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "damaged",
+      "region": "taiwan_strait",
+      "waypoints": [
+        [25.03, 121.57],
+        [26.16, 119.95]
+      ],
+      "landing_points": [
+        {"name": "Taiwan", "country": "TW", "lat": 25.03, "lon": 121.57},
+        {"name": "Matsu Islands", "country": "TW", "lat": 26.16, "lon": 119.95}
+      ],
+      "length_km": 200,
+      "operator": "Chunghwa Telecom",
+      "capacity": "Limited",
+      "rfs_year": 2017,
+      "protection_radius_nm": 5.0,
+      "notes": "Cable to Taiwan-controlled Matsu Islands. Cut by Chinese vessels Feb 2023.",
+      "incidents": [
+        {"date": "2023-02-02", "type": "damage", "vessel": "Chinese fishing/sand vessel", "description": "Cable cut near Matsu, suspected intentional"}
+      ]
+    },
+    {
+      "id": "seahorse",
+      "name": "South-East Asia Japan Cable (SJC)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "south_china_sea",
+      "waypoints": [
+        [1.35, 103.82],
+        [10.82, 106.63],
+        [22.28, 114.15],
+        [35.68, 139.75]
+      ],
+      "landing_points": [
+        {"name": "Singapore", "country": "SG", "lat": 1.35, "lon": 103.82},
+        {"name": "Ho Chi Minh City", "country": "VN", "lat": 10.82, "lon": 106.63},
+        {"name": "Hong Kong", "country": "HK", "lat": 22.28, "lon": 114.15},
+        {"name": "Japan", "country": "JP", "lat": 35.68, "lon": 139.75}
+      ],
+      "length_km": 8900,
+      "operator": "Google/Facebook/PLDT",
+      "capacity": "28 Tbps",
+      "rfs_year": 2013,
+      "protection_radius_nm": 5.0,
+      "notes": "Major cable traversing South China Sea. Subject to territorial disputes."
+    },
+    {
+      "id": "smw3",
+      "name": "SEA-ME-WE 3",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "asia_pacific",
+      "waypoints": [
+        [50.80, 0.00],
+        [36.00, 5.00],
+        [32.00, 35.00],
+        [12.00, 45.00],
+        [6.00, 80.00],
+        [1.35, 103.82],
+        [22.28, 114.15],
+        [35.68, 139.75]
+      ],
+      "landing_points": [
+        {"name": "UK", "country": "GB", "lat": 50.80, "lon": 0.00},
+        {"name": "Singapore", "country": "SG", "lat": 1.35, "lon": 103.82},
+        {"name": "Hong Kong", "country": "HK", "lat": 22.28, "lon": 114.15},
+        {"name": "Japan", "country": "JP", "lat": 35.68, "lon": 139.75}
+      ],
+      "length_km": 39000,
+      "operator": "Singtel/others (39 countries)",
+      "capacity": "960 Gbps",
+      "rfs_year": 1999,
+      "protection_radius_nm": 5.0,
+      "notes": "One of the longest cables in the world. Europe to Asia backbone."
+    },
+    {
+      "id": "marea",
+      "name": "MAREA",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "north_atlantic",
+      "waypoints": [
+        [39.36, -9.39],
+        [40.00, -30.00],
+        [40.00, -50.00],
+        [39.00, -74.00]
+      ],
+      "landing_points": [
+        {"name": "Bilbao", "country": "ES", "lat": 43.26, "lon": -2.93},
+        {"name": "Virginia Beach", "country": "US", "lat": 36.85, "lon": -75.98}
+      ],
+      "length_km": 6600,
+      "operator": "Microsoft/Meta",
+      "capacity": "200 Tbps",
+      "rfs_year": 2017,
+      "protection_radius_nm": 5.0,
+      "notes": "Highest capacity transatlantic cable. Microsoft/Facebook consortium."
+    },
+    {
+      "id": "dunant",
+      "name": "Dunant",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "north_atlantic",
+      "waypoints": [
+        [36.85, -75.98],
+        [40.00, -50.00],
+        [45.00, -30.00],
+        [48.38, -4.50]
+      ],
+      "landing_points": [
+        {"name": "Virginia Beach", "country": "US", "lat": 36.85, "lon": -75.98},
+        {"name": "Saint-Hilaire-de-Riez", "country": "FR", "lat": 46.72, "lon": -1.95}
+      ],
+      "length_km": 6400,
+      "operator": "Google",
+      "capacity": "250 Tbps",
+      "rfs_year": 2020,
+      "protection_radius_nm": 5.0,
+      "notes": "Google-owned transatlantic cable. Named after Henry Dunant (Red Cross founder)."
+    },
+    {
+      "id": "grace_hopper",
+      "name": "Grace Hopper",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "north_atlantic",
+      "waypoints": [
+        [40.75, -74.00],
+        [45.00, -50.00],
+        [50.00, -20.00],
+        [51.50, -0.13],
+        [43.26, -2.93]
+      ],
+      "landing_points": [
+        {"name": "New York", "country": "US", "lat": 40.75, "lon": -74.00},
+        {"name": "Bude (Cornwall)", "country": "GB", "lat": 50.83, "lon": -4.55},
+        {"name": "Bilbao", "country": "ES", "lat": 43.26, "lon": -2.93}
+      ],
+      "length_km": 6234,
+      "operator": "Google",
+      "capacity": "350 Tbps",
+      "rfs_year": 2022,
+      "protection_radius_nm": 5.0,
+      "notes": "Google cable named after computer science pioneer. Uses 16 fiber pairs."
+    },
+    {
+      "id": "havfrue",
+      "name": "Havfrue/AEC-2",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "north_atlantic",
+      "waypoints": [
+        [40.75, -74.00],
+        [45.00, -45.00],
+        [55.00, -20.00],
+        [55.68, 12.57]
+      ],
+      "landing_points": [
+        {"name": "New Jersey", "country": "US", "lat": 40.75, "lon": -74.00},
+        {"name": "Blaabjerg (Denmark)", "country": "DK", "lat": 55.50, "lon": 8.15},
+        {"name": "Norway", "country": "NO", "lat": 58.97, "lon": 5.73}
+      ],
+      "length_km": 7200,
+      "operator": "Google/Facebook/Aqua Comms",
+      "capacity": "108 Tbps",
+      "rfs_year": 2020,
+      "protection_radius_nm": 5.0,
+      "notes": "US to Nordic route. Havfrue means mermaid in Danish."
+    },
+    {
+      "id": "amitie",
+      "name": "Amitié",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "north_atlantic",
+      "waypoints": [
+        [41.20, -70.90],
+        [45.00, -45.00],
+        [48.00, -20.00],
+        [50.83, -4.55],
+        [48.38, -4.50]
+      ],
+      "landing_points": [
+        {"name": "Massachusetts", "country": "US", "lat": 41.20, "lon": -70.90},
+        {"name": "Bude (Cornwall)", "country": "GB", "lat": 50.83, "lon": -4.55},
+        {"name": "Le Porge (France)", "country": "FR", "lat": 44.87, "lon": -1.10}
+      ],
+      "length_km": 6234,
+      "operator": "Meta/Microsoft/Aqua Comms",
+      "capacity": "400 Tbps design",
+      "rfs_year": 2023,
+      "protection_radius_nm": 5.0,
+      "notes": "Latest transatlantic cable. Amitié means friendship in French."
+    },
+    {
+      "id": "tat14",
+      "name": "TAT-14",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "decommissioned",
+      "region": "north_atlantic",
+      "waypoints": [
+        [40.75, -74.00],
+        [45.00, -45.00],
+        [50.00, -20.00],
+        [51.00, -5.00],
+        [55.00, 8.00]
+      ],
+      "landing_points": [
+        {"name": "New Jersey (Tuckerton)", "country": "US", "lat": 39.60, "lon": -74.34},
+        {"name": "Bude", "country": "GB", "lat": 50.83, "lon": -4.55},
+        {"name": "Norden", "country": "DE", "lat": 53.60, "lon": 7.21},
+        {"name": "Blaabjerg", "country": "DK", "lat": 55.50, "lon": 8.15}
+      ],
+      "length_km": 15428,
+      "operator": "AT&T/others",
+      "capacity": "3.2 Tbps",
+      "rfs_year": 2001,
+      "protection_radius_nm": 5.0,
+      "notes": "Legacy transatlantic cable. Decommissioned 2020 but route still relevant."
+    },
+    {
+      "id": "sxs",
+      "name": "SXS (Seabras-1)",
+      "type": "telecom",
+      "subtype": "fiber_optic",
+      "status": "operational",
+      "region": "north_atlantic",
+      "waypoints": [
+        [40.75, -74.00],
+        [30.00, -45.00],
+        [10.00, -35.00],
+        [-22.90, -43.17]
+      ],
+      "landing_points": [
+        {"name": "New York", "country": "US", "lat": 40.75, "lon": -74.00},
+        {"name": "São Paulo", "country": "BR", "lat": -22.90, "lon": -43.17}
+      ],
+      "length_km": 10500,
+      "operator": "Seaborn Networks",
+      "capacity": "72 Tbps",
+      "rfs_year": 2017,
+      "protection_radius_nm": 5.0,
+      "notes": "First direct US-Brazil cable in 15 years."
     }
   ],
   "pipelines": [
@@ -711,6 +1229,126 @@
       "rfs_year": 1999,
       "protection_radius_nm": 5.0,
       "notes": "Norway-Germany gas pipeline."
+    },
+    {
+      "id": "mars_pipeline",
+      "name": "Mars Oil Pipeline",
+      "type": "oil",
+      "status": "operational",
+      "region": "gulf_of_mexico",
+      "waypoints": [
+        [28.85, -88.17],
+        [29.00, -89.00],
+        [29.50, -89.50],
+        [29.90, -90.05]
+      ],
+      "landing_points": [
+        {"name": "Mars Platform", "country": "US", "lat": 28.85, "lon": -88.17},
+        {"name": "Clovelly (Louisiana)", "country": "US", "lat": 29.90, "lon": -90.05}
+      ],
+      "length_km": 215,
+      "diameter_mm": 610,
+      "operator": "Shell",
+      "capacity": "600,000 bpd",
+      "rfs_year": 1996,
+      "protection_radius_nm": 3.0,
+      "notes": "Major deepwater oil pipeline from Mars platform to Louisiana shore."
+    },
+    {
+      "id": "caesar_pipeline",
+      "name": "Caesar Oil Pipeline",
+      "type": "oil",
+      "status": "operational",
+      "region": "gulf_of_mexico",
+      "waypoints": [
+        [28.53, -89.10],
+        [28.80, -89.30],
+        [29.20, -89.60],
+        [29.50, -89.80]
+      ],
+      "landing_points": [
+        {"name": "Caesar/Tonga Platform", "country": "US", "lat": 28.53, "lon": -89.10},
+        {"name": "West Delta (Louisiana)", "country": "US", "lat": 29.50, "lon": -89.80}
+      ],
+      "length_km": 170,
+      "diameter_mm": 508,
+      "operator": "Anadarko",
+      "capacity": "200,000 bpd",
+      "rfs_year": 2012,
+      "protection_radius_nm": 3.0,
+      "notes": "Ultra-deepwater oil export pipeline."
+    },
+    {
+      "id": "mardi_gras",
+      "name": "Mardi Gras Transportation System",
+      "type": "oil",
+      "status": "operational",
+      "region": "gulf_of_mexico",
+      "waypoints": [
+        [27.80, -90.50],
+        [28.50, -90.00],
+        [29.20, -89.50],
+        [29.76, -90.00]
+      ],
+      "landing_points": [
+        {"name": "Thunder Horse", "country": "US", "lat": 27.80, "lon": -90.50},
+        {"name": "Fourchon (Louisiana)", "country": "US", "lat": 29.76, "lon": -90.00}
+      ],
+      "length_km": 250,
+      "diameter_mm": 762,
+      "operator": "BP",
+      "capacity": "500,000 bpd",
+      "rfs_year": 2007,
+      "protection_radius_nm": 3.0,
+      "notes": "BP deepwater pipeline system. Serves Thunder Horse and Atlantis platforms."
+    },
+    {
+      "id": "gulfstream",
+      "name": "Gulfstream Natural Gas",
+      "type": "gas",
+      "status": "operational",
+      "region": "gulf_of_mexico",
+      "waypoints": [
+        [29.50, -85.00],
+        [28.00, -84.50],
+        [27.00, -83.50],
+        [27.76, -82.63]
+      ],
+      "landing_points": [
+        {"name": "Mobile Bay (Alabama)", "country": "US", "lat": 29.50, "lon": -85.00},
+        {"name": "Tampa Bay (Florida)", "country": "US", "lat": 27.76, "lon": -82.63}
+      ],
+      "length_km": 745,
+      "diameter_mm": 914,
+      "operator": "Williams/Enbridge",
+      "capacity": "1.3 bcf/day",
+      "rfs_year": 2002,
+      "protection_radius_nm": 5.0,
+      "notes": "Major offshore gas pipeline crossing Gulf of Mexico to Florida."
+    },
+    {
+      "id": "discovery_gas",
+      "name": "Discovery Gas Pipeline",
+      "type": "gas",
+      "status": "operational",
+      "region": "gulf_of_mexico",
+      "waypoints": [
+        [28.20, -89.50],
+        [28.80, -89.30],
+        [29.30, -89.00],
+        [29.50, -89.10]
+      ],
+      "landing_points": [
+        {"name": "Deepwater Hub", "country": "US", "lat": 28.20, "lon": -89.50},
+        {"name": "Larose (Louisiana)", "country": "US", "lat": 29.50, "lon": -89.10}
+      ],
+      "length_km": 180,
+      "diameter_mm": 762,
+      "operator": "Williams",
+      "capacity": "1.2 bcf/day",
+      "rfs_year": 1997,
+      "protection_radius_nm": 3.0,
+      "notes": "Deepwater gas gathering and transportation system."
     }
   ],
   "wind_farms": [
